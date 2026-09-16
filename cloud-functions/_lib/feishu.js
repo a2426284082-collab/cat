@@ -44,17 +44,17 @@ function stringValue(value) {
   return String(value).trim();
 }
 
-function videoUrl(value) {
-  // Feishu link fields may be plain text or rich-text objects containing a link.
-  const candidate = Array.isArray(value) ? value.find(item => item?.link || item?.text || typeof item === 'string') : value;
-  const raw = typeof candidate === 'string' ? candidate : candidate?.link ?? candidate?.url ?? candidate?.text;
-  if (typeof raw !== 'string' || raw.length > 2048) return null;
-  try {
-    const url = new URL(raw.trim());
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
-  } catch {
-    return null;
-  }
+const VIDEO_TYPES = { mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm' };
+
+function videoAttachments(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(item => {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    const extension = name.split('.').pop()?.toLowerCase();
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(item?.file_token ?? '') || !VIDEO_TYPES[extension]) return [];
+    const displayName = name.length > 120 ? `${name.slice(0, 110)}.${extension}` : name;
+    return [{ name: displayName, url: `/api/public-videos/${encodeURIComponent(item.file_token)}` }];
+  });
 }
 
 function publicCat(record) {
@@ -74,7 +74,7 @@ function publicCat(record) {
     age: stringValue(fields['年龄']),
     price: Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : null,
     image: image ? `/api/public-images/${encodeURIComponent(image.file_token)}` : null,
-    video: videoUrl(fields['视频链接']),
+    videos: videoAttachments(fields['视频']),
   };
 }
 
@@ -94,7 +94,12 @@ async function loadCatalog(env) {
     if (data.has_more && !pageToken) throw new Error('pagination token missing');
   } while (pageToken);
   const cats = items.map(publicCat).filter(Boolean);
-  return { cats, imageTokens: new Set(cats.map(cat => cat.image?.split('/').pop()).filter(Boolean)), updatedAt: new Date().toISOString() };
+  return {
+    cats,
+    imageTokens: new Set(cats.map(cat => cat.image?.split('/').pop()).filter(Boolean)),
+    videoTokens: new Map(cats.flatMap(cat => cat.videos.map(video => [video.url.split('/').pop(), VIDEO_TYPES[video.name.split('.').pop().toLowerCase()]]))),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export async function getCatalog(envInput) {
@@ -127,4 +132,26 @@ export async function getImage(envInput, fileToken) {
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength > 10 * 1024 * 1024) throw new Error('image too large');
   return { bytes, type };
+}
+
+export async function getVideoChunk(envInput, fileToken, start, end, type) {
+  const env = config(envInput);
+  const token = await accessToken(env);
+  const response = await fetch(`${FEISHU}/drive/v1/medias/${encodeURIComponent(fileToken)}/download`, {
+    headers: { Authorization: `Bearer ${token}`, Range: `bytes=${start}-${end}`, 'Accept-Encoding': 'identity' },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (response.status === 416) return null;
+  // Never forward an entire file: the media endpoint must honor Range.
+  if (response.status !== 206) throw new Error('Feishu did not return a video range');
+  const contentRange = response.headers.get('content-range')?.match(/^bytes (\d+)-(\d+)\/(\d+)$/i);
+  if (!contentRange) throw new Error('missing video content range');
+  const [, from, to, total] = contentRange.map(Number);
+  if (from !== start || to > end || to < from || total <= to || to - from + 1 > 4 * 1024 * 1024) {
+    throw new Error('invalid video content range');
+  }
+  if (Number(response.headers.get('content-length')) > 4 * 1024 * 1024) throw new Error('video chunk too large');
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength !== to - from + 1) throw new Error('video chunk length mismatch');
+  return { bytes, contentRange: `bytes ${from}-${to}/${total}`, type };
 }

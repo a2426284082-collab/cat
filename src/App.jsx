@@ -17,10 +17,10 @@ function CatImage({ cat, onPlay }) {
         </div>
       )}
       <span className="absolute top-3 left-3 bg-slate-900/70 text-white text-xs font-semibold px-2.5 py-1 rounded-lg">{cat.id}</span>
-      {cat.video && <button type="button" onClick={() => onPlay(cat)}
-        aria-label={`播放${cat.id}的视频`}
+      {cat.videos?.length > 0 && <button type="button" onClick={() => onPlay(cat)}
+        aria-label={`查看${cat.id}的${cat.videos.length}个视频`}
         className="absolute inset-0 flex items-center justify-center group cursor-pointer focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500"
-        title="点击播放视频">
+        title="点击查看视频">
         <span className="rounded-full bg-slate-900/75 text-white p-4 shadow-lg group-hover:bg-orange-600 group-focus-visible:bg-orange-600 transition-colors"><Play size={26} fill="currentColor" /></span>
       </button>}
     </div>
@@ -37,6 +37,9 @@ export default function App() {
   const [gender, setGender] = useState('');
   const [query, setQuery] = useState('');
   const [playing, setPlaying] = useState(null);
+  const [videoIndex, setVideoIndex] = useState(0);
+  const [videoError, setVideoError] = useState(false);
+  const openVideos = cat => { setVideoIndex(0); setVideoError(false); setPlaying(cat); };
 
   useEffect(() => {
     if (!playing) return undefined;
@@ -116,7 +119,7 @@ export default function App() {
           : filtered.length === 0 ? <div className="bg-white rounded-2xl p-12 text-center text-slate-500">{error ? '暂无可显示的数据' : '没有符合条件的猫咪'}<button onClick={reset} className="flex items-center gap-1 mx-auto mt-4 text-amber-700 text-sm"><RotateCcw size={14} />重置筛选</button></div>
             : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">{filtered.map(cat => (
               <article key={cat.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <CatImage cat={cat} onPlay={setPlaying} /><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold text-lg">{cat.breed || '猫咪'}</h3><span className="text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded-lg">{cat.color || '花色待补充'}</span></div>
+                <CatImage cat={cat} onPlay={openVideos} /><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold text-lg">{cat.breed || '猫咪'}</h3><span className="text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded-lg">{cat.color || '花色待补充'}</span></div>
                   <p className="text-sm text-slate-500 mt-3">{cat.gender || '性别待补充'} · {cat.age ? `${cat.age}个月` : '年龄待补充'}</p>
                   <div className="mt-4 pt-3 border-t border-slate-100 text-orange-600 text-lg font-bold">{cat.price == null ? '价格请咨询' : `¥ ${cat.price.toLocaleString('zh-CN')}`}</div>
                 </div>
@@ -127,8 +130,14 @@ export default function App() {
         <div role="dialog" aria-modal="true" aria-label={`${playing.id}的视频`} className="w-full max-w-4xl rounded-2xl bg-slate-900 p-3 sm:p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-4 pb-3 text-white"><strong>{playing.breed || '猫咪'} · {playing.id}</strong>
             <button type="button" onClick={() => setPlaying(null)} aria-label="关闭视频" className="rounded-lg p-2 hover:bg-white/20 focus-visible:outline focus-visible:outline-amber-400"><X size={22} /></button></div>
-          <video key={playing.video} src={playing.video} poster={playing.image || undefined} controls playsInline preload="metadata" className="block w-full max-h-[75vh] rounded-lg bg-black" />
-          <p className="mt-2 text-xs text-slate-300">如果无法播放，请检查飞书「视频链接」是否为可直接播放的视频文件地址。</p>
+          {playing.videos.length > 1 && <div className="flex gap-2 pb-3 overflow-x-auto" aria-label="选择视频">
+            {playing.videos.map((video, index) => <button key={`${video.url}-${index}`} type="button" onClick={() => { setVideoIndex(index); setVideoError(false); }}
+              aria-pressed={videoIndex === index} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm ${videoIndex === index ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'}`}>
+              视频 {index + 1} · {video.name}
+            </button>)}
+          </div>}
+          <video key={playing.videos[videoIndex].url} src={playing.videos[videoIndex].url} poster={playing.image || undefined} controls playsInline preload="metadata" onError={() => setVideoError(true)} className="block w-full max-h-[75vh] rounded-lg bg-black" />
+          {videoError && <p role="alert" className="mt-2 text-sm text-red-300">视频加载失败。请确认视频是 MP4 或 WebM，飞书应用已开通素材下载权限。</p>}
         </div>
       </div>}
     </div>

@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { onRequestGet as list } from '../cloud-functions/api/public-cats.js';
 import { onRequestGet as image } from '../cloud-functions/api/public-images/[token].js';
+import { onRequestGet as video } from '../cloud-functions/api/public-videos/[token].js';
 
 // Local-only adapter; the deployed project uses EdgeOne's cloud-functions.
 try {
@@ -21,6 +22,8 @@ createServer(async (req, res) => {
   else if (path === '/api/public-cats') result = await list({ env: process.env });
   else if (/^\/api\/public-images\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
     result = await image({ env: process.env, params: { token: path.split('/').pop() } });
+  } else if (/^\/api\/public-videos\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
+    result = await video({ env: process.env, params: { token: path.split('/').pop() }, request: new Request(`http://localhost${path}`, { headers: req.headers }) });
   } else result = new Response(null, { status: 404 });
   res.writeHead(result.status, Object.fromEntries(result.headers));
   res.end(Buffer.from(await result.arrayBuffer()));
