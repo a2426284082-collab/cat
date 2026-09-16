@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Cat, Search, RefreshCw, RotateCcw, ImageOff, Play, X } from 'lucide-react';
+import { Cat, Search, RefreshCw, RotateCcw, ImageOff, X } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -19,9 +19,9 @@ function CatImage({ cat, onPlay }) {
       <span className="absolute top-3 left-3 bg-slate-900/70 text-white text-xs font-semibold px-2.5 py-1 rounded-lg">{cat.id}</span>
       {cat.videos?.length > 0 && <button type="button" onClick={() => onPlay(cat)}
         aria-label={`查看${cat.id}的${cat.videos.length}个视频`}
-        className="absolute inset-0 flex items-center justify-center group cursor-pointer focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500"
+        className="absolute inset-0 flex items-start justify-end p-3 cursor-pointer hover:bg-black/5 focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500"
         title="点击查看视频">
-        <span className="rounded-full bg-slate-900/75 text-white p-4 shadow-lg group-hover:bg-orange-600 group-focus-visible:bg-orange-600 transition-colors"><Play size={26} fill="currentColor" /></span>
+        <span className="rounded-md bg-white/90 text-slate-700 px-2 py-1 text-xs font-medium shadow-sm">视频 {cat.videos.length}</span>
       </button>}
     </div>
   );
