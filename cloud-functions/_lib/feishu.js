@@ -62,10 +62,11 @@ function publicCat(record) {
   if (stringValue(fields['状态']) !== '在售') return null;
   const id = stringValue(fields['猫咪ID']);
   if (!id) return null;
-  const image = Array.isArray(fields['图片'])
-    ? fields['图片'].find(item => /^[A-Za-z0-9_-]{1,200}$/.test(item?.file_token ?? ''))
-    : null;
-  const rawPrice = Number(fields['价格']);
+  const images = Array.isArray(fields['图片'])
+    ? fields['图片'].filter(item => /^[A-Za-z0-9_-]{1,200}$/.test(item?.file_token ?? ''))
+      .map(item => `/api/public-images/${encodeURIComponent(item.file_token)}`)
+    : [];
+  const rawPrice = fields['价格'] == null || stringValue(fields['价格']) === '' ? NaN : Number(fields['价格']);
   return {
     id,
     breed: stringValue(fields['品种']),
@@ -73,7 +74,8 @@ function publicCat(record) {
     gender: stringValue(fields['性别']),
     age: stringValue(fields['年龄']),
     price: Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : null,
-    image: image ? `/api/public-images/${encodeURIComponent(image.file_token)}` : null,
+    image: images[0] ?? null,
+    images,
     videos: videoAttachments(fields['视频']),
   };
 }
@@ -96,7 +98,7 @@ async function loadCatalog(env) {
   const cats = items.map(publicCat).filter(Boolean);
   return {
     cats,
-    imageTokens: new Set(cats.map(cat => cat.image?.split('/').pop()).filter(Boolean)),
+    imageTokens: new Set(cats.flatMap(cat => cat.images.map(image => image.split('/').pop()))),
     videoTokens: new Map(cats.flatMap(cat => cat.videos.map(video => [video.url.split('/').pop(), VIDEO_TYPES[video.name.split('.').pop().toLowerCase()]]))),
     updatedAt: new Date().toISOString(),
   };
