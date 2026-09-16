@@ -44,6 +44,19 @@ function stringValue(value) {
   return String(value).trim();
 }
 
+function videoUrl(value) {
+  // Feishu link fields may be plain text or rich-text objects containing a link.
+  const candidate = Array.isArray(value) ? value.find(item => item?.link || item?.text || typeof item === 'string') : value;
+  const raw = typeof candidate === 'string' ? candidate : candidate?.link ?? candidate?.url ?? candidate?.text;
+  if (typeof raw !== 'string' || raw.length > 2048) return null;
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function publicCat(record) {
   const fields = record.fields ?? {};
   if (stringValue(fields['状态']) !== '在售') return null;
@@ -61,6 +74,7 @@ function publicCat(record) {
     age: stringValue(fields['年龄']),
     price: Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : null,
     image: image ? `/api/public-images/${encodeURIComponent(image.file_token)}` : null,
+    video: videoUrl(fields['视频链接']),
   };
 }
 
