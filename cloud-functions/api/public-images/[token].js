@@ -8,7 +8,7 @@ export async function onRequestGet({ env, params }) {
     if (!catalog.imageTokens.has(fileToken)) return new Response(null, { status: 404 });
     const { bytes, type } = await getImage(env, fileToken);
     return new Response(bytes, {
-      headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=300, s-maxage=300', 'X-Content-Type-Options': 'nosniff' },
+      headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=300, s-maxage=300', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, noimageindex' },
     });
   } catch {
     return new Response(null, { status: 502, headers: { 'Cache-Control': 'no-store' } });

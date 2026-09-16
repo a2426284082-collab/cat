@@ -29,6 +29,7 @@ export async function onRequestGet({ env, params, request }) {
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'private, max-age=60',
         'X-Content-Type-Options': 'nosniff',
+        'X-Robots-Tag': 'noindex',
       },
     });
   } catch {
