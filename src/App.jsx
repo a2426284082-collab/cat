@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Cat, Search, RefreshCw, RotateCcw, ImageOff, X, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Cat, Search, RefreshCw, RotateCcw, ImageOff, X, Maximize2, ChevronLeft, ChevronRight, BookOpen, ArrowRight } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -119,14 +119,26 @@ export default function App() {
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-white"><Cat size={24} /></div>
             <div><h1 className="text-lg font-bold">喵星猫咪展示</h1><p className="text-xs text-slate-500">查看当前在售猫咪</p></div>
           </div>
-          <button type="button" onClick={() => refresh()} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-xs">
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />刷新
-          </button>
+          <div className="flex items-center gap-2">
+            <a href="/guide/" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold">
+              <BookOpen size={15} />新人教程
+            </a>
+            <button type="button" onClick={() => refresh()} disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-xs">
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />刷新
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7">
+        <a href="/guide/" className="group mb-6 flex items-center justify-between gap-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-5 shadow-sm hover:border-amber-300 hover:shadow-md transition">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center"><BookOpen size={23} /></div>
+            <div className="min-w-0"><p className="font-bold text-slate-900">第一次卖猫？先看新人实战教程</p><p className="mt-1 text-xs sm:text-sm text-slate-600">从找客户、发布内容到报价下单，按步骤开始。</p></div>
+          </div>
+          <ArrowRight size={20} className="shrink-0 text-amber-700 group-hover:translate-x-1 transition-transform" />
+        </a>
         <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
           <div><h2 className="text-xl font-bold">在售猫咪 <span className="text-amber-600">{filtered.length}</span></h2>
             <p className="text-xs text-slate-500 mt-1">每五分钟自动检查更新{updatedAt ? ` · 数据更新于 ${new Date(updatedAt).toLocaleString('zh-CN')}` : ''}</p></div>
