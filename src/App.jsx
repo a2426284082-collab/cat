@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Cat, Search, RefreshCw, RotateCcw, ImageOff, X, Maximize2, ChevronLeft, ChevronRight, BookOpen, ArrowRight } from 'lucide-react';
+import { ArrowRight, BookOpen, Cat, CheckCircle2, ChevronLeft, ChevronRight, Clipboard, Clock3, Copy, Filter, ImageOff, Maximize2, PackageCheck, PlayCircle, RefreshCw, RotateCcw, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
+const updatedText = value => value ? new Date(value).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '等待首次同步';
+const salesText = cat => [`猫咪编号：${cat.id}`, `品种：${cat.breed || '待补充'}`, `花色：${cat.color || '待补充'}`, `性别：${cat.gender || '待补充'}`, `月龄：${cat.age ? `${cat.age}个月` : '待补充'}`, `参考价格：${cat.price == null ? '请咨询' : `¥${cat.price.toLocaleString('zh-CN')}`}`, '库存实时变化，成交前请凭猫咪编号再次确认。'].join('\n');
 
 function CatImage({ cat, onPlay, onView }) {
   const images = cat.images?.length ? cat.images : (cat.image ? [cat.image] : []);
@@ -10,195 +12,82 @@ function CatImage({ cat, onPlay, onView }) {
   const selected = images[index] ?? images[0];
   useEffect(() => setIndex(current => Math.min(current, Math.max(0, images.length - 1))), [images.length]);
   useEffect(() => setBroken(false), [selected]);
-  return (
-    <div>
-      <div className="relative aspect-[4/3] bg-amber-50 overflow-hidden">
-        {selected && !broken ? (
-          <img src={selected} alt={`${cat.breed || '猫咪'}的第${index + 1}张照片`} loading="lazy"
-            onError={() => setBroken(true)} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
-            <ImageOff size={28} /><span className="text-xs">暂无照片</span>
-          </div>
-        )}
-        <span className="absolute top-3 left-3 bg-slate-900/70 text-white text-xs font-semibold px-2.5 py-1 rounded-lg">{cat.id}</span>
-        {cat.videos?.length > 0 && <button type="button" onClick={() => onPlay({ ...cat, image: selected })}
-          aria-label={`查看${cat.id}的${cat.videos.length}个视频`}
-          className="absolute inset-0 flex items-start justify-end p-3 cursor-pointer hover:bg-black/5 focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500"
-          title="点击查看视频">
-          <span className="rounded-md bg-white/90 text-slate-700 px-2 py-1 text-xs font-medium shadow-sm">视频 {cat.videos.length}</span>
-        </button>}
-        {selected && <button type="button" onClick={() => onView(cat, index)} aria-label={`放大查看${cat.id}的照片`}
-          className="absolute bottom-3 right-3 rounded-md bg-white/90 text-slate-700 p-2 shadow-sm hover:bg-white focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500"
-          title="放大照片"><Maximize2 size={16} /></button>}
-      </div>
-      {images.length > 1 && <div className="flex gap-2 overflow-x-auto px-3 py-2.5" aria-label={`${cat.id}的照片，共${images.length}张`}>
-        {images.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} onClick={() => setIndex(imageIndex)}
-          aria-label={`查看第${imageIndex + 1}张照片`} aria-pressed={index === imageIndex}
-          className={`shrink-0 w-12 h-12 rounded-md overflow-hidden border-2 ${index === imageIndex ? 'border-orange-500' : 'border-transparent hover:border-slate-300'}`}>
-          <img src={image} alt="" loading="lazy" className="w-full h-full object-cover" />
-        </button>)}
-      </div>}
+  return <div>
+    <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden">
+      {selected && !broken ? <img src={selected} alt={`${cat.breed || '猫咪'}的第${index + 1}张照片`} loading="lazy" onError={() => setBroken(true)} className="w-full h-full object-cover transition duration-500 hover:scale-[1.02]" /> : <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-stone-400"><ImageOff size={28} /><span className="text-xs">暂无照片</span></div>}
+      <span className="absolute top-3 left-3 bg-stone-950/75 text-white text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur">{cat.id}</span>
+      {cat.videos?.length > 0 && <button type="button" onClick={() => onPlay({ ...cat, image: selected })} aria-label={`查看${cat.id}的视频`} className="absolute top-3 right-3 flex items-center gap-1.5 rounded-lg bg-white/90 text-stone-800 px-2.5 py-1.5 text-xs font-semibold shadow-sm hover:bg-white"><PlayCircle size={15} />视频 {cat.videos.length}</button>}
+      {selected && <button type="button" onClick={() => onView(cat, index)} aria-label={`放大查看${cat.id}的照片`} className="absolute bottom-3 right-3 rounded-lg bg-white/90 text-stone-700 p-2 shadow-sm hover:bg-white"><Maximize2 size={16} /></button>}
     </div>
-  );
+    {images.length > 1 && <div className="flex gap-2 overflow-x-auto px-3 py-2.5 custom-scrollbar">{images.map((image, imageIndex) => <button type="button" key={`${image}-${imageIndex}`} onClick={() => setIndex(imageIndex)} aria-label={`查看第${imageIndex + 1}张照片`} aria-pressed={index === imageIndex} className={`shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 ${index === imageIndex ? 'border-emerald-600' : 'border-transparent hover:border-stone-300'}`}><img src={image} alt="" loading="lazy" className="w-full h-full object-cover" /></button>)}</div>}
+  </div>;
 }
 
 export default function App() {
-  const [cats, setCats] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [updatedAt, setUpdatedAt] = useState('');
-  const [breed, setBreed] = useState('');
-  const [color, setColor] = useState('');
-  const [gender, setGender] = useState('');
-  const [query, setQuery] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [minAge, setMinAge] = useState('');
-  const [maxAge, setMaxAge] = useState('');
-  const [playing, setPlaying] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [videoIndex, setVideoIndex] = useState(0);
-  const [videoError, setVideoError] = useState(false);
-  const openVideos = cat => { setVideoIndex(0); setVideoError(false); setPlaying(cat); };
+  const [cats, setCats] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState(''), [updatedAt, setUpdatedAt] = useState('');
+  const [breed, setBreed] = useState(''), [color, setColor] = useState(''), [gender, setGender] = useState(''), [query, setQuery] = useState('');
+  const [minPrice, setMinPrice] = useState(''), [maxPrice, setMaxPrice] = useState(''), [minAge, setMinAge] = useState(''), [maxAge, setMaxAge] = useState('');
+  const [playing, setPlaying] = useState(null), [preview, setPreview] = useState(null), [detail, setDetail] = useState(null);
+  const [videoIndex, setVideoIndex] = useState(0), [videoError, setVideoError] = useState(false), [notice, setNotice] = useState('');
 
-  useEffect(() => {
-    if (!playing && !preview) return undefined;
-    const onKeyDown = event => { if (event.key === 'Escape') { setPlaying(null); setPreview(null); } };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [playing, preview]);
+  const copy = async (text, message) => { try { await navigator.clipboard.writeText(text); setNotice(message); } catch { setNotice('复制失败，请手动记录猫咪编号。'); } };
+  useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 2400); return () => clearTimeout(timer); }, [notice]);
+  useEffect(() => { if (!playing && !preview && !detail) return; const close = e => { if (e.key === 'Escape') { setPlaying(null); setPreview(null); setDetail(null); } }; document.addEventListener('keydown', close); return () => document.removeEventListener('keydown', close); }, [playing, preview, detail]);
 
-  const refresh = async (signal) => {
+  const refresh = async signal => {
     setLoading(true);
-    try {
-      const response = await fetch('/api/public-cats', { cache: 'no-cache', signal });
-      const body = await response.json();
-      if (!response.ok || !body.success || !Array.isArray(body.data)) throw new Error('读取失败');
-      setCats(body.data);
-      setUpdatedAt(body.updatedAt);
-      setError('');
-    } catch (err) {
-      if (err.name !== 'AbortError') setError('暂时无法更新猫咪资料，请稍后重试。');
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
+    try { const response = await fetch('/api/public-cats', { cache: 'no-cache', signal }); const body = await response.json(); if (!response.ok || !body.success || !Array.isArray(body.data)) throw new Error(); setCats(body.data); setUpdatedAt(body.updatedAt); setError(''); }
+    catch (err) { if (err.name !== 'AbortError') setError('暂时无法更新猫咪资料，请稍后重试。'); }
+    finally { if (!signal?.aborted) setLoading(false); }
   };
-
-  useEffect(() => {
-    const controller = new AbortController();
-    refresh(controller.signal);
-    const timer = setInterval(() => {
-      if (!document.hidden) refresh(controller.signal);
-    }, REFRESH_MS);
-    const onVisible = () => { if (!document.hidden) refresh(controller.signal); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => { controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, []);
+  useEffect(() => { const controller = new AbortController(); refresh(controller.signal); const timer = setInterval(() => { if (!document.hidden) refresh(controller.signal); }, REFRESH_MS); const visible = () => { if (!document.hidden) refresh(controller.signal); }; document.addEventListener('visibilitychange', visible); return () => { controller.abort(); clearInterval(timer); document.removeEventListener('visibilitychange', visible); }; }, []);
 
   const breeds = useMemo(() => [...new Set(cats.map(c => c.breed).filter(Boolean))].sort(), [cats]);
   const colors = useMemo(() => [...new Set(cats.map(c => c.color).filter(Boolean))].sort(), [cats]);
-  const filtered = useMemo(() => cats.filter(c => {
-    const term = query.trim().toLowerCase();
-    const age = c.age === '' ? NaN : Number(c.age);
-    return (!breed || c.breed === breed) && (!color || c.color === color) && (!gender || c.gender === gender)
-      && (!term || [c.id, c.breed, c.color].some(v => String(v || '').toLowerCase().includes(term)))
-      && (minPrice === '' || (c.price != null && c.price >= Number(minPrice)))
-      && (maxPrice === '' || (c.price != null && c.price <= Number(maxPrice)))
-      && (minAge === '' || (Number.isFinite(age) && age >= Number(minAge)))
-      && (maxAge === '' || (Number.isFinite(age) && age <= Number(maxAge)));
-  }), [cats, breed, color, gender, query, minPrice, maxPrice, minAge, maxAge]);
+  const filtered = useMemo(() => cats.filter(c => { const term = query.trim().toLowerCase(), age = c.age === '' ? NaN : Number(c.age); return (!breed || c.breed === breed) && (!color || c.color === color) && (!gender || c.gender === gender) && (!term || [c.id, c.breed, c.color].some(v => String(v || '').toLowerCase().includes(term))) && (minPrice === '' || (c.price != null && c.price >= Number(minPrice))) && (maxPrice === '' || (c.price != null && c.price <= Number(maxPrice))) && (minAge === '' || (Number.isFinite(age) && age >= Number(minAge))) && (maxAge === '' || (Number.isFinite(age) && age <= Number(maxAge))); }), [cats, breed, color, gender, query, minPrice, maxPrice, minAge, maxAge]);
   const hasFilters = Boolean(breed || color || gender || query || minPrice || maxPrice || minAge || maxAge);
   const reset = () => { setBreed(''); setColor(''); setGender(''); setQuery(''); setMinPrice(''); setMaxPrice(''); setMinAge(''); setMaxAge(''); };
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 flex items-center justify-center text-white"><Cat size={24} /></div>
-            <div><h1 className="text-lg font-bold">喵星猫咪展示</h1><p className="text-xs text-slate-500">查看当前在售猫咪</p></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <a href="/guide/" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-semibold">
-              <BookOpen size={15} />新人教程
-            </a>
-            <button type="button" onClick={() => refresh()} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-xs">
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />刷新
-            </button>
-          </div>
-        </div>
-      </header>
+  return <div className="min-h-screen bg-[#f5f3ed] text-stone-900">
+    <header className="sticky top-0 z-30 bg-[#fbfaf6]/95 border-b border-stone-200 backdrop-blur"><div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <a href="#top" className="flex items-center gap-3"><span className="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center text-white"><Cat size={21} /></span><span><strong className="block leading-tight">猫咪合作平台</strong><small className="block text-[11px] text-stone-500">销售选品与货源资料</small></span></a>
+      <nav className="hidden md:flex items-center gap-6 text-sm text-stone-600"><a href="#catalog">在售猫咪</a><a href="#process">合作流程</a><a href="#rules">合作须知</a></nav>
+      <div className="flex gap-2"><a href="/guide/" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-900 text-xs font-semibold"><BookOpen size={15} />新人教程</a><button type="button" onClick={() => refresh()} disabled={loading} aria-label="刷新货源" className="p-2.5 rounded-xl bg-stone-100 text-stone-600"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button></div>
+    </div></header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7">
-        <a href="/guide/" className="group mb-6 flex items-center justify-between gap-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-5 shadow-sm hover:border-amber-300 hover:shadow-md transition">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center"><BookOpen size={23} /></div>
-            <div className="min-w-0"><p className="font-bold text-slate-900">第一次卖猫？先看新人实战教程</p><p className="mt-1 text-xs sm:text-sm text-slate-600">从找客户、发布内容到报价下单，按步骤开始。</p></div>
-          </div>
-          <ArrowRight size={20} className="shrink-0 text-amber-700 group-hover:translate-x-1 transition-transform" />
-        </a>
-        <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-          <div><h2 className="text-xl font-bold">在售猫咪 <span className="text-amber-600">{filtered.length}</span></h2>
-            <p className="text-xs text-slate-500 mt-1">每五分钟自动检查更新{updatedAt ? ` · 数据更新于 ${new Date(updatedAt).toLocaleString('zh-CN')}` : ''}</p></div>
-          {hasFilters && <button type="button" onClick={reset} className="text-sm text-amber-700 hover:underline flex items-center gap-1"><RotateCcw size={14} />清除筛选</button>}
-        </div>
+    <main id="top">
+      <section className="border-b border-stone-200 bg-[#fbfaf6]"><div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 grid lg:grid-cols-[1.25fr_.75fr] gap-8 items-center">
+        <div><div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 text-emerald-800 px-3 py-1.5 text-xs font-semibold"><Sparkles size={14} />面向合作销售的货源工作台</div><h1 className="mt-5 text-3xl sm:text-5xl font-bold tracking-tight leading-[1.12]">选猫、看资料、拿文案，<br className="hidden sm:block" />一处完成</h1><p className="mt-5 max-w-2xl text-stone-600 leading-7">集中展示当前可售猫咪和销售素材。选中猫咪后复制完整资料，成交前再凭编号确认库存，减少来回沟通和信息错位。</p><div className="mt-7 flex flex-wrap gap-3"><a href="#catalog" className="inline-flex items-center gap-2 rounded-xl bg-emerald-800 px-5 py-3 text-sm font-semibold text-white">开始选猫<ArrowRight size={17} /></a><a href="/guide/" className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-5 py-3 text-sm font-semibold"><BookOpen size={17} />第一次做销售</a></div></div>
+        <aside className="rounded-3xl bg-emerald-950 text-white p-6 sm:p-7 shadow-xl"><div className="flex justify-between gap-3"><strong>货源状态</strong><span className="flex items-center gap-1.5 text-xs text-emerald-200"><i className="w-2 h-2 rounded-full bg-emerald-400" />自动同步</span></div><div className="mt-6 grid grid-cols-2 gap-4"><div><p className="text-3xl font-bold">{cats.length}</p><p className="mt-1 text-xs text-emerald-200">当前在售</p></div><div><p className="text-lg font-semibold">{updatedText(updatedAt)}</p><p className="mt-1 text-xs text-emerald-200">最近同步</p></div></div><div className="mt-6 pt-5 border-t border-white/15 text-sm text-emerald-100 leading-6 flex gap-3"><Clock3 size={18} className="shrink-0 mt-0.5" /><p>库存变化较快，向客户承诺前仍需再次确认。</p></div></aside>
+      </div></section>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <label className="col-span-2 md:col-span-1"><span className="block text-xs text-slate-500 mb-1">搜索</span>
-            <div className="relative"><Search size={15} className="absolute left-3 top-2.5 text-slate-400" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="编号、品种或花色" className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" /></div></label>
-          <label><span className="block text-xs text-slate-500 mb-1">品种</span><select value={breed} onChange={e => setBreed(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"><option value="">全部品种</option>{breeds.map(v => <option key={v}>{v}</option>)}</select></label>
-          <label><span className="block text-xs text-slate-500 mb-1">花色</span><select value={color} onChange={e => setColor(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"><option value="">全部花色</option>{colors.map(v => <option key={v}>{v}</option>)}</select></label>
-          <label><span className="block text-xs text-slate-500 mb-1">性别</span><select value={gender} onChange={e => setGender(e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"><option value="">不限</option><option>公</option><option>母</option></select></label>
-          <fieldset className="col-span-2 min-w-0"><legend className="text-xs text-slate-500 mb-1">价格区间（元）</legend>
-            <div className="flex items-center gap-2"><input aria-label="最低价格" type="number" min="0" step="1" inputMode="numeric" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="最低" className="min-w-0 w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
-              <span className="text-slate-400">—</span><input aria-label="最高价格" type="number" min="0" step="1" inputMode="numeric" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="最高" className="min-w-0 w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" /></div></fieldset>
-          <fieldset className="col-span-2 min-w-0"><legend className="text-xs text-slate-500 mb-1">月龄区间（月）</legend>
-            <div className="flex items-center gap-2"><input aria-label="最小月龄" type="number" min="0" step="1" inputMode="numeric" value={minAge} onChange={e => setMinAge(e.target.value)} placeholder="最小" className="min-w-0 w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
-              <span className="text-slate-400">—</span><input aria-label="最大月龄" type="number" min="0" step="1" inputMode="numeric" value={maxAge} onChange={e => setMaxAge(e.target.value)} placeholder="最大" className="min-w-0 w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" /></div></fieldset>
-        </div>
+      <section id="process" className="max-w-7xl mx-auto px-4 sm:px-6 py-9"><div className="grid md:grid-cols-3 gap-3">{[['01', '筛选合适猫咪', '按编号、品种、花色、性别、价格和月龄快速选品。'], ['02', '复制资料发给客户', '图片、视频与结构化文案保持同一个猫咪编号。'], ['03', '成交前确认库存', '客户有明确意向后，再报编号确认猫咪仍然可售。']].map(item => <div key={item[0]} className="rounded-2xl border border-stone-200 bg-white p-5 flex gap-4"><span className="text-emerald-700 font-bold">{item[0]}</span><div><h2 className="font-semibold">{item[1]}</h2><p className="mt-2 text-sm text-stone-500 leading-6">{item[2]}</p></div></div>)}</div></section>
 
+      <section id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 scroll-mt-20">
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-5"><div><div className="flex items-center gap-2 text-emerald-800 text-sm font-semibold"><Filter size={16} />货源库</div><h2 className="mt-1 text-2xl font-bold">当前在售 <span className="text-emerald-700">{filtered.length}</span> 只</h2></div>{hasFilters && <button type="button" onClick={reset} className="text-sm text-emerald-800 flex items-center gap-1"><RotateCcw size={14} />清除筛选</button>}</div>
+        <div className="bg-white border border-stone-200 rounded-2xl p-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-3 shadow-sm">
+          <label className="col-span-2 md:col-span-1"><span className="block text-xs text-stone-500 mb-1">搜索</span><div className="relative"><Search size={15} className="absolute left-3 top-2.5 text-stone-400" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="编号、品种或花色" className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-sm" /></div></label>
+          <Select label="品种" value={breed} set={setBreed} values={breeds} empty="全部品种" /><Select label="花色" value={color} set={setColor} values={colors} empty="全部花色" /><Select label="性别" value={gender} set={setGender} values={['公', '母']} empty="不限" />
+          <Range label="价格区间（元）" min={minPrice} max={maxPrice} setMin={setMinPrice} setMax={setMaxPrice} /><Range label="月龄区间（月）" min={minAge} max={maxAge} setMin={setMinAge} setMax={setMaxAge} />
+        </div>
         {error && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-5 text-sm">{error}{cats.length > 0 && ' 当前显示上次成功加载的资料。'}</div>}
-        {loading && cats.length === 0 && !error ? <p className="py-16 text-center text-slate-500">正在加载猫咪资料…</p>
-          : filtered.length === 0 ? <div className="bg-white rounded-2xl p-12 text-center text-slate-500">{error ? '暂无可显示的数据' : '没有符合条件的猫咪'}<button onClick={reset} className="flex items-center gap-1 mx-auto mt-4 text-amber-700 text-sm"><RotateCcw size={14} />重置筛选</button></div>
-            : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">{filtered.map(cat => (
-              <article key={cat.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <CatImage cat={cat} onPlay={openVideos} onView={(selectedCat, index) => setPreview({ cat: { ...selectedCat, images: selectedCat.images?.length ? selectedCat.images : [selectedCat.image] }, index })} /><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold text-lg">{cat.breed || '猫咪'}</h3><span className="text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded-lg">{cat.color || '花色待补充'}</span></div>
-                  <p className="text-sm text-slate-500 mt-3">{cat.gender || '性别待补充'} · {cat.age ? `${cat.age}个月` : '年龄待补充'}</p>
-                  <div className="mt-4 pt-3 border-t border-slate-100 text-orange-600 text-lg font-bold">{cat.price == null ? '价格请咨询' : `¥ ${cat.price.toLocaleString('zh-CN')}`}</div>
-                </div>
-              </article>
-            ))}</div>}
-      </main>
-      {preview && <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-3 sm:p-6" onMouseDown={event => { if (event.target === event.currentTarget) setPreview(null); }}>
-        <div role="dialog" aria-modal="true" aria-label={`${preview.cat.id}的照片`} className="w-full max-w-5xl">
-          <div className="flex items-center justify-between text-white mb-3"><span>{preview.cat.id} · {preview.index + 1}/{preview.cat.images.length}</span>
-            <button type="button" onClick={() => setPreview(null)} aria-label="关闭照片" className="p-2 rounded-lg hover:bg-white/20"><X size={22} /></button></div>
-          <div className="relative flex items-center justify-center min-h-48">
-            <img key={preview.cat.images[preview.index]} src={preview.cat.images[preview.index]} alt={`${preview.cat.breed || '猫咪'}的第${preview.index + 1}张照片`} className="max-h-[75vh] max-w-full object-contain rounded-lg" />
-            {preview.cat.images.length > 1 && <>
-              <button type="button" aria-label="上一张照片" onClick={() => setPreview(current => ({ ...current, index: (current.index - 1 + current.cat.images.length) % current.cat.images.length }))} className="absolute left-0 rounded-full bg-black/60 text-white p-2 hover:bg-black/80"><ChevronLeft size={24} /></button>
-              <button type="button" aria-label="下一张照片" onClick={() => setPreview(current => ({ ...current, index: (current.index + 1) % current.cat.images.length }))} className="absolute right-0 rounded-full bg-black/60 text-white p-2 hover:bg-black/80"><ChevronRight size={24} /></button>
-            </>}
-          </div>
-        </div>
-      </div>}
-      {playing && <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onMouseDown={event => { if (event.target === event.currentTarget) setPlaying(null); }}>
-        <div role="dialog" aria-modal="true" aria-label={`${playing.id}的视频`} className="w-full max-w-4xl rounded-2xl bg-slate-900 p-3 sm:p-4 shadow-2xl">
-          <div className="flex items-center justify-between gap-4 pb-3 text-white"><strong>{playing.breed || '猫咪'} · {playing.id}</strong>
-            <button type="button" onClick={() => setPlaying(null)} aria-label="关闭视频" className="rounded-lg p-2 hover:bg-white/20 focus-visible:outline focus-visible:outline-amber-400"><X size={22} /></button></div>
-          {playing.videos.length > 1 && <div className="flex gap-2 pb-3 overflow-x-auto" aria-label="选择视频">
-            {playing.videos.map((video, index) => <button key={`${video.url}-${index}`} type="button" onClick={() => { setVideoIndex(index); setVideoError(false); }}
-              aria-pressed={videoIndex === index} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm ${videoIndex === index ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-100 hover:bg-slate-600'}`}>
-              视频 {index + 1} · {video.name}
-            </button>)}
-          </div>}
-          <video key={playing.videos[videoIndex].url} src={playing.videos[videoIndex].url} poster={playing.image || undefined} controls playsInline preload="metadata" onError={() => setVideoError(true)} className="block w-full max-h-[75vh] rounded-lg bg-black" />
-          {videoError && <p role="alert" className="mt-2 text-sm text-red-300">视频加载失败。请确认视频是 MP4 或 WebM，飞书应用已开通素材下载权限。</p>}
-        </div>
-      </div>}
-    </div>
-  );
+        {loading && cats.length === 0 && !error ? <p className="py-16 text-center text-stone-500">正在加载猫咪资料…</p> : filtered.length === 0 ? <div className="bg-white rounded-2xl p-12 text-center text-stone-500">没有符合条件的猫咪<button onClick={reset} className="flex items-center gap-1 mx-auto mt-4 text-emerald-800 text-sm"><RotateCcw size={14} />重置筛选</button></div> : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">{filtered.map(cat => <article key={cat.id} className="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition"><CatImage cat={cat} onPlay={selected => { setVideoIndex(0); setVideoError(false); setPlaying(selected); }} onView={(selected, index) => setPreview({ cat: { ...selected, images: selected.images?.length ? selected.images : [selected.image] }, index })} /><div className="p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-bold text-lg">{cat.breed || '猫咪'}</h3><span className="text-xs text-emerald-900 bg-emerald-50 px-2 py-1 rounded-lg">{cat.color || '花色待补充'}</span></div><p className="text-sm text-stone-500 mt-2">{cat.gender || '性别待补充'} · {cat.age ? `${cat.age}个月` : '年龄待补充'}</p><div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-3"><strong className="text-emerald-800 text-lg">{cat.price == null ? '价格请咨询' : `¥ ${cat.price.toLocaleString('zh-CN')}`}</strong><button type="button" onClick={() => setDetail(cat)} className="rounded-lg bg-stone-900 px-3 py-2 text-xs font-semibold text-white">查看资料</button></div></div></article>)}</div>}
+      </section>
+
+      <section id="rules" className="bg-emerald-950 text-white scroll-mt-20"><div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid lg:grid-cols-[.8fr_1.2fr] gap-8"><div><p className="text-emerald-300 text-sm font-semibold">合作须知</p><h2 className="mt-2 text-2xl font-bold">先把边界讲清楚，销售才更安心</h2><p className="mt-4 text-sm text-emerald-100 leading-7">网站用于选品和查看资料，不代表自动锁定库存。具体成交价格、运输方案、健康保障与售后处理，应以双方最终确认的合作规则为准。</p></div><div className="grid sm:grid-cols-2 gap-3">{[[PackageCheck, '库存确认', '客户有购买意向后，先报猫咪编号确认。'], [Clipboard, '资料一致', '对外发送的图文视频必须对应同一编号。'], [ShieldCheck, '不夸大承诺', '健康、品相和运输情况以真实资料为准。'], [BookOpen, '保留记录', '报价、确认和售后沟通尽量保留文字凭证。']].map(([Icon, title, text]) => <div key={title} className="rounded-2xl bg-white/10 border border-white/10 p-5"><Icon className="text-emerald-300" size={21} /><h3 className="mt-4 font-semibold">{title}</h3><p className="mt-2 text-sm text-emerald-100 leading-6">{text}</p></div>)}</div></div></section>
+    </main>
+
+    <footer className="bg-[#fbfaf6] border-t border-stone-200"><div className="max-w-7xl mx-auto px-4 sm:px-6 py-7 flex flex-col sm:flex-row justify-between gap-3 text-xs text-stone-500"><span>猫咪合作平台 · 销售资料与货源展示</span><span>实际库存及成交条件以最终确认为准</span></div></footer>
+    {notice && <div role="status" className="fixed z-[70] bottom-5 left-1/2 -translate-x-1/2 rounded-xl bg-stone-950 text-white px-4 py-3 text-sm shadow-xl flex items-center gap-2"><CheckCircle2 size={17} className="text-emerald-400" />{notice}</div>}
+    {detail && <Detail cat={detail} close={() => setDetail(null)} copy={copy} />}
+    {preview && <Preview data={preview} set={setPreview} close={() => setPreview(null)} />}
+    {playing && <Video data={playing} index={videoIndex} setIndex={setVideoIndex} error={videoError} setError={setVideoError} close={() => setPlaying(null)} />}
+  </div>;
 }
+
+function Select({ label, value, set, values, empty }) { return <label><span className="block text-xs text-stone-500 mb-1">{label}</span><select value={value} onChange={e => set(e.target.value)} className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl text-sm"><option value="">{empty}</option>{values.map(v => <option key={v}>{v}</option>)}</select></label>; }
+function Range({ label, min, max, setMin, setMax }) { return <fieldset className="col-span-2 min-w-0"><legend className="text-xs text-stone-500 mb-1">{label}</legend><div className="flex items-center gap-2"><input aria-label={`${label}最低`} type="number" min="0" value={min} onChange={e => setMin(e.target.value)} placeholder="最低" className="min-w-0 w-full p-2 bg-stone-50 border border-stone-200 rounded-xl text-sm" /><span className="text-stone-400">—</span><input aria-label={`${label}最高`} type="number" min="0" value={max} onChange={e => setMax(e.target.value)} placeholder="最高" className="min-w-0 w-full p-2 bg-stone-50 border border-stone-200 rounded-xl text-sm" /></div></fieldset>; }
+
+function Detail({ cat, close, copy }) { return <div className="fixed inset-0 z-50 bg-stone-950/70 flex items-center justify-center p-4" onMouseDown={e => e.target === e.currentTarget && close()}><div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-hidden"><div className="p-5 sm:p-6 flex justify-between gap-4 border-b border-stone-100"><div><p className="text-xs font-semibold text-emerald-700">销售资料卡</p><h2 className="mt-1 text-xl font-bold">{cat.breed || '猫咪'} · {cat.id}</h2></div><button onClick={close} aria-label="关闭资料" className="p-2"><X size={20} /></button></div><div className="p-5 sm:p-6"><dl className="grid grid-cols-2 gap-4 text-sm">{[['品种', cat.breed], ['花色', cat.color], ['性别', cat.gender], ['月龄', cat.age ? `${cat.age}个月` : '']].map(([k, v]) => <div key={k}><dt className="text-stone-400">{k}</dt><dd className="mt-1 font-semibold">{v || '待补充'}</dd></div>)}<div className="col-span-2"><dt className="text-stone-400">参考价格</dt><dd className="mt-1 text-xl font-bold text-emerald-800">{cat.price == null ? '请咨询' : `¥ ${cat.price.toLocaleString('zh-CN')}`}</dd></div></dl><p className="mt-5 rounded-xl bg-amber-50 text-amber-900 p-3 text-xs leading-5">库存实时变化。成交前需要再次确认猫咪编号。</p><div className="mt-5 grid grid-cols-2 gap-3"><button onClick={() => copy(salesText(cat), '销售文案已复制')} className="inline-flex justify-center items-center gap-2 rounded-xl bg-emerald-800 px-3 py-3 text-sm font-semibold text-white"><Copy size={16} />复制完整文案</button><button onClick={() => copy(cat.id, '猫咪编号已复制')} className="inline-flex justify-center items-center gap-2 rounded-xl border border-stone-300 px-3 py-3 text-sm font-semibold"><Clipboard size={16} />复制编号</button></div></div></div></div>; }
+function Preview({ data, set, close }) { return <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-3" onMouseDown={e => e.target === e.currentTarget && close()}><div role="dialog" aria-modal="true" className="w-full max-w-5xl"><div className="flex justify-between text-white mb-3"><span>{data.cat.id} · {data.index + 1}/{data.cat.images.length}</span><button onClick={close}><X /></button></div><div className="relative flex items-center justify-center"><img src={data.cat.images[data.index]} alt="猫咪大图" className="max-h-[78vh] max-w-full object-contain rounded-lg" />{data.cat.images.length > 1 && <><button aria-label="上一张" onClick={() => set(v => ({ ...v, index: (v.index - 1 + v.cat.images.length) % v.cat.images.length }))} className="absolute left-0 bg-black/60 text-white p-2 rounded-full"><ChevronLeft /></button><button aria-label="下一张" onClick={() => set(v => ({ ...v, index: (v.index + 1) % v.cat.images.length }))} className="absolute right-0 bg-black/60 text-white p-2 rounded-full"><ChevronRight /></button></>}</div></div></div>; }
+function Video({ data, index, setIndex, error, setError, close }) { return <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onMouseDown={e => e.target === e.currentTarget && close()}><div role="dialog" aria-modal="true" className="w-full max-w-4xl rounded-2xl bg-stone-900 p-4"><div className="flex justify-between pb-3 text-white"><strong>{data.breed || '猫咪'} · {data.id}</strong><button onClick={close}><X /></button></div>{data.videos.length > 1 && <div className="flex gap-2 pb-3 overflow-x-auto">{data.videos.map((v, i) => <button key={v.url} onClick={() => { setIndex(i); setError(false); }} className={`rounded-lg px-3 py-2 text-sm ${index === i ? 'bg-emerald-600 text-white' : 'bg-stone-700 text-stone-100'}`}>视频 {i + 1}</button>)}</div>}<video key={data.videos[index].url} src={data.videos[index].url} poster={data.image} controls playsInline preload="metadata" onError={() => setError(true)} className="block w-full max-h-[75vh] rounded-lg bg-black" />{error && <p className="mt-2 text-sm text-red-300">视频加载失败，请检查素材格式和权限。</p>}</div></div>; }
