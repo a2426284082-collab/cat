@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#fff9f1">
   <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>线上卖猫教程</title>
   <style>
     :root{--ink:#292520;--muted:#716b64;--bg:#f6f3ee;--paper:#fffdf9;--line:#e6ddd2;--orange:#e9793e;--orange2:#fff0e5;--green:#345f53;--green2:#e9f3ee;--blue:#426b86;--blue2:#eaf3f8;--shadow:0 14px 40px rgba(67,44,25,.08);color-scheme:light}
@@ -38,11 +41,20 @@
     :root[data-theme="dark"] .chapter-head.core{background:linear-gradient(135deg,#20342e,#2b251e)}
     :root[data-theme="dark"] .focus{border-color:#315047;box-shadow:none}
     :root[data-theme="dark"] .platform.weibo{background:#38261d}
-    @media(max-width:600px){header{padding-top:26px}.hero-points,.starter,.prices,.map,.week,.rulegrid,.channel-plan{grid-template-columns:1fr}.hero-points div{text-align:left}.hero-points b{display:inline;margin-right:6px}.prices div{display:flex;justify-content:space-between;align-items:center}.prices b{display:inline}.panel{padding:20px 16px}.method-body{padding-left:14px;padding-right:14px}.chapter-head.core{margin-left:0;margin-right:0}}
-    @media print{.page-actions,.sticky,.copy,.top{display:none}.methods details,.case,.tool details{break-inside:avoid}.methods details>.method-body,.case>.case-body,.tool .inside{display:block!important}.panel{box-shadow:none}}
+    .guide-layout{width:min(1180px,calc(100% - 24px));margin:auto;display:grid;grid-template-columns:240px minmax(0,800px);gap:24px;align-items:start}.guide-main{min-width:0;padding:18px 0 60px}.sidebar{position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto;margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:var(--shadow)}.sidebar-title{margin:0 0 10px;font-size:17px}.guide-search{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;outline:none}.guide-search:focus{border-color:var(--orange)}.side-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 12px}.side-actions button{padding:7px 5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--muted);font:inherit;font-size:11px;cursor:pointer}.side-list{display:grid;gap:2px}.side-chapter{display:block;margin-top:10px;padding:7px 8px;color:var(--green);font-size:13px;font-weight:900;text-decoration:none}.side-link{display:block;padding:6px 8px 6px 17px;border-left:2px solid transparent;border-radius:0 8px 8px 0;color:var(--muted);font-size:12px;text-decoration:none}.side-link:hover,.side-link.active{border-left-color:var(--orange);background:var(--orange2);color:var(--ink)}.search-results{display:none;margin:8px 0;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.search-results.show{display:grid;gap:4px}.search-result{padding:7px;border:0;border-radius:7px;background:transparent;color:var(--ink);font:inherit;font-size:12px;text-align:left;cursor:pointer}.search-result:hover{background:var(--orange2)}.search-empty{padding:7px;color:var(--muted);font-size:12px}.panel-title{display:flex;align-items:center;gap:10px}.panel-title-text{flex:1}.section-toggle{flex:0 0 34px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--orange);font:inherit;font-size:20px;cursor:pointer}.section-content{display:block}.panel.collapsed{padding-top:18px;padding-bottom:18px}.panel.collapsed .section-content{display:none}.panel.collapsed h2{margin-bottom:0}.drawer-overlay{display:none}.mobile-menu{display:none}.mobile-current{display:none}.no-scroll{overflow:hidden}.search-mark{background:#ffe28a;color:#33240c;border-radius:3px;padding:0 2px}
+    :root[data-theme="dark"] .sidebar,:root[data-theme="dark"] .side-actions button{background:#24211f}:root[data-theme="dark"] .guide-search,:root[data-theme="dark"] .search-results,:root[data-theme="dark"] .section-toggle{background:#1d1b1a}:root[data-theme="dark"] .side-link.active,:root[data-theme="dark"] .side-link:hover,:root[data-theme="dark"] .search-result:hover{background:#3b2a20}
+    .sidebar-head{display:flex;align-items:center;justify-content:space-between}.sidebar-title{margin:0 0 10px}.sidebar-close{display:block;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-size:19px}.search-open{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer}.search-box[hidden]{display:none}.search-box{margin-top:8px}
+    @media(min-width:861px){.sticky,.sidebar-close{display:none}}
+    @media(max-width:860px){.guide-layout{display:block;width:min(800px,calc(100% - 24px))}.guide-main{padding-top:18px}.sticky{display:block}.quicknav{align-items:center}.mobile-menu{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font:inherit;font-size:12px;font-weight:800}.mobile-current{display:block;min-width:0;overflow:hidden;color:var(--muted);font-size:12px;text-overflow:ellipsis;white-space:nowrap}.sidebar{position:fixed;z-index:60;top:0;bottom:0;left:0;width:min(330px,88vw);max-height:none;margin:0;border-radius:0 18px 18px 0;transform:translateX(-105%);transition:transform .22s ease}.sidebar.open{transform:translateX(0)}.drawer-overlay{position:fixed;z-index:55;inset:0;display:block;background:rgba(0,0,0,.42);opacity:0;pointer-events:none;transition:opacity .22s}.drawer-overlay.show{opacity:1;pointer-events:auto}}
+    @media(max-width:600px){header{padding-top:26px}.hero-points,.starter,.prices,.map,.week,.rulegrid,.channel-plan{grid-template-columns:1fr}.hero-points div{text-align:left}.hero-points b{display:inline;margin-right:6px}.prices div{display:flex;justify-content:space-between;align-items:center}.prices b{display:inline}.panel{padding:20px 16px}.panel.collapsed{padding-top:16px;padding-bottom:16px}.panel-title{font-size:22px!important}.method-body{padding-left:14px;padding-right:14px}.chapter-head.core{margin-left:0;margin-right:0}}
+    @media(min-width:861px){body{padding-left:250px}.guide-layout{display:block;width:auto;margin:0}.guide-main{width:min(800px,calc(100% - 24px));margin:auto}.sidebar{position:fixed;z-index:40;top:0;bottom:0;left:0;width:250px;max-height:none;margin:0;border-width:0 1px 0 0;border-radius:0;box-shadow:4px 0 18px rgba(67,44,25,.05)}}
+    @media(max-width:860px){.sticky{position:fixed;top:12px;left:12px;right:auto;width:auto;background:transparent;border:0;backdrop-filter:none}.sticky .wrap{width:auto;margin:0}.quicknav{padding:0}.mobile-menu{display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:14px;font-size:0;box-shadow:0 8px 24px rgba(37,29,23,.18)}.mobile-menu:before{content:"☰";font-size:22px;line-height:1}.mobile-current{display:none}}
+    @media(max-width:860px){#guide-menu-fab{display:grid!important;position:fixed!important;z-index:2147483647!important;top:0!important;left:0!important;margin:0!important;border-radius:0 0 14px 0!important}#sidebar{position:fixed!important;top:0!important;bottom:0!important;left:0!important;margin:0!important}}
+    @media print{.page-actions,.sticky,.copy,.top,.sidebar,.drawer-overlay,.section-toggle,.mobile-menu{display:none}.guide-layout{display:block;width:auto}.methods details,.case,.tool details{break-inside:avoid}.methods details>.method-body,.case>.case-body,.tool .inside,.section-content{display:block!important}.panel{box-shadow:none}}
   </style>
 </head>
 <body id="top">
+<button class="mobile-menu" id="guide-menu-fab" type="button" aria-label="打开教程目录" style="position:fixed;top:8px;left:8px;z-index:2147483647">☰ 目录与搜索</button>
   <header>
 <div class="wrap">
 <div class="page-actions">
@@ -61,16 +73,16 @@
 </div>
 </div>
 </header>
-<nav class="sticky">
-<div class="wrap quicknav">
-<a href="#must">入门必看</a>
-<a href="#sales">重点：找客户</a>
-<a href="#platforms">平台操作</a>
-<a href="#deal">成交下单</a>
-<a href="#tools">话术与售后</a>
-</div>
-</nav>
-<main class="wrap">
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="guide-layout">
+<aside class="sidebar" id="sidebar" aria-label="教程目录">
+<div class="sidebar-head"><h2 class="sidebar-title">教程目录</h2><button class="sidebar-close" id="sidebar-close" type="button" aria-label="关闭目录">×</button></div>
+<button class="search-open" id="search-open" type="button">⌕ 搜索教程</button>
+<div class="search-box" id="search-box" hidden><input class="guide-search" id="guide-search" type="search" placeholder="搜索：运费、闲鱼、不回复…" aria-label="搜索教程"><div class="search-results" id="search-results"></div></div>
+<div class="side-actions"><button id="expand-all" type="button">全部展开</button><button id="collapse-all" type="button">全部收起</button></div>
+<nav class="side-list" id="side-list"></nav>
+</aside>
+<main class="guide-main" id="guide-main">
 <div class="chapter-head" id="must">
 <div class="chapter-kicker"><span class="chapter-no">1</span>入门必看</div>
 <h2>先弄懂怎么做、怎么赚钱</h2>
@@ -684,11 +696,50 @@
 <p>每天发布、寻找需求、认真回复、回访客户。做满七天，再看哪种方法最适合自己。</p>
 </section>
   </main>
+</div>
   <footer>
 <div class="wrap">内部销售入门资料 · 平台功能和规则可能调整，实际发布前以各平台当前页面为准</div>
 </footer>
 <a class="top" href="#top">↑</a>
   <script>
+    const guideMain=document.getElementById('guide-main');
+    const panels=[...guideMain.querySelectorAll(':scope > .panel')];
+    const sideList=document.getElementById('side-list');
+    let firstInChapter=true,chapterIndex=0,panelIndex=0;
+    [...guideMain.children].forEach(node=>{
+      if(node.classList&&node.classList.contains('chapter-head')){
+        chapterIndex++;firstInChapter=true;
+        if(!node.id)node.id='chapter-'+chapterIndex;
+        const title=node.querySelector('h2')?.textContent.trim()||('第'+chapterIndex+'章');
+        const link=document.createElement('a');link.className='side-chapter';link.href='#'+node.id;link.textContent=chapterIndex+' · '+title;sideList.appendChild(link);
+      }
+      if(node.classList&&node.classList.contains('panel')){
+        const h2=[...node.children].find(el=>el.tagName==='H2');if(!h2)return;
+        panelIndex++;if(!node.id)node.id='section-'+panelIndex;
+        const title=h2.textContent.trim();
+        const content=document.createElement('div');content.className='section-content';
+        while(h2.nextSibling)content.appendChild(h2.nextSibling);node.appendChild(content);
+        const text=document.createElement('span');text.className='panel-title-text';text.textContent=title;h2.textContent='';h2.classList.add('panel-title');h2.appendChild(text);
+        const toggle=document.createElement('button');toggle.className='section-toggle';toggle.type='button';toggle.setAttribute('aria-label','收起'+title);toggle.textContent='−';h2.appendChild(toggle);
+        const setOpen=open=>{node.classList.toggle('collapsed',!open);toggle.textContent=open?'−':'＋';toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',(open?'收起':'展开')+title)};
+        node._setOpen=setOpen;setOpen(firstInChapter);firstInChapter=false;
+        toggle.addEventListener('click',()=>setOpen(node.classList.contains('collapsed')));
+        const link=document.createElement('a');link.className='side-link';link.href='#'+node.id;link.textContent=title;link.dataset.target=node.id;sideList.appendChild(link);
+      }
+    });
+    const sidebar=document.getElementById('sidebar'),overlay=document.getElementById('drawer-overlay'),menuButton=document.getElementById('guide-menu-fab'),search=document.getElementById('guide-search'),results=document.getElementById('search-results'),searchOpen=document.getElementById('search-open'),searchBox=document.getElementById('search-box');
+    const openMenu=()=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();sidebar.classList.add('open');overlay.classList.add('show');document.body.classList.add('no-scroll')};
+    const closeMenu=()=>{sidebar.classList.remove('open');overlay.classList.remove('show');document.body.classList.remove('no-scroll')};
+    menuButton.addEventListener('click',openMenu);overlay.addEventListener('click',closeMenu);document.getElementById('sidebar-close').addEventListener('click',closeMenu);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+    sideList.addEventListener('click',e=>{const link=e.target.closest('a');if(!link)return;const target=document.querySelector(link.getAttribute('href'));if(target&&target._setOpen)target._setOpen(true);closeMenu()});
+    document.getElementById('expand-all').onclick=()=>panels.forEach(p=>p._setOpen&&p._setOpen(true));
+    document.getElementById('collapse-all').onclick=()=>panels.forEach(p=>p._setOpen&&p._setOpen(false));
+    searchOpen.addEventListener('click',()=>{searchBox.hidden=false;searchOpen.hidden=true;setTimeout(()=>search.focus(),50)});
+    search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();results.textContent='';results.classList.toggle('show',!!q);if(!q)return;const matches=panels.filter(p=>p.innerText.toLowerCase().includes(q));if(!matches.length){const empty=document.createElement('div');empty.className='search-empty';empty.textContent='没有找到相关内容';results.appendChild(empty);return}matches.slice(0,8).forEach(panel=>{const btn=document.createElement('button');btn.className='search-result';btn.type='button';btn.textContent=panel.querySelector('.panel-title-text')?.textContent||'相关内容';btn.onclick=()=>{panel._setOpen(true);panel.querySelectorAll('details').forEach(d=>{if(d.innerText.toLowerCase().includes(q))d.open=true});closeMenu();panel.scrollIntoView({behavior:'smooth',block:'start'})};results.appendChild(btn)})});
+    const mobileCurrent=document.getElementById('mobile-current');
+    const observed=[...guideMain.querySelectorAll('.chapter-head,.panel')];
+    const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];if(!visible)return;const id=visible.target.id;document.querySelectorAll('.side-list a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));const titleNode=visible.target.querySelector('.panel-title-text')||visible.target.querySelector('h2');const title=titleNode?.textContent.trim();if(title&&mobileCurrent)mobileCurrent.textContent=title},{rootMargin:'-15% 0px -70% 0px',threshold:0});observed.forEach(el=>observer.observe(el));
+    if(location.hash){const target=document.querySelector(location.hash);if(target&&target._setOpen)target._setOpen(true)}
     document.querySelectorAll('.copy').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const box=btn.parentElement.cloneNode(true);box.querySelector('.copy').remove();navigator.clipboard.writeText(box.innerText.trim()).then(()=>{btn.textContent='已复制';setTimeout(()=>btn.textContent='复制',1200)}).catch(()=>btn.textContent='长按复制')});
     const themeButton=document.getElementById('theme-toggle');
     const themeMeta=document.querySelector('meta[name="theme-color"]');
