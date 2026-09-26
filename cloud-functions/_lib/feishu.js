@@ -73,6 +73,8 @@ function publicCat(record) {
     color: stringValue(fields['毛色/花色']),
     gender: stringValue(fields['性别']),
     age: stringValue(fields['年龄']),
+    vaccine: stringValue(fields['疫苗']),
+    description: stringValue(fields['描述']),
     price: Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : null,
     image: images[0] ?? null,
     images,
