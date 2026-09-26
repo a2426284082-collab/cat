@@ -31,7 +31,7 @@ test('public API filters on server, exposes only allowed fields, and protects im
       if (start >= 20) return new Response(null, { status: 416 });
       return new Response(new Uint8Array(end - start + 1), { status: 206, headers: { 'Content-Range': `bytes ${start}-${end}/20`, 'Content-Type': 'application/octet-stream' } });
     }
-    if (target.includes('/medias/video_two/')) return new Response(new Uint8Array([1]), { status: 200 });
+    if (target.includes('/medias/video_two/')) return new Response(new Uint8Array([1, 2, 3, 4, 5]), { status: 200, headers: { 'Content-Length': '5' } });
     throw new Error(`unexpected request ${target}`);
   };
   try {
@@ -62,8 +62,10 @@ test('public API filters on server, exposes only allowed fields, and protects im
     assert.equal(playable.status, 206);
     assert.equal(playable.headers.get('content-range'), 'bytes 5-19/20');
     assert.equal(playable.headers.get('content-type'), 'video/mp4');
-    const fullFileInsteadOfRange = await video({ env, params: { token: 'video_two' }, request: new Request('https://example.com/api/public-videos/video_two') });
-    assert.equal(fullFileInsteadOfRange.status, 502);
+    const fullFileInsteadOfRange = await video({ env, params: { token: 'video_two' }, request: new Request('https://example.com/api/public-videos/video_two', { headers: { Range: 'bytes=2-3' } }) });
+    assert.equal(fullFileInsteadOfRange.status, 206);
+    assert.equal(fullFileInsteadOfRange.headers.get('content-range'), 'bytes 2-3/5');
+    assert.deepEqual([...new Uint8Array(await fullFileInsteadOfRange.arrayBuffer())], [3, 4]);
     assert.equal(requests.filter(r => r.target.includes('/records')).length, 1); // cache
     assert.equal(requests.some(r => r.target.includes('private_file')), false);
     assert.equal(requests.some(r => r.target.includes('private_video')), false);

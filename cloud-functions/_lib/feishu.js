@@ -146,8 +146,33 @@ export async function getVideoChunk(envInput, fileToken, start, end, type) {
     signal: AbortSignal.timeout(20000),
   });
   if (response.status === 416) return null;
-  // Never forward an entire file: the media endpoint must honor Range.
-  if (response.status !== 206) throw new Error('Feishu did not return a video range');
+  // Some Feishu media downloads ignore Range and respond with the whole file.
+  // Read only the requested window and cancel the upstream stream afterwards.
+  if (response.status === 200) {
+    const total = Number(response.headers.get('content-length'));
+    if (!Number.isSafeInteger(total) || total <= 0 || start >= total || !response.body) {
+      if (start >= total && Number.isSafeInteger(total) && total > 0) return null;
+      throw new Error('video size unavailable');
+    }
+    const to = Math.min(end, total - 1);
+    const bytes = new Uint8Array(to - start + 1);
+    const reader = response.body.getReader();
+    let offset = 0;
+    try {
+      while (offset <= to) {
+        const { done, value } = await reader.read();
+        if (done) throw new Error('video stream ended early');
+        const from = Math.max(start - offset, 0);
+        const until = Math.min(to - offset + 1, value.byteLength);
+        if (until > from) bytes.set(value.subarray(from, until), offset + from - start);
+        offset += value.byteLength;
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+    return { bytes, contentRange: `bytes ${start}-${to}/${total}`, type };
+  }
+  if (response.status !== 206) throw new Error('Feishu video download error');
   const contentRange = response.headers.get('content-range')?.match(/^bytes (\d+)-(\d+)\/(\d+)$/i);
   if (!contentRange) throw new Error('missing video content range');
   const [, from, to, total] = contentRange.map(Number);
