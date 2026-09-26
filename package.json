@@ -1,7 +1,7 @@
 {
-  "name": "cat-public-display",
+  "name": "cat-sales-workspace-v1-preview",
   "private": true,
-  "version": "1.1.0",
+  "version": "2.1.0-preview.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

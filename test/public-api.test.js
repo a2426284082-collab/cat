@@ -17,7 +17,7 @@ test('public API filters on server, exposes only allowed fields, and protects im
     }
     if (target.includes('/records')) {
       return Response.json({ code: 0, data: { has_more: false, items: [
-        { fields: { '猫咪ID': 'CAT001', '状态': '在售', '品种': '英短', '毛色/花色': '金渐层', '性别': '公', '年龄': 4, '疫苗': [{ text: '已接种两针' }], '描述': [{ text: '性格亲人' }, { text: '，活泼好动' }], '价格': 3800, '图片': [{ file_token: 'public_file' }, { file_token: 'second_file' }], '视频': [{ file_token: 'video_one', name: '玩耍.mp4' }, { file_token: 'video_two', name: '睡觉.webm' }, { file_token: 'ignored_file', name: '私密文档.pdf' }], '内部备注': '不要公开' } },
+        { fields: { '猫咪ID': 'CAT001', '状态': '在售', '品种': '英短', '毛色/花色': '金渐层', '性别': '公', '年龄': 4, '城市': '上海', '疫苗': [{ text: '已接种两针' }], '描述': [{ text: '性格亲人' }, { text: '，活泼好动' }], '价格': 3800, '图片': [{ file_token: 'public_file' }, { file_token: 'second_file' }], '视频': [{ file_token: 'video_one', name: '玩耍.mp4' }, { file_token: 'video_two', name: '睡觉.webm' }, { file_token: 'ignored_file', name: '私密文档.pdf' }], '内部备注': '不要公开' } },
         { fields: { '猫咪ID': 'CAT002', '状态': '下架', '品种': '布偶', '图片': [{ file_token: 'private_file' }], '视频': [{ file_token: 'private_video', name: '不公开.mp4' }] } },
         { fields: { '猫咪ID': 'CAT003', '状态': '在售', '视频': [{ file_token: 'invalid_video', name: '未知.exe' }] } },
       ] } });
@@ -39,7 +39,7 @@ test('public API filters on server, exposes only allowed fields, and protects im
     assert.equal(result.status, 200);
     const body = await result.json();
     assert.equal(body.data.length, 2);
-    assert.deepEqual(body.data[0], { id: 'CAT001', breed: '英短', color: '金渐层', gender: '公', age: '4', vaccine: '已接种两针', description: '性格亲人，活泼好动', price: 3800, image: '/api/public-images/public_file', images: ['/api/public-images/public_file', '/api/public-images/second_file'], videos: [{ name: '玩耍.mp4', url: '/api/public-videos/video_one' }, { name: '睡觉.webm', url: '/api/public-videos/video_two' }] });
+    assert.deepEqual(body.data[0], { id: 'CAT001', breed: '英短', color: '金渐层', gender: '公', age: '4', city: '上海', vaccine: '已接种两针', description: '性格亲人，活泼好动', price: 3800, image: '/api/public-images/public_file', images: ['/api/public-images/public_file', '/api/public-images/second_file'], videos: [{ name: '玩耍.mp4', url: '/api/public-videos/video_one' }, { name: '睡觉.webm', url: '/api/public-videos/video_two' }] });
     assert.deepEqual(body.data[1].videos, []);
     assert.equal(body.data[1].price, null);
     assert.equal(JSON.stringify(body).includes('内部备注'), false);

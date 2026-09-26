@@ -5,75 +5,748 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#fff9f1">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>新人找客户与卖猫实战手册</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>线上卖猫教程</title>
   <style>
-    :root{--ink:#292520;--muted:#716b64;--bg:#f6f3ee;--paper:#fffdf9;--line:#e6ddd2;--orange:#e9793e;--orange2:#fff0e5;--green:#345f53;--green2:#e9f3ee;--blue:#426b86;--blue2:#eaf3f8;--shadow:0 14px 40px rgba(67,44,25,.08)}
+    :root{--ink:#292520;--muted:#716b64;--bg:#f6f3ee;--paper:#fffdf9;--line:#e6ddd2;--orange:#e9793e;--orange2:#fff0e5;--green:#345f53;--green2:#e9f3ee;--blue:#426b86;--blue2:#eaf3f8;--shadow:0 14px 40px rgba(67,44,25,.08);color-scheme:light}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7}.wrap{width:min(800px,calc(100% - 24px));margin:auto}a{color:inherit}
     header{padding:38px 0 28px;background:radial-gradient(circle at 90% 10%,#ffe5c6 0,transparent 34%),linear-gradient(145deg,#fffaf3,#f7eee1);border-bottom:1px solid var(--line)}.tag{display:inline-flex;padding:5px 11px;border-radius:999px;background:white;border:1px solid #efc9b2;color:#a34924;font-size:12px;font-weight:800}h1{font-size:clamp(32px,8vw,52px);line-height:1.08;letter-spacing:-.04em;margin:14px 0 10px}header p{margin:0;max-width:650px;color:var(--muted);font-size:16px}.hero-points{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}.hero-points div{padding:12px;text-align:center;border-radius:14px;background:rgba(255,255,255,.82);border:1px solid var(--line);font-size:13px}.hero-points b{display:block;color:var(--green);font-size:15px}
-    .sticky{position:sticky;top:0;z-index:20;background:rgba(246,243,238,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}.quicknav{display:flex;gap:6px;overflow:auto;padding:9px 0}.quicknav a{white-space:nowrap;text-decoration:none;padding:7px 11px;border-radius:999px;background:white;border:1px solid var(--line);font-size:12px;color:var(--muted)}
-    main{padding:18px 0 60px}.panel{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:clamp(19px,4vw,30px);margin:14px 0;box-shadow:0 5px 20px rgba(67,44,25,.035);scroll-margin-top:62px}.eyebrow{font-size:12px;color:#a44a25;font-weight:900;letter-spacing:.06em}.panel h2{font-size:clamp(23px,5vw,31px);line-height:1.25;margin:4px 0 10px}.lead{color:var(--muted);margin-top:0}
+    .page-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:18px}.page-action{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.82);color:var(--ink);font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}.page-action:hover{border-color:#d5b59f}.sticky{position:sticky;top:0;z-index:20;background:rgba(246,243,238,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}.quicknav{display:flex;gap:6px;overflow:auto;padding:9px 0}.quicknav a{white-space:nowrap;text-decoration:none;padding:7px 11px;border-radius:999px;background:white;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+    main{padding:18px 0 60px}.chapter-head{margin:34px 2px 14px;padding-top:12px;scroll-margin-top:70px}.chapter-head:first-child{margin-top:6px}.chapter-kicker{display:flex;align-items:center;gap:9px;color:var(--green);font-size:13px;font-weight:900}.chapter-no{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:var(--green);color:#fff}.chapter-head h2{margin:7px 0 3px;font-size:clamp(27px,6vw,38px);line-height:1.2;letter-spacing:-.03em}.chapter-head p{margin:0;color:var(--muted);font-size:14px}.chapter-head.core{margin-left:-12px;margin-right:-12px;padding:22px 14px 16px;border-radius:20px;background:linear-gradient(135deg,#e7f2ed,#f8f3e9)}.chapter-head.core .chapter-no{background:var(--orange)}.section-label{display:flex;align-items:center;gap:8px;margin-bottom:9px;color:var(--muted);font-size:12px;font-weight:800}.section-label:after{content:"";height:1px;flex:1;background:var(--line)}.panel{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:clamp(19px,4vw,30px);margin:14px 0;box-shadow:0 5px 20px rgba(67,44,25,.035);scroll-margin-top:62px}.eyebrow{font-size:12px;color:#a44a25;font-weight:900;letter-spacing:.06em}.panel h2{font-size:clamp(23px,5vw,31px);line-height:1.25;margin:4px 0 10px}.lead{color:var(--muted);margin-top:0}
     .money{background:var(--green);color:white}.money .eyebrow{color:#d1e8df}.money h2{color:white}.formula{padding:14px;border-radius:13px;background:rgba(255,255,255,.1);text-align:center;font-size:17px;font-weight:900}.prices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.prices div{padding:11px;border-radius:11px;background:rgba(255,255,255,.08);font-size:12px}.prices b{display:block;color:#ffdb8a;font-size:18px}
     .starter{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.starter article{padding:16px;border-radius:15px;border:1px solid var(--line);background:#fff}.starter b{display:block;margin-bottom:4px;color:var(--green)}.starter span{font-size:13px;color:var(--muted)}
-    .daily{display:grid;gap:8px;margin-top:16px}.task{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border-radius:12px;background:#f9f6f1}.task input{margin-top:5px;accent-color:var(--orange);transform:scale(1.2)}.task b{color:var(--orange)}
-    .map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.route{padding:16px;border:1px solid var(--line);border-radius:15px;background:white}.route b{display:block;font-size:16px}.route p{margin:5px 0;color:var(--muted);font-size:13px}.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{padding:3px 7px;border-radius:999px;background:var(--orange2);color:#a54a25;font-size:11px}.chip.green{background:var(--green2);color:var(--green)}
-    .methods>details{margin:9px 0;border:1px solid var(--line);border-radius:16px;background:white;overflow:hidden}.methods summary{display:flex;align-items:center;gap:11px;padding:15px;cursor:pointer;list-style:none}.methods summary::-webkit-details-marker{display:none}.platform{flex:0 0 39px;height:39px;display:grid;place-items:center;border-radius:12px;background:var(--orange2);color:#9f4825;font-weight:900}.sumtext{flex:1}.sumtext b{display:block}.sumtext small{color:var(--muted)}.arrow{color:var(--orange);font-size:20px}.methods details[open] .arrow{transform:rotate(90deg)}.method-body{padding:0 16px 18px;border-top:1px solid #f0e9e0}.method-body h3{font-size:16px;margin:18px 0 6px;color:var(--green)}.method-body p{margin:7px 0}.method-body ul{margin:7px 0;padding-left:21px}.method-body li{margin:5px 0}
+    .daily{display:grid;gap:8px;margin-top:16px}.task{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border-radius:12px;background:#f9f6f1}.task input{margin-top:5px;accent-color:var(--orange);transform:scale(1.2)}.task b{color:var(--orange)}.plain-list{margin:10px 0;padding-left:22px}.plain-list li{margin:8px 0}.rulegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.rulebox{padding:16px;border-radius:14px;background:var(--green2);border:1px solid #d6e7df}.rulebox.bad{background:#fff3ec;border-color:#f0d7c8}.rulebox b{display:block;margin-bottom:8px;color:var(--green)}.rulebox.bad b{color:#a34a26}.rulebox ol{margin:0;padding-left:20px;font-size:14px}.rulebox li{margin:6px 0}
+    .map{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.route{padding:17px;border:1px solid var(--line);border-radius:15px;background:white}.route b{display:block;font-size:17px;color:var(--ink)}.route p{margin:7px 0;color:var(--muted);font-size:13px}.route p+p{padding-top:8px;border-top:1px dashed var(--line)}.route p strong{color:var(--green)}.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{padding:3px 7px;border-radius:999px;background:var(--orange2);color:#a54a25;font-size:11px}.chip.green{background:var(--green2);color:var(--green)}
+    .methods>details{margin:15px 0;border:1px solid var(--line);border-radius:16px;background:white;overflow:hidden;box-shadow:0 5px 16px rgba(67,44,25,.035)}.methods summary{display:flex;align-items:center;gap:11px;padding:17px 15px;cursor:pointer;list-style:none}.methods summary::-webkit-details-marker{display:none}.platform{flex:0 0 42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--orange2);color:#fff;font-weight:900;overflow:hidden}.platform svg{width:27px;height:27px;display:block}.platform.xhs{background:#ff2442}.platform.dy{background:#17171c}.platform.tieba{background:#3f7cff}.platform.weibo{background:#fff1e8;color:#e94b35}.platform.zhihu{background:#1772f6}.platform.xianyu{background:#ffe54d;color:#222}.platform.wechat{background:#20c66b}.platform.store{background:#ff8c32}.platform.referral{background:#7a68c7}.sumtext{flex:1}.sumtext b{display:block}.sumtext small{color:var(--muted)}.arrow{color:var(--orange);font-size:20px}.methods details[open] .arrow{transform:rotate(90deg)}.method-body{padding:0 16px 18px;border-top:1px solid #f0e9e0}.method-body h3{font-size:16px;margin:18px 0 6px;color:var(--green)}.method-body p{margin:7px 0}.method-body ul{margin:7px 0;padding-left:21px}.method-body li{margin:5px 0}
     .searches{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}.searches span{padding:5px 8px;border-radius:8px;background:var(--blue2);color:var(--blue);font-size:12px}.script{position:relative;margin:10px 0;padding:15px 57px 15px 15px;border:1px dashed #d7baa7;border-radius:13px;background:#fffaf5;white-space:pre-line;font-size:14px}.copy{position:absolute;right:9px;top:9px;border:0;border-radius:8px;padding:6px 8px;background:#eee1d5;color:#6a4831;cursor:pointer}.note{padding:13px 15px;border-left:4px solid var(--orange);border-radius:5px 12px 12px 5px;background:#fff4ec;font-size:13px}.good{border-left-color:var(--green);background:var(--green2);color:#31564c}
     .week{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.day{padding:14px;border-radius:14px;background:#f8f5f0}.day b{display:inline-grid;place-items:center;width:27px;height:27px;margin-right:7px;border-radius:50%;background:var(--orange);color:white}.day p{margin:6px 0 0;font-size:13px;color:var(--muted)}
     .flow{display:grid;gap:8px;counter-reset:flow}.flow article{position:relative;padding:13px 13px 13px 52px;border:1px solid var(--line);border-radius:13px}.flow article:before{counter-increment:flow;content:counter(flow);position:absolute;left:13px;top:12px;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:var(--green);color:white;font-weight:900}.flow b{display:block}.flow span{color:var(--muted);font-size:13px}
     .case{border:1px solid #d9c3ae;border-radius:16px;background:#fffaf4;overflow:hidden}.case summary{padding:16px;cursor:pointer;list-style:none;font-weight:900}.case summary::-webkit-details-marker{display:none}.case summary:after{content:"＋";float:right;color:var(--orange)}.case[open] summary:after{content:"－"}.case-body{padding:0 16px 16px}.case-row{display:grid;grid-template-columns:30px 1fr;gap:9px;margin:10px 0}.case-row i{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--orange);color:white;font-style:normal;font-weight:900}.case-row p{margin:1px 0;font-size:13px}.profit{padding:14px;border-radius:12px;text-align:center;background:var(--green);color:white;font-weight:900}.profit strong{color:#ffdb8a;font-size:19px}
-    .tool details{border-top:1px solid var(--line);padding:12px 0}.tool summary{cursor:pointer;font-weight:800;list-style:none}.tool summary::-webkit-details-marker{display:none}.tool summary:after{content:"＋";float:right;color:var(--orange)}.tool details[open] summary:after{content:"－"}.inside{padding-top:8px;color:var(--muted);font-size:14px}.final{padding:20px;text-align:center;border-radius:17px;background:linear-gradient(135deg,var(--green),#274a41);color:white}.final b{display:block;font-size:21px}.final p{margin:5px 0 0;color:#d9e8e2}.final-link{display:inline-flex;margin-top:15px;padding:9px 15px;border-radius:999px;background:#fff;color:var(--green);font-size:13px;font-weight:900;text-decoration:none}.site-back{position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;z-index:80;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:rgba(255,253,249,.94);box-shadow:0 7px 24px rgba(67,44,25,.14);color:var(--green);font-size:12px;font-weight:900;text-decoration:none;backdrop-filter:blur(10px)}.top{position:fixed;right:15px;bottom:15px;width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:var(--green);color:white;text-decoration:none;box-shadow:var(--shadow)}footer{padding:5px 0 48px;text-align:center;color:var(--muted);font-size:12px}
-    @media(max-width:600px){header{padding-top:26px}.hero-points,.starter,.prices,.map,.week{grid-template-columns:1fr}.hero-points div{text-align:left}.hero-points b{display:inline;margin-right:6px}.prices div{display:flex;justify-content:space-between;align-items:center}.prices b{display:inline}.panel{padding:20px 16px}.method-body{padding-left:14px;padding-right:14px}}
-    @media print{.sticky,.copy,.top{display:none}.methods details,.case,.tool details{break-inside:avoid}.methods details>.method-body,.case>.case-body,.tool .inside{display:block!important}.panel{box-shadow:none}}
+    .talk-group{margin-top:28px;padding-top:4px}.talk-group:first-of-type{margin-top:18px}.talk-group-title{display:flex;align-items:center;gap:10px;margin:0 0 9px;color:var(--green);font-size:16px}.talk-group-title span{display:grid;place-items:center;width:27px;height:27px;border-radius:9px;background:var(--green2);font-size:13px}.talk-group-title:after{content:"";height:1px;flex:1;background:var(--line)}.tool .talk-group details{margin:8px 0;padding:0;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}.tool .talk-group summary{padding:14px 15px;cursor:pointer;font-weight:800;list-style:none}.tool summary::-webkit-details-marker{display:none}.tool summary:after{content:"＋";float:right;color:var(--orange)}.tool details[open] summary:after{content:"－"}.tool .inside{padding:0 14px 14px;color:var(--muted);font-size:14px;border-top:1px solid #f1ebe4}.inside .script{margin-bottom:0}.final{padding:20px;text-align:center;border-radius:17px;background:linear-gradient(135deg,var(--green),#274a41);color:white}.final b{display:block;font-size:21px}.final p{margin:5px 0 0;color:#d9e8e2}.top{position:fixed;right:15px;bottom:15px;width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:var(--green);color:white;text-decoration:none;box-shadow:var(--shadow)}footer{padding:5px 0 48px;text-align:center;color:var(--muted);font-size:12px}
+    .channel-plan{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0}.channel-plan div{padding:13px;border-radius:13px;background:var(--green2);font-size:13px}.channel-plan b{display:block;color:var(--green);font-size:15px}.daily-target{margin:12px 0;padding:11px 13px;border-radius:12px;background:#fff0e5;color:#733c24;font-size:13px;font-weight:800}.focus{border:2px solid #d3e6dc;box-shadow:0 14px 35px rgba(52,95,83,.08)}
+    :root[data-theme="dark"]{--ink:#eee9e2;--muted:#b9b0a6;--bg:#171615;--paper:#211f1d;--line:#3b3732;--orange:#f0955f;--orange2:#38261d;--green:#78a999;--green2:#20342e;--blue:#8bb5ce;--blue2:#1e303a;--shadow:0 14px 40px rgba(0,0,0,.28);color-scheme:dark}
+    :root[data-theme="dark"] header{background:radial-gradient(circle at 90% 10%,#3a291f 0,transparent 34%),linear-gradient(145deg,#211d19,#191817)}
+    :root[data-theme="dark"] .tag,:root[data-theme="dark"] .page-action,:root[data-theme="dark"] .hero-points div,:root[data-theme="dark"] .quicknav a,:root[data-theme="dark"] .starter article,:root[data-theme="dark"] .route,:root[data-theme="dark"] .methods>details,:root[data-theme="dark"] .tool .talk-group details{background:#292624}
+    :root[data-theme="dark"] .sticky{background:rgba(23,22,21,.94)}
+    :root[data-theme="dark"] .task,:root[data-theme="dark"] .day{background:#292624}
+    :root[data-theme="dark"] .rulebox{background:#20342e;border-color:#315047}
+    :root[data-theme="dark"] .rulebox.bad{background:#39271f;border-color:#594034}
+    :root[data-theme="dark"] .method-body,:root[data-theme="dark"] .tool .inside{border-color:var(--line)}
+    :root[data-theme="dark"] .script,:root[data-theme="dark"] .case{background:#2b241f;border-color:#604a3c}
+    :root[data-theme="dark"] .copy{background:#45382f;color:#ead8ca}
+    :root[data-theme="dark"] .note,:root[data-theme="dark"] .daily-target{background:#38261d;color:#efc6ae}
+    :root[data-theme="dark"] .good{background:#20342e;color:#c7ded6}
+    :root[data-theme="dark"] .chapter-head.core{background:linear-gradient(135deg,#20342e,#2b251e)}
+    :root[data-theme="dark"] .focus{border-color:#315047;box-shadow:none}
+    :root[data-theme="dark"] .platform.weibo{background:#38261d}
+    .guide-layout{width:min(1180px,calc(100% - 24px));margin:auto;display:grid;grid-template-columns:240px minmax(0,800px);gap:24px;align-items:start}.guide-main{min-width:0;padding:18px 0 60px}.sidebar{position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto;margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:var(--shadow)}.sidebar-title{margin:0 0 10px;font-size:17px}.guide-search{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;outline:none}.guide-search:focus{border-color:var(--orange)}.side-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0 12px}.side-actions button{padding:7px 5px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--muted);font:inherit;font-size:11px;cursor:pointer}.side-list{display:grid;gap:2px}.side-chapter{display:block;margin-top:10px;padding:7px 8px;color:var(--green);font-size:13px;font-weight:900;text-decoration:none}.side-link{display:block;padding:6px 8px 6px 17px;border-left:2px solid transparent;border-radius:0 8px 8px 0;color:var(--muted);font-size:12px;text-decoration:none}.side-link:hover,.side-link.active{border-left-color:var(--orange);background:var(--orange2);color:var(--ink)}.search-results{display:none;margin:8px 0;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}.search-results.show{display:grid;gap:4px}.search-result{padding:7px;border:0;border-radius:7px;background:transparent;color:var(--ink);font:inherit;font-size:12px;text-align:left;cursor:pointer}.search-result:hover{background:var(--orange2)}.search-empty{padding:7px;color:var(--muted);font-size:12px}.panel-title{display:flex;align-items:center;gap:10px}.panel-title-text{flex:1}.section-toggle{flex:0 0 34px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--orange);font:inherit;font-size:20px;cursor:pointer}.section-content{display:block}.panel.collapsed{padding-top:18px;padding-bottom:18px}.panel.collapsed .section-content{display:none}.panel.collapsed h2{margin-bottom:0}.drawer-overlay{display:none}.mobile-menu{display:none}.mobile-current{display:none}.no-scroll{overflow:hidden}.search-mark{background:#ffe28a;color:#33240c;border-radius:3px;padding:0 2px}
+    :root[data-theme="dark"] .sidebar,:root[data-theme="dark"] .side-actions button{background:#24211f}:root[data-theme="dark"] .guide-search,:root[data-theme="dark"] .search-results,:root[data-theme="dark"] .section-toggle{background:#1d1b1a}:root[data-theme="dark"] .side-link.active,:root[data-theme="dark"] .side-link:hover,:root[data-theme="dark"] .search-result:hover{background:#3b2a20}
+    .sidebar-head{display:flex;align-items:center;justify-content:space-between}.sidebar-title{margin:0 0 10px}.sidebar-close{display:block;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-size:19px}.search-open{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;text-align:left;cursor:pointer}.search-box[hidden]{display:none}.search-box{margin-top:8px}
+    @media(min-width:861px){.sticky,.sidebar-close{display:none}}
+    @media(max-width:860px){.guide-layout{display:block;width:min(800px,calc(100% - 24px))}.guide-main{padding-top:18px}.sticky{display:block}.quicknav{align-items:center}.mobile-menu{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font:inherit;font-size:12px;font-weight:800}.mobile-current{display:block;min-width:0;overflow:hidden;color:var(--muted);font-size:12px;text-overflow:ellipsis;white-space:nowrap}.sidebar{position:fixed;z-index:60;top:0;bottom:0;left:0;width:min(330px,88vw);max-height:none;margin:0;border-radius:0 18px 18px 0;transform:translateX(-105%);transition:transform .22s ease}.sidebar.open{transform:translateX(0)}.drawer-overlay{position:fixed;z-index:55;inset:0;display:block;background:rgba(0,0,0,.42);opacity:0;pointer-events:none;transition:opacity .22s}.drawer-overlay.show{opacity:1;pointer-events:auto}}
+    @media(max-width:600px){header{padding-top:26px}.hero-points,.starter,.prices,.map,.week,.rulegrid,.channel-plan{grid-template-columns:1fr}.hero-points div{text-align:left}.hero-points b{display:inline;margin-right:6px}.prices div{display:flex;justify-content:space-between;align-items:center}.prices b{display:inline}.panel{padding:20px 16px}.panel.collapsed{padding-top:16px;padding-bottom:16px}.panel-title{font-size:22px!important}.method-body{padding-left:14px;padding-right:14px}.chapter-head.core{margin-left:0;margin-right:0}}
+    @media(min-width:861px){body{padding-left:250px}.guide-layout{display:block;width:auto;margin:0}.guide-main{width:min(800px,calc(100% - 24px));margin:auto}.sidebar{position:fixed;z-index:40;top:0;bottom:0;left:0;width:250px;max-height:none;margin:0;border-width:0 1px 0 0;border-radius:0;box-shadow:4px 0 18px rgba(67,44,25,.05)}}
+    @media(max-width:860px){.sticky{position:fixed;top:12px;left:12px;right:auto;width:auto;background:transparent;border:0;backdrop-filter:none}.sticky .wrap{width:auto;margin:0}.quicknav{padding:0}.mobile-menu{display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:14px;font-size:0;box-shadow:0 8px 24px rgba(37,29,23,.18)}.mobile-menu:before{content:"☰";font-size:22px;line-height:1}.mobile-current{display:none}}
+    @media(max-width:860px){#guide-menu-fab{display:grid!important;position:fixed!important;z-index:2147483647!important;top:0!important;left:0!important;margin:0!important;border-radius:0 0 14px 0!important}#sidebar{position:fixed!important;top:0!important;bottom:0!important;left:0!important;margin:0!important}}
+    @media print{.page-actions,.sticky,.copy,.top,.sidebar,.drawer-overlay,.section-toggle,.mobile-menu{display:none}.guide-layout{display:block;width:auto}.methods details,.case,.tool details{break-inside:avoid}.methods details>.method-body,.case>.case-body,.tool .inside,.section-content{display:block!important}.panel{box-shadow:none}}
   </style>
 </head>
 <body id="top">
-  <a class="site-back" href="/">← 返回猫咪大厅</a>
-  <header><div class="wrap"><span class="tag">零基础获客版</span><h1>新人找客户<br>与卖猫实战手册</h1><p>货源已经有人提供。你最重要的任务，是去不同地方找到正在考虑养猫的人，把需求带回来，再完成报价和下单。</p><div class="hero-points"><div><b>多平台获客</b>不限制只做一个账号</div><div><b>主动找需求</b>不只是发完内容等待</div><div><b>每天有动作</b>按七天计划开始测试</div></div></div></header>
-  <nav class="sticky"><div class="wrap quicknav"><a href="#start">今日开始</a><a href="#routes">销路地图</a><a href="#platforms">平台打法</a><a href="#week">七天计划</a><a href="#deal">成交下单</a><a href="#tools">话术工具</a></div></nav>
-  <main class="wrap">
-    <section class="panel money"><div class="eyebrow">先看懂你怎么赚钱</div><h2>结算价之外的差价，就是你的收入</h2><div class="formula">客户付款 − 销售结算价 − 实际运费 = 你的收入</div><div class="prices"><div>销售结算价<b>1250元</b></div><div>客户付款<b>1800元</b></div><div>运费280元后收入<b>270元</b></div></div></section>
+<button class="mobile-menu" id="guide-menu-fab" type="button" aria-label="打开教程目录" style="position:fixed;top:8px;left:8px;z-index:2147483647">☰ 目录与搜索</button>
+  <header>
+<div class="wrap">
+<div class="page-actions">
+<a class="page-action" href="/" aria-label="返回猫咪大厅">← 返回猫咪大厅</a>
+<button class="page-action" id="theme-toggle" type="button" aria-pressed="false">🌙 深色模式</button>
+</div>
+<span class="tag">线上兼职说明</span>
+<h1>线上卖猫教程</h1>
+<div class="hero-points">
+<div>
+<b>不用交钱</b>不收押金和培训费</div>
+<div>
+<b>平台不限</b>可以同时在多个平台做</div>
+<div>
+<b>按结果赚钱</b>卖出以后赚取差价</div>
+</div>
+</div>
+</header>
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="guide-layout">
+<aside class="sidebar" id="sidebar" aria-label="教程目录">
+<div class="sidebar-head"><h2 class="sidebar-title">教程目录</h2><button class="sidebar-close" id="sidebar-close" type="button" aria-label="关闭目录">×</button></div>
+<button class="search-open" id="search-open" type="button">⌕ 搜索教程</button>
+<div class="search-box" id="search-box" hidden><input class="guide-search" id="guide-search" type="search" placeholder="搜索：运费、闲鱼、不回复…" aria-label="搜索教程"><div class="search-results" id="search-results"></div></div>
+<div class="side-actions"><button id="expand-all" type="button">全部展开</button><button id="collapse-all" type="button">全部收起</button></div>
+<nav class="side-list" id="side-list"></nav>
+</aside>
+<main class="guide-main" id="guide-main">
+<div class="chapter-head" id="must">
+<div class="chapter-kicker"><span class="chapter-no">1</span>入门必看</div>
+<h2>先弄懂怎么做、怎么赚钱</h2>
+<p>这一部分只讲兼职规则、收入和什么客户值得继续聊。</p>
+</div>
+    <section class="panel money">
+<div class="eyebrow">你怎么赚钱</div>
+<h2>多出来的钱就是你赚的</h2>
+<div class="formula">原价1000元，你卖1100元，赚100元；卖1150元，赚150元。</div>
+<div class="prices">
+<div>我们给你的结算价<b>1000元</b>
+</div>
+<div>建议你加价<b>10%—15%</b>
+</div>
+<div>你可以卖<b>1100—1150元</b>
+</div>
+</div>
+<p style="margin:10px 0 0;color:#d7e7e1;font-size:13px">你也可以根据自己的客户和情况卖得更高。这里先只讲猫的价格，运费后面下单时再单独确认。</p>
+</section>
 
-    <section class="panel" id="start"><div class="eyebrow">第一天不要学太多</div><h2>先用“三条腿”开始</h2><p class="lead">新人不需要只押一个平台，也不用一上来铺满所有平台。先同时测试三种不同来源。</p><div class="starter"><article><b>① 一个公开平台</b><span>小红书、抖音、贴吧、微博或知乎任选一个。</span></article><article><b>② 一个交易平台</b><span>测试闲鱼等允许发布相关信息的平台入口。</span></article><article><b>③ 一个熟人渠道</b><span>朋友圈、微信群、QQ群或熟人转介绍。</span></article></div><div class="daily"><label class="task"><input type="checkbox"><span><b>选3只猫</b>：保存编号、图片、视频、结算价和所在地。</span></label><label class="task"><input type="checkbox"><span><b>发布2条</b>：一个单猫介绍，一个多猫合集。</span></label><label class="task"><input type="checkbox"><span><b>寻找10个需求</b>：搜索明确想买猫、选猫、问预算的人。</span></label><label class="task"><input type="checkbox"><span><b>回复3个人</b>：针对问题正常回答，不复制同一条广告。</span></label><label class="task"><input type="checkbox"><span><b>联系1个渠道</b>：宠物店、猫咖、群主或宠物从业者。</span></label></div></section>
+    <section class="panel" id="job">
+<div class="eyebrow">先认真看完</div>
+<h2>这份兼职需要你做什么</h2>
+<ol class="plain-list">
+<li>这是一份线上兼职，不收押金、培训费和入职费用。</li>
+<li>建议准备至少两个能正常发内容、回复消息的平台账号。</li>
+<li>你可以做小红书、抖音、快手、闲鱼、贴吧、微博、知乎、朋友圈、QQ或微信群，不限制只做一个平台。</li>
+<li>需要持续发布和找客户。偶尔发一条以后就不管，通常很难卖出去。</li>
+<li>有人咨询时，及时回复。客户准备购买后，再联系负责人确认库存、结算价和运费。</li>
+<li>没有无责底薪。卖出去以后，你赚取自己售价和结算价之间的差价。</li>
+</ol>
+</section>
 
-    <section class="panel" id="routes"><div class="eyebrow">先知道客户可能在哪里</div><h2>六条销路地图</h2><div class="map"><article class="route"><b>内容获客</b><p>在小红书、抖音、微博、知乎等发布，让客户找到你。</p><div class="chips"><span class="chip">积累型</span><span class="chip green">可长期做</span></div></article><article class="route"><b>需求截流</b><p>搜索明确求猫、问猫的人，在评论或私信中提供帮助。</p><div class="chips"><span class="chip">主动型</span><span class="chip green">见效较快</span></div></article><article class="route"><b>商品挂售</b><p>在闲鱼等允许的商品平台，用真实单猫资料承接搜索需求。</p><div class="chips"><span class="chip">搜索流量</span><span class="chip green">适合测试</span></div></article><article class="route"><b>社群私域</b><p>朋友圈、QQ/微信群、校园群、本地群和养猫群。</p><div class="chips"><span class="chip">信任较高</span><span class="chip green">当天能做</span></div></article><article class="route"><b>本地合作</b><p>宠物店、美容店、猫咖、摄影师、寄养店和群主介绍客户。</p><div class="chips"><span class="chip">渠道型</span><span class="chip green">可持续</span></div></article><article class="route"><b>转介绍</b><p>让朋友、咨询者和成交客户继续介绍身边有需求的人。</p><div class="chips"><span class="chip">成本低</span><span class="chip green">信任最高</span></div></article></div></section>
+<div class="chapter-head core" id="sales">
+<div class="chapter-kicker"><span class="chapter-no">2</span>核心教学：销路</div>
+<h2>客户去哪里找，具体怎么找</h2>
+</div>
+<section class="panel focus" id="start">
+<div class="section-label">第一步 · 选渠道</div>
+<div class="eyebrow">今天就可以开始</div>
+<h2>先选2—3种销路</h2>
+<p class="lead">建议先选一个商品平台、一个内容平台，再加一个自己最熟悉的社群渠道。连续做7天，用真实咨询量判断哪个适合自己。</p>
+<div class="starter">
+<article>
+<b>① 内容平台</b>
+<span>小红书、抖音、快手、贴吧、微博、知乎。</span>
+</article>
+<article>
+<b>② 商品平台</b>
+<span>闲鱼等当前允许发布相关信息的平台。</span>
+</article>
+<article>
+<b>③ 熟人和社群</b>
+<span>朋友圈、微信群、QQ群、校园群和熟人介绍。</span>
+</article>
+</div>
+<div class="channel-plan"><div><b>发布</b>让正在刷平台的人看到猫。</div><div><b>主动找</b>搜索近期明确说想买猫的人。</div><div><b>跟进</b>当天回复，隔天回访一次。</div></div>
+<div class="daily">
+<label class="task">
+<input type="checkbox">
+<span>
+<b>选3只猫</b>：保存编号、图片、视频、结算价和所在地。</span>
+</label>
+<label class="task">
+<input type="checkbox">
+<span>
+<b>发布2条</b>：一个单猫介绍，一个多猫合集。</span>
+</label>
+<label class="task">
+<input type="checkbox">
+<span>
+<b>找10个想买猫的人</b>：搜索近期求猫、选猫和问价格的人。</span>
+</label>
+<label class="task">
+<input type="checkbox">
+<span>
+<b>认真回复3个人</b>：根据对方的问题正常回答。</span>
+</label>
+<label class="task">
+<input type="checkbox">
+<span>
+<b>联系1个合作方</b>：宠物店、猫咖、群主或宠物从业者。</span>
+</label>
+</div>
+</section>
 
-    <section class="panel methods" id="platforms"><div class="eyebrow">打开你准备做的平台</div><h2>各平台具体怎么找客户</h2><p class="lead">不要求只选一个平台。可以同时测试，但每个平台先持续做7天，再根据咨询量决定是否保留。</p>
-      <details open><summary><span class="platform">红</span><span class="sumtext"><b>小红书</b><small>搜索需求＋图文内容＋评论互动</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>搜索这些词</h3><div class="searches"><span>哪里买猫</span><span>XX城市买猫</span><span>预算1000买猫</span><span>金渐层怎么选</span><span>第一次养猫</span><span>求猫舍推荐</span></div><h3>三种动作</h3><ul><li>发布单猫、预算推荐、品种对比和新手选猫内容；</li><li>找到明确表达购买需求的笔记，针对问题认真回答；</li><li>对方继续追问后，再进一步沟通他的城市、预算和品种。</li></ul><div class="script">你预算大约1500的话，除了看猫价，还要把所在地和运输费用一起算进去。你在哪个城市、比较喜欢什么品种？<button class="copy">复制</button></div><p class="note">不要在几十条笔记下面复制同一句广告，也不要用变形联系方式刷评论。以平台当前规则允许的互动和交易方式为准。</p></div></details>
-      <details><summary><span class="platform">抖</span><span class="sumtext"><b>抖音 / 快手</b><small>短视频展示＋同城需求＋直播测试</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>适合发布</h3><ul><li>一只猫10—20秒活动视频；</li><li>“这个预算可以选什么猫”；</li><li>不同品种、颜色和公母对比；</li><li>当天更新的多猫合集；</li><li>接猫准备和常见问题。</li></ul><h3>标题参考</h3><div class="script">预算1500左右，第一次养猫可以看看这几只｜目前在【城市】｜有活动视频<button class="copy">复制</button></div><p class="note good">新人不需要高难度剪辑。画面清楚、资料完整、持续发布，比复杂特效更重要。</p></div></details>
-      <details><summary><span class="platform">贴</span><span class="sumtext"><b>贴吧 / 论坛</b><small>品种吧、城市吧、宠物论坛蹲真实需求</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>去哪里找</h3><div class="searches"><span>猫吧</span><span>金渐层吧</span><span>英短吧</span><span>XX城市吧</span><span>本地宠物论坛</span></div><ul><li>搜索“求猫、收猫、预算、同城、哪里买”等帖子；</li><li>看清发帖时间，优先联系近期需求；</li><li>按对方预算推荐1—3只，不要一上来甩几十张图；</li><li>如果版规允许，也可以发同城在售合集。</li></ul><div class="script">看到你在找【品种】，预算大约【金额】。我这里刚好有几只不同城市的货源，可以按你的预算筛一下。你更在意颜色、公母还是距离？<button class="copy">复制</button></div></div></details>
-      <details><summary><span class="platform">博</span><span class="sumtext"><b>微博</b><small>关键词搜索＋同城话题＋超话</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>可以测试</h3><ul><li>搜索“想买猫、求猫、收猫、XX城市猫咪”；</li><li>关注品种超话、宠物超话和本地话题；</li><li>发布单猫短视频、合集和预算推荐；</li><li>对近期明确需求进行正常回复。</li></ul><p class="note">微博信息流更新快，重点是近期搜索和持续更新，不适合发一条后长期等待。</p></div></details>
-      <details><summary><span class="platform">知</span><span class="sumtext"><b>知乎</b><small>回答选猫问题，积累长期搜索流量</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>适合回答</h3><div class="searches"><span>第一次养猫选什么</span><span>买猫注意什么</span><span>金渐层多少钱</span><span>异地买猫靠谱吗</span></div><ul><li>用真实经验回答预算、品种和接猫问题；</li><li>答案里加入不同预算应该怎么选；</li><li>不要整篇只放商品广告；</li><li>有人评论具体需求时，再继续沟通。</li></ul><p class="note good">知乎通常不是最快成交渠道，但好的回答可能持续带来搜索流量。</p></div></details>
-      <details><summary><span class="platform">鱼</span><span class="sumtext"><b>闲鱼等商品平台</b><small>单猫挂售＋关键词标题＋及时更新</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>一条商品需要</h3><ul><li>一只猫对应一条信息，并保留猫咪编号；</li><li>真实图片、活动视频、品种、性别、年龄和所在地；</li><li>根据实际情况填写对客价格；</li><li>客户城市确定后，再询问实际运费；</li><li>猫已售或不在售时及时修改或下架。</li></ul><div class="script">【城市】金渐层弟弟｜约3个月｜有活动视频
+<section class="panel" id="routes">
+<div class="section-label">第二步 · 看懂所有销路</div>
+<div class="eyebrow">客户可以从很多地方来</div>
+<h2>找客户的6种方法</h2>
+<div class="map">
+<article class="route">
+<b>自己发布内容</b>
+<p>把单猫视频、预算推荐、品种对比和养猫问题发到小红书、抖音、快手、微博、知乎等平台。</p>
+<p><strong>怎么做：</strong>每天发1—2条。标题写清品种、预算和城市，内容结尾问一句“你在哪个城市、预算多少”。有人点赞、收藏或提问时及时回复。</p>
+</article>
+<article class="route">
+<b>搜索需求，主动联系</b>
+<p>搜索“想买猫、求猫、预算买猫、哪里买猫、XX城市买猫”等词，优先看最近几天发布的内容。</p>
+<p><strong>怎么做：</strong>每天找10条明确需求，选3—5个人认真回复。先回答对方的问题，再询问城市、预算和喜欢的品种。</p>
+</article>
+<article class="route">
+<b>在商品平台挂售</b>
+<p>在闲鱼等当前允许的平台发布真实猫咪资料，让正在找商品的人直接看到。</p>
+<p><strong>怎么做：</strong>保持3—5条有效商品，一只猫对应一条。写清品种、性别、年龄、所在地和报价；售出后及时修改或下架。</p>
+</article>
+<article class="route">
+<b>评论区寻找客户</b>
+<p>在热门猫咪视频、买猫避坑、品种介绍和预算推荐内容下面，经常有人留言询价、求推荐或说明自己想买。</p>
+<p><strong>怎么做：</strong>每天查看10条相关内容的最新评论。只联系明确说想买、问价格或求渠道的人；针对他的原话回复，不复制同一句广告。</p>
+</article>
+<article class="route">
+<b>朋友圈和群聊</b>
+<p>朋友圈、QQ/微信群、校园群、本地群和养猫群都可以带来熟人或同城客户。</p>
+<p><strong>怎么做：</strong>朋友圈每天发1条；群里先看群规，有人求猫时再推荐。不要连续刷屏，也不要见人就私聊。</p>
+</article>
+<article class="route">
+<b>合作和转介绍</b>
+<p>宠物店、美容店、猫咖、寄养店、摄影师、群主、朋友和成交客户，都可能介绍准备养猫的人。</p>
+<p><strong>怎么做：</strong>每天联系1—2个合作对象。成交客户收猫稳定后再回访，请他帮忙介绍；奖励方式先和负责人确认。</p>
+</article>
+</div>
+</section>
 
-目前在【城市】，预算【你的报价】。异地运输费用根据收货城市另询。想看完整视频，可以先告诉我所在城市和预算。<button class="copy">复制</button></div><p class="note">发布前先确认平台当前是否允许相应类目，以及账号需要满足的条件。不要重复铺大量相同商品。</p></div></details>
-      <details><summary><span class="platform">圈</span><span class="sumtext"><b>朋友圈、QQ/微信群</b><small>熟人信任＋本地社群＋持续更新</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>不要只刷商品图</h3><ul><li>一天发1—3条，不要连续刷十几条；</li><li>单猫、合集、选猫知识和到家准备交替发布；</li><li>有人点赞或询问后再了解预算；</li><li>群里有人求猫时再推荐，并先看群规。</li></ul><div class="script">最近在帮人对接不同城市的猫咪货源。预算、品种和所在地都不一样，如果身边有人准备养猫，可以把城市和预算发我，我帮忙筛几只看看。<button class="copy">复制</button></div></div></details>
-      <details><summary><span class="platform">店</span><span class="sumtext"><b>本地渠道合作</b><small>宠物店、猫咖、美容、寄养、摄影、群主</small></span><span class="arrow">›</span></summary><div class="method-body"><h3>联系对象</h3><div class="searches"><span>宠物用品店</span><span>宠物美容店</span><span>猫咖</span><span>寄养店</span><span>宠物摄影</span><span>本地群主</span></div><div class="script">你好，我这边长期对接不同城市的猫咪货源。如果你店里遇到想买猫的客户，可以介绍给我。客户成交后可以按提前说好的方式给介绍奖励，不需要你负责后续发货。<button class="copy">复制</button></div><p class="note good">这类渠道不一定马上出单，但一旦建立合作，可能持续提供客户。每周稳定联系几家即可。</p></div></details>
-      <details><summary><span class="platform">转</span><span class="sumtext"><b>熟人和客户转介绍</b><small>信任最高、成本最低的一条销路</small></span><span class="arrow">›</span></summary><div class="method-body"><div class="script">如果你身边还有朋友准备养猫，也可以把预算和喜欢的类型发给我。我可以先免费帮他筛几只，不合适也没关系。<button class="copy">复制</button></div><ul><li>可以请朋友帮忙转发一次猫咪合集；</li><li>咨询过但没购买的人，也可能认识其他买家；</li><li>成交客户收猫稳定后，再提出转介绍；</li><li>是否设置介绍奖励，由负责人统一确定。</li></ul></div></details>
+<section class="panel methods focus" id="platforms">
+<div class="section-label">第三步 · 照着平台操作</div>
+<div class="eyebrow">打开你准备做的平台</div>
+<h2>各平台具体怎么找客户</h2>
+<p class="lead">先打开你准备做的平台。每个平台都按“发布、主动搜索、回复、回访”来做，不是只发完内容就等。</p>
+      <details open>
+<summary>
+<span class="platform xhs" aria-label="小红书"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="6" width="28" height="20" rx="6" fill="none" stroke="currentColor" stroke-width="2.4"/><text x="16" y="20" text-anchor="middle" font-size="9" font-weight="900" fill="currentColor">小红书</text></svg></span>
+<span class="sumtext">
+<b>小红书</b>
+<small>搜索需求＋图文内容＋评论互动</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：发1条笔记＋搜10条近期需求＋认真回复3个人＋回访昨天咨询的人</div>
+<h3>搜索这些词</h3>
+<div class="searches">
+<span>哪里买猫</span>
+<span>XX城市买猫</span>
+<span>预算1000买猫</span>
+<span>金渐层怎么选</span>
+<span>第一次养猫</span>
+<span>求猫舍推荐</span>
+</div>
+<h3>每天做这四件事</h3>
+<ul>
+<li>发布单猫、预算推荐、品种对比和新手选猫内容；</li>
+<li>搜索近期明确表达购买需求的笔记，针对问题认真回答；</li>
+<li>打开热门猫咪笔记的最新评论，找“多少钱、哪里买、求推荐、想养一只”等明确需求；</li>
+<li>对方继续追问后，再进一步沟通他的城市、预算和品种。</li>
+</ul>
+<h3>评论区怎么回复</h3>
+<div class="script">看到你说想找【品种】。如果还没选好，可以先说一下城市和大概预算，我帮你看看有哪些合适的。<button class="copy">复制</button>
+</div>
+<div class="script">你预算大约1500的话，除了看猫价，还要把所在地和运输费用一起算进去。你在哪个城市、比较喜欢什么品种？<button class="copy">复制</button>
+</div>
+<p class="note">不要在几十条笔记下面复制同一句广告，也不要用变形联系方式刷评论。以平台当前规则允许的互动和交易方式为准。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform dy" aria-label="抖音快手"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M18 5v14.2a5.7 5.7 0 1 1-4.2-5.5v4a2.3 2.3 0 1 0 1 1.9V5h3.2c.7 3.5 2.8 5.6 6.5 6.2v3.4c-2.7-.2-4.9-1.2-6.5-2.8" fill="none" stroke="#25f4ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 4.5v14.2a5.7 5.7 0 1 1-4.2-5.5" fill="none" stroke="#fe2c55" stroke-width="2.5" stroke-linecap="round" opacity=".95"/><path d="M18.7 4.5v14.2a5.7 5.7 0 1 1-4.2-5.5v4a2.3 2.3 0 1 0 1 1.9V4.5h3.2c.7 3.5 2.8 5.6 6.5 6.2v3.4c-2.7-.2-4.9-1.2-6.5-2.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+<span class="sumtext">
+<b>抖音 / 快手</b>
+<small>短视频展示＋同城需求＋直播测试</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：发1—2条短视频＋搜索同城和品种需求＋回复评论和私信</div>
+<h3>适合发布</h3>
+<ul>
+<li>一只猫10—20秒活动视频；</li>
+<li>“这个预算可以选什么猫”；</li>
+<li>不同品种、颜色和公母对比；</li>
+<li>当天更新的多猫合集；</li>
+<li>接猫准备和常见问题。</li>
+</ul>
+<h3>去相关视频评论区找需求</h3>
+<ul>
+<li>搜索“买猫、金渐层、英短、第一次养猫、买猫避坑”等内容；</li>
+<li>优先查看近期热门视频和最新评论，找询价、求渠道、求同城猫的人；</li>
+<li>先针对对方的问题回复，不要只留下“看主页”“私聊我”或整段广告；</li>
+<li>对方愿意继续沟通后，再问城市、预算、品种和预计购买时间。</li>
+</ul>
+<div class="script">你问的这种【品种/颜色】，不同城市和品相价格会有差别。你在哪个城市、预算大概多少？我可以按你的要求筛几只。<button class="copy">复制</button>
+</div>
+<h3>标题参考</h3>
+<div class="script">预算1500左右，第一次养猫可以看看这几只｜目前在【城市】｜有活动视频<button class="copy">复制</button>
+</div>
+<p class="note good">刚开始不需要高难度剪辑。画面清楚、资料完整、持续发布，比复杂特效更重要。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform tieba" aria-label="贴吧论坛"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 7h22v15H14l-6 5v-5H5z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><circle cx="11" cy="14.5" r="1.5" fill="currentColor"/><circle cx="16" cy="14.5" r="1.5" fill="currentColor"/><circle cx="21" cy="14.5" r="1.5" fill="currentColor"/></svg></span>
+<span class="sumtext">
+<b>贴吧 / 论坛</b>
+<small>品种吧、城市吧、宠物论坛蹲真实需求</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：看10条近期求猫帖＋认真回复3条；版规允许时再发1条在售合集</div>
+<h3>去哪里找</h3>
+<div class="searches">
+<span>猫吧</span>
+<span>金渐层吧</span>
+<span>英短吧</span>
+<span>XX城市吧</span>
+<span>本地宠物论坛</span>
+</div>
+<ul>
+<li>搜索“求猫、收猫、预算、同城、哪里买”等帖子；</li>
+<li>看清发帖时间，优先联系近期需求；</li>
+<li>按对方预算推荐1—3只，不要一上来甩几十张图；</li>
+<li>如果版规允许，也可以发同城在售合集。</li>
+</ul>
+<div class="script">看到你在找【品种】，预算大约【金额】。我这里刚好有几只不同城市的货源，可以按你的预算筛一下。你更在意颜色、公母还是距离？<button class="copy">复制</button>
+</div>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform weibo" aria-label="微博"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 18c2.2-5.8 8.7-9.4 14.5-6.8 5.8 2.5 3.8 9.8-1.3 12.5C14 27 4.7 24 7 18z" fill="currentColor"/><ellipse cx="16" cy="19" rx="5.5" ry="4" fill="#fff"/><circle cx="15" cy="18.5" r="2.2" fill="#333"/><path d="M21 8c3 .1 5.2 2 5.8 4.7M21.5 4.5c5.1.2 8.8 3.5 9.5 8" fill="none" stroke="#f7a600" stroke-width="2" stroke-linecap="round"/></svg></span>
+<span class="sumtext">
+<b>微博</b>
+<small>关键词搜索＋同城话题＋超话</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：搜索最新需求＋回复3个人＋更新1条单猫或合集内容</div>
+<h3>可以测试</h3>
+<ul>
+<li>搜索“想买猫、求猫、收猫、XX城市猫咪”；</li>
+<li>关注品种超话、宠物超话和本地话题；</li>
+<li>发布单猫短视频、合集和预算推荐；</li>
+<li>对近期明确需求进行正常回复。</li>
+</ul>
+<p class="note">微博信息流更新快，重点是近期搜索和持续更新，不适合发一条后长期等待。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform zhihu" aria-label="知乎"><svg viewBox="0 0 32 32" aria-hidden="true"><text x="16" y="22" text-anchor="middle" font-size="20" font-weight="900" fill="currentColor">知</text></svg></span>
+<span class="sumtext">
+<b>知乎</b>
+<small>回答选猫问题，积累长期搜索流量</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每周：认真回答2—3个问题；每天查看评论，有具体需求再继续沟通</div>
+<h3>适合回答</h3>
+<div class="searches">
+<span>第一次养猫选什么</span>
+<span>买猫注意什么</span>
+<span>金渐层多少钱</span>
+<span>异地买猫靠谱吗</span>
+</div>
+<ul>
+<li>用真实经验回答预算、品种和接猫问题；</li>
+<li>答案里加入不同预算应该怎么选；</li>
+<li>不要整篇只放商品广告；</li>
+<li>有人评论具体需求时，再继续沟通。</li>
+</ul>
+<p class="note good">知乎通常不是最快成交渠道，但好的回答可能持续带来搜索流量。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform xianyu" aria-label="闲鱼"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c4.2-5.5 10.5-7.5 17-3.8l5-3v7l-5 3c-6.5 3.8-12.8 1.8-17-3.2z" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><circle cx="18.5" cy="14.2" r="1.3" fill="currentColor"/><path d="M8 10l3 3M8 22l3-3" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg></span>
+<span class="sumtext">
+<b>闲鱼等商品平台</b>
+<small>单猫挂售＋关键词标题＋及时更新</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：保持3—5条有效商品＋检查库存＋及时回复咨询＋更新已售商品</div>
+<h3>一条商品需要</h3>
+<ul>
+<li>一只猫对应一条信息，并保留猫咪编号；</li>
+<li>真实图片、活动视频、品种、性别、年龄和所在地；</li>
+<li>根据实际情况填写对客价格；</li>
+<li>客户城市确定后，再询问实际运费；</li>
+<li>猫已售或不在售时及时修改或下架。</li>
+</ul>
+<div class="script">【城市】金渐层弟弟｜约3个月｜有活动视频
+
+目前在【城市】，预算【你的报价】。异地运输费用根据收货城市另询。想看完整视频，可以先告诉我所在城市和预算。<button class="copy">复制</button>
+</div>
+<p class="note">发布前先确认平台当前是否允许相应类目，以及账号需要满足的条件。不要重复铺大量相同商品。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform wechat" aria-label="微信和QQ群"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="13" cy="14" rx="9" ry="7" fill="currentColor"/><path d="M7 19l-2 4 5-2" fill="currentColor"/><ellipse cx="21" cy="20" rx="7" ry="5.5" fill="#dff8e9"/><path d="M25 24l2 3-4-2" fill="#dff8e9"/><circle cx="10" cy="13" r="1" fill="#20c66b"/><circle cx="16" cy="13" r="1" fill="#20c66b"/><circle cx="19" cy="19" r=".9" fill="#20c66b"/><circle cx="23" cy="19" r=".9" fill="#20c66b"/></svg></span>
+<span class="sumtext">
+<b>朋友圈、QQ/微信群</b>
+<small>熟人信任＋本地社群＋持续更新</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天：朋友圈发1条；群里先看需求再回复，不连续刷屏</div>
+<h3>不要只刷商品图</h3>
+<ul>
+<li>一天发1—3条，不要连续刷十几条；</li>
+<li>单猫、合集、选猫知识和到家准备交替发布；</li>
+<li>有人点赞或询问后再了解预算；</li>
+<li>群里有人求猫时再推荐，并先看群规。</li>
+</ul>
+<div class="script">最近在帮人对接不同城市的猫咪货源。预算、品种和所在地都不一样，如果身边有人准备养猫，可以把城市和预算发我，我帮忙筛几只看看。<button class="copy">复制</button>
+</div>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform store" aria-label="本地渠道合作"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 13h20v14H6zM4 13l3-8h18l3 8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"/><path d="M10 13v4a3 3 0 0 0 6 0v-4m0 0v4a3 3 0 0 0 6 0v-4M12 27v-6h8v6" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
+<span class="sumtext">
+<b>本地渠道合作</b>
+<small>宠物店、猫咖、美容、寄养、摄影、群主</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">每天联系1—2家，或每周稳定联系5家；记录对方是否愿意合作</div>
+<h3>联系对象</h3>
+<div class="searches">
+<span>宠物用品店</span>
+<span>宠物美容店</span>
+<span>猫咖</span>
+<span>寄养店</span>
+<span>宠物摄影</span>
+<span>本地群主</span>
+</div>
+<div class="script">你好，我这边长期对接不同城市的猫咪货源。如果你店里遇到想买猫的客户，可以介绍给我。客户成交后可以按提前说好的方式给介绍奖励，不需要你负责后续发货。<button class="copy">复制</button>
+</div>
+<p class="note good">这类渠道不一定马上出单，但一旦建立合作，可能持续提供客户。每周稳定联系几家即可。</p>
+</div>
+</details>
+      <details>
+<summary>
+<span class="platform referral" aria-label="熟人和客户介绍"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="2.3"/><circle cx="23" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2.3"/><path d="M4 27c.5-6 3-9 7-9s6.5 3 7 9M18 26c.4-4.5 2.1-6.7 5-6.7 2.8 0 4.5 2.2 5 6.7" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg></span>
+<span class="sumtext">
+<b>熟人和客户介绍</b>
+<small>熟人介绍更容易取得信任</small>
+</span>
+<span class="arrow">›</span>
+</summary>
+<div class="method-body">
+<div class="daily-target">有合适机会时再请人介绍；成交客户收猫稳定后回访一次</div>
+<div class="script">如果你身边还有朋友准备养猫，也可以把预算和喜欢的类型发给我。我可以先免费帮他筛几只，不合适也没关系。<button class="copy">复制</button>
+</div>
+<ul>
+<li>可以请朋友帮忙转发一次猫咪合集；</li>
+<li>咨询过但没购买的人，也可能认识其他买家；</li>
+<li>成交客户收猫稳定后，再请他介绍朋友；</li>
+<li>是否设置介绍奖励，由负责人统一确定。</li>
+</ul>
+</div>
+</details>
     </section>
 
-    <section class="panel" id="week"><div class="eyebrow">不要等学完再开始</div><h2>七天获客测试计划</h2><div class="week"><article class="day"><b>1</b>准备素材<p>选3—5只猫，整理编号、视频、所在地和自己的报价。</p></article><article class="day"><b>2</b>同时发布<p>公开平台2条、闲鱼等商品平台1—3条、朋友圈1条。</p></article><article class="day"><b>3</b>主动搜索<p>寻找20条近期买猫需求，认真回复其中5条。</p></article><article class="day"><b>4</b>进入社群<p>观察本地群、宠物群和品种群，有需求时再参与。</p></article><article class="day"><b>5</b>找合作方<p>联系2—3家宠物相关商家或群主，尝试转介绍合作。</p></article><article class="day"><b>6</b>回访客户<p>回访咨询过的人，询问是否需要重新按预算推荐。</p></article><article class="day"><b>7</b>看数据<p>比较哪个平台带来的真实咨询最多，下周重点保留。</p></article></div><div class="note good" style="margin-top:13px">七天后不要只看有没有成交，还要看：发布数量、有效咨询数、对方预算是否匹配、是否进入看视频和确认库存阶段。</div></section>
+<section class="panel" id="week">
+<div class="section-label">第四步 · 连续执行7天</div>
+<div class="eyebrow">不要等学完再开始</div>
+<h2>前7天怎么做</h2>
+<div class="week">
+<article class="day">
+<b>1</b>准备素材<p>选3—5只猫，整理编号、视频、所在地和自己的报价。</p>
+</article>
+<article class="day">
+<b>2</b>同时发布<p>内容平台2条、闲鱼等商品平台1—3条、朋友圈1条。</p>
+</article>
+<article class="day">
+<b>3</b>主动搜索<p>寻找20条近期买猫需求，认真回复其中5条。</p>
+</article>
+<article class="day">
+<b>4</b>进入群聊<p>观察本地群、宠物群和品种群，有需求时再参与。</p>
+</article>
+<article class="day">
+<b>5</b>找合作方<p>联系2—3家宠物相关商家或群主，问问能否互相介绍客户。</p>
+</article>
+<article class="day">
+<b>6</b>回访客户<p>回访咨询过的人，询问是否需要重新按预算推荐。</p>
+</article>
+<article class="day">
+<b>7</b>看结果<p>比较哪个平台带来的真实咨询最多，下周重点保留。</p>
+</article>
+</div>
+<div class="note good" style="margin-top:13px">七天后不要只看有没有成交，还要看：发布了多少、来了多少真实咨询、客户预算是否合适、有没有进入看视频和确认库存这一步。</div>
+</section>
 
-    <section class="panel" id="deal"><div class="eyebrow">客户出现以后</div><h2>成交和下单压缩成四步</h2><div class="flow"><article><b>先问需求</b><span>所在城市、预算、品种颜色、公母和预计购买时间。</span></article><article><b>推荐1—3只</b><span>不要一次发几十只，让客户先选最有眼缘的。</span></article><article><b>确认库存和运费</b><span>把猫咪编号＋客户城市发给负责人，确认仍在售及实际成本。</span></article><article><b>销售收款并下单</b><span>销售自己向客户收款，再向负责人支付结算价和运费，提交收货资料。</span></article></div><h3>确认库存模板</h3><div class="script">确认库存
+<div class="chapter-head" id="after">
+<div class="chapter-kicker"><span class="chapter-no">3</span>客户来了以后</div>
+<h2>先问需求，再推荐和下单</h2>
+<p>找到客户以后，按固定顺序沟通，不要一上来发一大堆猫。</p>
+</div>
+<section class="panel" id="deal">
+<div class="eyebrow">客户出现以后</div>
+<h2>成交和下单压缩成四步</h2>
+<div class="flow">
+<article>
+<b>先问需求</b>
+<span>所在城市、预算、品种颜色、公母和预计购买时间。</span>
+</article>
+<article>
+<b>推荐1—3只</b>
+<span>不要一次发几十只，让客户先选最有眼缘的。</span>
+</article>
+<article>
+<b>确认库存和运费</b>
+<span>把猫咪编号＋客户城市发给负责人，确认仍在售及实际成本。</span>
+</article>
+<article>
+<b>销售收款并下单</b>
+<span>销售自己向客户收款，再向负责人支付结算价和运费，提交收货资料。</span>
+</article>
+</div>
+<h3>确认库存模板</h3>
+<div class="script">确认库存
 猫咪编号：【填写】
 客户城市：【填写】
 预计下单时间：【填写】
-请帮我确认是否在售，以及运费多少。<button class="copy">复制</button></div><h3>正式下单模板</h3><div class="script">销售姓名/编号：【填写】
+请帮我确认是否在售，以及运费多少。<button class="copy">复制</button>
+</div>
+<h3>正式下单模板</h3>
+<div class="script">销售姓名/编号：【填写】
 猫咪编号：【填写】
 收货人：【填写】
 联系电话：【填写】
 收货地址：【填写】
 已确认结算价：【填写】
 已确认运费：【填写】
-其他说明：【填写】<button class="copy">复制</button></div></section>
+其他说明：【填写】<button class="copy">复制</button>
+</div>
+</section>
 
-    <section class="panel"><div class="eyebrow">把所有步骤串起来</div><h2>跟着小林完成第一单</h2><details class="case"><summary>展开查看完整实例（约3分钟）</summary><div class="case-body"><div class="case-row"><i>1</i><p><b>选猫：</b>A1023，成都金渐层弟弟，结算价1250元。</p></div><div class="case-row"><i>2</i><p><b>铺渠道：</b>小林在朋友圈发内容、在闲鱼测试挂售，同时搜索“杭州买猫”。</p></div><div class="case-row"><i>3</i><p><b>找到需求：</b>杭州客户预算1800元，第一次养猫，希望可以运输。</p></div><div class="case-row"><i>4</i><p><b>确认成本：</b>负责人确认猫仍在售，运费280元，总成本1530元。</p></div><div class="case-row"><i>5</i><p><b>成交：</b>小林向客户报价1800元含运输，并自行收款。</p></div><div class="case-row"><i>6</i><p><b>下单：</b>小林支付1530元，提交客户姓名、电话和地址。</p></div><div class="profit">本单收入：1800 − 1250 − 280 ＝ <strong>270元</strong></div></div></details></section>
+    <section class="panel">
+<div class="eyebrow">把所有步骤串起来</div>
+<h2>跟着小林完成第一单</h2>
+<details class="case">
+<summary>展开查看完整实例（约3分钟）</summary>
+<div class="case-body">
+<div class="case-row">
+<i>1</i>
+<p>
+<b>选猫：</b>A1023，成都金渐层弟弟，结算价1250元。</p>
+</div>
+<div class="case-row">
+<i>2</i>
+<p>
+<b>铺渠道：</b>小林在朋友圈发内容、在闲鱼测试挂售，同时搜索“杭州买猫”。</p>
+</div>
+<div class="case-row">
+<i>3</i>
+<p>
+<b>找到需求：</b>杭州客户预算1800元，第一次养猫，希望可以运输。</p>
+</div>
+<div class="case-row">
+<i>4</i>
+<p>
+<b>确认成本：</b>负责人确认猫仍在售，运费280元，总成本1530元。</p>
+</div>
+<div class="case-row">
+<i>5</i>
+<p>
+<b>成交：</b>小林向客户报价1800元含运输，并自行收款。</p>
+</div>
+<div class="case-row">
+<i>6</i>
+<p>
+<b>下单：</b>小林支付1530元，提交客户姓名、电话和地址。</p>
+</div>
+<div class="profit">本单收入：1800 − 1250 − 280 ＝ <strong>270元</strong>
+</div>
+</div>
+</details>
+</section>
 
-    <section class="panel tool" id="tools"><div class="eyebrow">遇到问题再查</div><h2>新人常用话术</h2><details><summary>客户一上来只问价格</summary><div class="inside"><div class="script">可以呀。你在哪个城市？大概预算多少，比较喜欢什么品种和颜色？我按你的情况帮你挑几只。<button class="copy">复制</button></div></div></details><details><summary>客户说“考虑一下”</summary><div class="inside"><div class="script">没问题，你可以先考虑。喜欢的话我可以再补充视频，或者帮你看看有没有同类型、预算更合适的。<button class="copy">复制</button></div></div></details><details><summary>客户担心不真实</summary><div class="inside">提供现有原始图片、活动视频、所在地及能够确认的资料。需要当天视频或指定动作时，把猫咪编号发给负责人询问。</div></details><details><summary>发生售后怎么办</summary><div class="inside">客户先联系销售。收集猫咪编号、收猫时间、问题出现时间、照片、连续视频、开箱视频和医院资料，再提交负责人，由负责人联系供应商处理。</div></details></section>
-    <section class="final"><b>不要等客户自己出现</b><p>每天发布、搜索需求、认真回复、回访客户、发展渠道。七天后用真实咨询量选择最适合自己的销路。</p><a class="final-link" href="/">去猫咪大厅挑选素材 →</a></section>
+<div class="chapter-head">
+<div class="chapter-kicker"><span class="chapter-no">4</span>需要时再看</div>
+<h2>常用话术和售后处理</h2>
+<p>前面的步骤会做以后，遇到具体问题再来这里查。</p>
+</div>
+<section class="panel tool" id="tools">
+<div class="eyebrow">遇到问题再查</div>
+<h2>常用话术</h2>
+<p class="lead">先正常回答客户的问题，再顺着询问城市、预算和想要的类型。下面的话可以复制后按实际情况修改。</p>
+<div class="talk-group">
+<h3 class="talk-group-title"><span>1</span>了解客户需求</h3>
+<details>
+<summary>客户一上来只问价格</summary>
+<div class="inside">
+<div class="script">可以呀。你在哪个城市？大概预算多少，比较喜欢什么品种和颜色？我按你的情况帮你挑几只。<button class="copy">复制</button>
+</div>
+</div>
+</details>
+<details>
+<summary>客户说“随便看看”</summary>
+<div class="inside"><div class="script">没问题，你可以先看看。为了不一次发太多，你比较喜欢什么品种或颜色？预算大概在哪个范围？我先挑两三只给你。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户不知道选什么品种</summary>
+<div class="inside"><div class="script">可以先不用确定品种。你更喜欢圆脸、长毛还是短毛？家里有没有小孩或其他宠物？再告诉我预算，我按你的情况帮你筛。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户预算比较低</summary>
+<div class="inside"><div class="script">这个预算我先帮你看看有没有合适的，不一定要追求最热门的颜色。你更在意品种、外形还是距离？如果预算可以稍微调整，也可以一起告诉我。<button class="copy">复制</button></div></div>
+</details>
+</div>
+<div class="talk-group">
+<h3 class="talk-group-title"><span>2</span>介绍、报价和解答顾虑</h3>
+<details>
+<summary>客户想多看几只</summary>
+<div class="inside"><div class="script">可以。我先按你的预算和喜欢的类型，再挑2—3只差别比较明显的给你。你看完告诉我最喜欢哪一只，我再补详细视频。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户想看更多视频</summary>
+<div class="inside"><div class="script">可以的。你把喜欢的猫咪截图或编号发我，我先确认它现在是否在售，再尽量补充现有活动视频。需要指定动作的视频，我也可以帮你问一下。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户问能不能便宜</summary>
+<div class="inside"><div class="script">我先帮你确认一下这只目前的价格和库存。你能接受的预算大概是多少？如果这只超出预算，我也可以给你找同类型、价格更合适的。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户问为什么价格不一样</summary>
+<div class="inside"><div class="script">同一个品种也会因为年龄、性别、颜色、品相和所在地不同，价格有差别。你更在意哪一项？我可以按同一预算给你放在一起比较。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户问异地怎么运输</summary>
+<div class="inside"><div class="script">可以先告诉我收货城市。我拿猫咪编号帮你确认能不能运输，以及实际运费多少。运输方式和时间要以确认后的安排为准。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户担心猫咪不真实</summary>
+<div class="inside"><div class="script">理解，你谨慎一点是对的。我可以把现有原图、活动视频、猫咪编号和所在地发给你。你想进一步确认哪一部分，也可以直接告诉我，我再帮你问。<button class="copy">复制</button></div></div>
+</details>
+</div>
+<div class="talk-group">
+<h3 class="talk-group-title"><span>3</span>跟进和促成下单</h3>
+<details>
+<summary>客户说“考虑一下”</summary>
+<div class="inside">
+<div class="script">没问题，你可以先考虑。喜欢的话我可以再补充视频，或者帮你看看有没有同类型、预算更合适的。<button class="copy">复制</button>
+</div>
+</div>
+</details>
+<details>
+<summary>客户看过以后没有回复</summary>
+<div class="inside"><div class="script">前面发你的几只，有没有比较喜欢的？如果是价格、颜色或距离不合适，你可以直接告诉我，我重新按你的要求筛，不用勉强选。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户选中的猫已经卖了</summary>
+<div class="inside"><div class="script">这只刚确认已经不在售了，不好意思。我可以按同样的品种、颜色和预算重新找2—3只给你，先确认在售以后再发，尽量不耽误你。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户准备下单</summary>
+<div class="inside"><div class="script">好的，我现在用这只猫的编号和你的城市确认最终库存、结算价格及运费。确认清楚以后，我再把下单需要的信息一次发给你。<button class="copy">复制</button></div></div>
+</details>
+</div>
+<div class="talk-group">
+<h3 class="talk-group-title"><span>4</span>收猫回访和售后</h3>
+<details>
+<summary>客户收到猫后正常回访</summary>
+<div class="inside"><div class="script">猫咪到家了吗？现在精神和状态怎么样？刚换环境可能会紧张，先让它安静适应。如果有问题，把猫咪编号和清楚的视频发我，我帮你一起确认。<button class="copy">复制</button></div></div>
+</details>
+<details>
+<summary>客户反馈售后问题</summary>
+<div class="inside"><div class="script">我先帮你登记处理。请把猫咪编号、收猫时间、问题出现时间、开箱视频、连续状态视频和现有检查资料发给我，我整理后马上提交负责人确认。<button class="copy">复制</button></div></div>
+</details>
+</div>
+</section>
+<section class="panel" id="customer-check">
+<div class="eyebrow">找到客户以后再判断</div>
+<h2>什么样的客户算有效</h2>
+<p class="lead">先去找客户，有人来咨询后，再用下面的标准决定要不要继续花时间跟进。</p>
+<div class="rulegrid">
+<div class="rulebox">
+<b>可以继续跟进</b>
+<ol>
+<li>已经成年；</li>
+<li>明确想养猫、选猫、买猫或比较不同猫；</li>
+<li>愿意说明城市、预算或喜欢的品种；</li>
+<li>愿意继续看图片、视频或了解价格；</li>
+<li>近期确实有购买打算。</li>
+</ol>
+</div>
+<div class="rulebox bad">
+<b>暂时不用反复跟</b>
+<ol>
+<li>未满18岁；</li>
+<li>只说“在吗”“看看”，之后不再回复；</li>
+<li>加上以后马上删除；</li>
+<li>只是好奇，没有养猫或买猫打算；</li>
+<li>重复咨询，或者之前已经登记过；</li>
+<li>所在地区暂时无法运输，以负责人回复为准。（海南省、内蒙古、新疆、西藏的客户不要）</li>
+</ol>
+</div>
+</div>
+</section>
+    <section class="final">
+<b>不要等客户自己出现</b>
+<p>每天发布、寻找需求、认真回复、回访客户。做满七天，再看哪种方法最适合自己。</p>
+</section>
   </main>
-  <footer><div class="wrap">内部销售入门资料 · 平台功能和规则可能调整，实际发布前以各平台当前页面为准</div></footer><a class="top" href="#top">↑</a>
+</div>
+  <footer>
+<div class="wrap">内部销售入门资料 · 平台功能和规则可能调整，实际发布前以各平台当前页面为准</div>
+</footer>
+<a class="top" href="#top">↑</a>
   <script>
+    const guideMain=document.getElementById('guide-main');
+    const panels=[...guideMain.querySelectorAll(':scope > .panel')];
+    const sideList=document.getElementById('side-list');
+    let firstInChapter=true,chapterIndex=0,panelIndex=0;
+    [...guideMain.children].forEach(node=>{
+      if(node.classList&&node.classList.contains('chapter-head')){
+        chapterIndex++;firstInChapter=true;
+        if(!node.id)node.id='chapter-'+chapterIndex;
+        const title=node.querySelector('h2')?.textContent.trim()||('第'+chapterIndex+'章');
+        const link=document.createElement('a');link.className='side-chapter';link.href='#'+node.id;link.textContent=chapterIndex+' · '+title;sideList.appendChild(link);
+      }
+      if(node.classList&&node.classList.contains('panel')){
+        const h2=[...node.children].find(el=>el.tagName==='H2');if(!h2)return;
+        panelIndex++;if(!node.id)node.id='section-'+panelIndex;
+        const title=h2.textContent.trim();
+        const content=document.createElement('div');content.className='section-content';
+        while(h2.nextSibling)content.appendChild(h2.nextSibling);node.appendChild(content);
+        const text=document.createElement('span');text.className='panel-title-text';text.textContent=title;h2.textContent='';h2.classList.add('panel-title');h2.appendChild(text);
+        const toggle=document.createElement('button');toggle.className='section-toggle';toggle.type='button';toggle.setAttribute('aria-label','收起'+title);toggle.textContent='−';h2.appendChild(toggle);
+        const setOpen=open=>{node.classList.toggle('collapsed',!open);toggle.textContent=open?'−':'＋';toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',(open?'收起':'展开')+title)};
+        node._setOpen=setOpen;setOpen(firstInChapter);firstInChapter=false;
+        toggle.addEventListener('click',()=>setOpen(node.classList.contains('collapsed')));
+        const link=document.createElement('a');link.className='side-link';link.href='#'+node.id;link.textContent=title;link.dataset.target=node.id;sideList.appendChild(link);
+      }
+    });
+    const sidebar=document.getElementById('sidebar'),overlay=document.getElementById('drawer-overlay'),menuButton=document.getElementById('guide-menu-fab'),search=document.getElementById('guide-search'),results=document.getElementById('search-results'),searchOpen=document.getElementById('search-open'),searchBox=document.getElementById('search-box');
+    const openMenu=()=>{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();sidebar.classList.add('open');overlay.classList.add('show');document.body.classList.add('no-scroll')};
+    const closeMenu=()=>{sidebar.classList.remove('open');overlay.classList.remove('show');document.body.classList.remove('no-scroll')};
+    menuButton.addEventListener('click',openMenu);overlay.addEventListener('click',closeMenu);document.getElementById('sidebar-close').addEventListener('click',closeMenu);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+    sideList.addEventListener('click',e=>{const link=e.target.closest('a');if(!link)return;const target=document.querySelector(link.getAttribute('href'));if(target&&target._setOpen)target._setOpen(true);closeMenu()});
+    document.getElementById('expand-all').onclick=()=>panels.forEach(p=>p._setOpen&&p._setOpen(true));
+    document.getElementById('collapse-all').onclick=()=>panels.forEach(p=>p._setOpen&&p._setOpen(false));
+    searchOpen.addEventListener('click',()=>{searchBox.hidden=false;searchOpen.hidden=true;setTimeout(()=>search.focus(),50)});
+    search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();results.textContent='';results.classList.toggle('show',!!q);if(!q)return;const matches=panels.filter(p=>p.innerText.toLowerCase().includes(q));if(!matches.length){const empty=document.createElement('div');empty.className='search-empty';empty.textContent='没有找到相关内容';results.appendChild(empty);return}matches.slice(0,8).forEach(panel=>{const btn=document.createElement('button');btn.className='search-result';btn.type='button';btn.textContent=panel.querySelector('.panel-title-text')?.textContent||'相关内容';btn.onclick=()=>{panel._setOpen(true);panel.querySelectorAll('details').forEach(d=>{if(d.innerText.toLowerCase().includes(q))d.open=true});closeMenu();panel.scrollIntoView({behavior:'smooth',block:'start'})};results.appendChild(btn)})});
+    const mobileCurrent=document.getElementById('mobile-current');
+    const observed=[...guideMain.querySelectorAll('.chapter-head,.panel')];
+    const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];if(!visible)return;const id=visible.target.id;document.querySelectorAll('.side-list a').forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));const titleNode=visible.target.querySelector('.panel-title-text')||visible.target.querySelector('h2');const title=titleNode?.textContent.trim();if(title&&mobileCurrent)mobileCurrent.textContent=title},{rootMargin:'-15% 0px -70% 0px',threshold:0});observed.forEach(el=>observer.observe(el));
+    if(location.hash){const target=document.querySelector(location.hash);if(target&&target._setOpen)target._setOpen(true)}
     document.querySelectorAll('.copy').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const box=btn.parentElement.cloneNode(true);box.querySelector('.copy').remove();navigator.clipboard.writeText(box.innerText.trim()).then(()=>{btn.textContent='已复制';setTimeout(()=>btn.textContent='复制',1200)}).catch(()=>btn.textContent='长按复制')});
+    const themeButton=document.getElementById('theme-toggle');
+    const themeMeta=document.querySelector('meta[name="theme-color"]');
+    const setTheme=theme=>{const dark=theme==='dark';document.documentElement.dataset.theme=theme;themeButton.setAttribute('aria-pressed',String(dark));themeButton.textContent=dark?'☀️ 浅色模式':'🌙 深色模式';themeMeta.setAttribute('content',dark?'#171615':'#fff9f1');try{localStorage.setItem('sales-guide-theme',theme)}catch(e){}};
+    let savedTheme='';try{savedTheme=localStorage.getItem('sales-guide-theme')||''}catch(e){}
+    setTheme(savedTheme||'light');
+    themeButton.addEventListener('click',()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
   </script>
 </body>
 </html>
