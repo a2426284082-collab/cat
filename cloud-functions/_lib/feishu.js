@@ -82,7 +82,7 @@ function publicCat(record) {
   };
 }
 
-async function loadCatalog(env) {
+async function loadRecords(env) {
   const token = await accessToken(env);
   const url = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(env.FEISHU_TABLE_ID)}/records`;
   const items = [];
@@ -97,6 +97,11 @@ async function loadCatalog(env) {
     pageToken = data.has_more ? data.page_token : '';
     if (data.has_more && !pageToken) throw new Error('pagination token missing');
   } while (pageToken);
+  return items;
+}
+
+async function loadCatalog(env) {
+  const items = await loadRecords(env);
   const cats = items.map(publicCat).filter(Boolean);
   return {
     cats,
@@ -104,6 +109,75 @@ async function loadCatalog(env) {
     videoTokens: new Map(cats.flatMap(cat => cat.videos.map(video => [video.url.split('/').pop(), VIDEO_TYPES[video.name.split('.').pop().toLowerCase()]]))),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function attachmentTokens(value) {
+  return Array.isArray(value) ? value.filter(item => /^[A-Za-z0-9_-]{1,200}$/.test(item?.file_token ?? '')).map(item => item.file_token) : [];
+}
+
+function numericValue(value) {
+  if (value == null || stringValue(value) === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function adminCat(record) {
+  const fields = record.fields ?? {}, images = attachmentTokens(fields['图片']);
+  return {
+    recordId: record.record_id,
+    id: stringValue(fields['猫咪ID']),
+    status: stringValue(fields['状态']),
+    breed: stringValue(fields['品种']),
+    color: stringValue(fields['毛色/花色']),
+    gender: stringValue(fields['性别']),
+    age: numericValue(fields['年龄']),
+    vaccine: stringValue(fields['疫苗']),
+    description: stringValue(fields['描述']),
+    price: numericValue(fields['价格']),
+    supplier: stringValue(fields['视频供货商']),
+    supplierOriginalId: stringValue(fields['供货商原编号']),
+    costPrice: numericValue(fields['进货价']),
+    rawDescription: stringValue(fields['原始描述']),
+    verificationNote: stringValue(fields['核对备注']),
+    image: images[0] ? `/api/admin/images/${encodeURIComponent(images[0])}` : null,
+  };
+}
+
+export async function getAdminCats(envInput) {
+  const env = config(envInput);
+  return (await loadRecords(env)).map(adminCat).filter(cat => cat.recordId && cat.id);
+}
+
+const textField = (value, maximum) => typeof value === 'string' && value.length <= maximum ? value.trim() : undefined;
+const numberField = value => value === '' || value == null ? undefined : Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+
+export async function updateAdminCat(envInput, recordId, input) {
+  const env = config(envInput), fields = {};
+  const mappings = [
+    ['status','状态',20], ['breed','品种',80], ['color','毛色/花色',80], ['gender','性别',20],
+    ['vaccine','疫苗',200], ['description','描述',3000], ['supplier','视频供货商',100],
+    ['supplierOriginalId','供货商原编号',100], ['rawDescription','原始描述',5000], ['verificationNote','核对备注',2000],
+  ];
+  for (const [key, name, maximum] of mappings) {
+    if (!(key in (input ?? {}))) continue;
+    const value = textField(input[key], maximum);
+    if (value === undefined) throw new Error('invalid fields');
+    fields[name] = value;
+  }
+  if (fields['状态'] && !['在售','已售','下架'].includes(fields['状态'])) throw new Error('invalid fields');
+  if (fields['性别'] && !['公','母','未知',''].includes(fields['性别'])) throw new Error('invalid fields');
+  for (const [key, name] of [['age','年龄'],['price','价格'],['costPrice','进货价']]) {
+    if (!(key in (input ?? {}))) continue;
+    const value = numberField(input[key]);
+    if (value === null) throw new Error('invalid fields');
+    if (value !== undefined) fields[name] = value;
+  }
+  if (!Object.keys(fields).length) throw new Error('invalid fields');
+  const token = await accessToken(env);
+  const url = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(env.FEISHU_TABLE_ID)}/records/${encodeURIComponent(recordId)}`;
+  const data = await feishuJson(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+  catalogCache = { key: '', value: null, until: 0, pending: null };
+  return adminCat(data.record ?? { record_id: recordId, fields: { ...fields, '猫咪ID': input?.id || '' } });
 }
 
 export async function getCatalog(envInput) {

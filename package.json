@@ -1,13 +1,14 @@
 {
   "name": "cat-sales-workspace-v1-preview",
   "private": true,
-  "version": "2.4.0-preview.1",
+  "version": "3.0.0-preview.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/local-api.js",
     "build": "vite build",
     "preview": "vite preview",
+    "admin:secrets": "node scripts/generate-admin-secrets.mjs",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
