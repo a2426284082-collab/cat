@@ -80,7 +80,20 @@ export function requireAdmin(request, env) {
 export function sameOrigin(request) {
   const origin = request.headers.get('origin');
   if (!origin) return false;
-  try { return new URL(origin).origin === new URL(request.url).origin; } catch { return false; }
+  try {
+    const supplied = new URL(origin);
+    const candidates = new Set([new URL(request.url).host]);
+    // EdgeOne may expose its internal function URL in request.url while the
+    // browser is visiting a custom domain. These forwarding headers retain
+    // the original public host and are set by the platform, not page scripts.
+    for (const name of ['x-forwarded-host', 'host']) {
+      const value = request.headers.get(name)?.split(',')[0]?.trim();
+      if (value) candidates.add(value);
+    }
+    if (!candidates.has(supplied.host)) return false;
+    const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+    return !forwardedProtocol || `${forwardedProtocol}:` === supplied.protocol;
+  } catch { return false; }
 }
 
 export const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {

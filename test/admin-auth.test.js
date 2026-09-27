@@ -27,5 +27,7 @@ test('admin password and signed session cookie authenticate safely', () => {
 
 test('write requests require the exact same origin', () => {
   assert.equal(sameOrigin(new Request('https://cats.example/api/admin/login', { headers: { origin: 'https://cats.example' } })), true);
+  assert.equal(sameOrigin(new Request('https://internal.edgeone.example/api/admin/login', { headers: { origin: 'https://cats.example', 'x-forwarded-host': 'cats.example', 'x-forwarded-proto': 'https' } })), true);
   assert.equal(sameOrigin(new Request('https://cats.example/api/admin/login', { headers: { origin: 'https://evil.example' } })), false);
+  assert.equal(sameOrigin(new Request('https://internal.edgeone.example/api/admin/login', { headers: { origin: 'https://evil.example', 'x-forwarded-host': 'cats.example', 'x-forwarded-proto': 'https' } })), false);
 });
