@@ -1,9 +1,8 @@
-import { json, requireAdmin, sameOrigin } from '../../../_lib/admin-auth.js';
+import { json, requireAdmin } from '../../../_lib/admin-auth.js';
 import { updateAdminCat } from '../../../_lib/feishu.js';
 
 export async function onRequestPatch({ env, request, params }) {
   if (!requireAdmin(request, env)) return json({ success: false, message: '请先登录' }, 401);
-  if (!sameOrigin(request)) return json({ success: false, message: '请求来源无效' }, 403);
   const recordId = String(params?.recordId || '');
   if (!/^rec[A-Za-z0-9]{5,80}$/.test(recordId)) return json({ success: false, message: '记录编号无效' }, 400);
   let body;

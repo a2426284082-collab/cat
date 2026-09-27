@@ -1,7 +1,7 @@
 {
   "name": "cat-sales-workspace-v1-preview",
   "private": true,
-  "version": "3.0.0-preview.2",
+  "version": "3.0.0-preview.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
