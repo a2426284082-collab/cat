@@ -1,0 +1,3 @@
+import { json, requireAssistant } from '../../_lib/assistant-auth.js';
+import { findSeller, usageFor } from '../../_lib/assistant-store.js';
+export async function onRequestGet({env,request}){const session=requireAssistant(request,env);if(!session)return json({success:false},401);try{const seller=await findSeller(env,session.salesId);if(!seller||seller.status!=='启用')return json({success:false,message:'账号已停用'},401);const used=await usageFor(env,seller.salesId);return json({success:true,user:{salesId:seller.salesId,name:seller.name,quota:seller.quota,used}});}catch{return json({success:false,message:'无法读取账号'},503);}}

@@ -100,6 +100,38 @@ async function loadRecords(env) {
   return items;
 }
 
+export async function loadTableRecords(envInput, tableId, maximum = 5000) {
+  const env = config(envInput);
+  if (!tableId) throw new Error('missing table configuration');
+  const token = await accessToken(env);
+  const base = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(tableId)}/records`;
+  const items = [];
+  let pageToken = '';
+  do {
+    const url = new URL(base); url.searchParams.set('page_size', '100');
+    if (pageToken) url.searchParams.set('page_token', pageToken);
+    const data = await feishuJson(url, { headers: { Authorization: `Bearer ${token}` } });
+    items.push(...(data.items ?? []));
+    if (items.length > maximum) throw new Error('table too large');
+    pageToken = data.has_more ? data.page_token : '';
+  } while (pageToken);
+  return items;
+}
+
+export async function createTableRecord(envInput, tableId, fields) {
+  const env = config(envInput), token = await accessToken(env);
+  const url = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(tableId)}/records`;
+  const data = await feishuJson(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+  return data.record;
+}
+
+export async function updateTableRecord(envInput, tableId, recordId, fields) {
+  const env = config(envInput), token = await accessToken(env);
+  const url = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(tableId)}/records/${encodeURIComponent(recordId)}`;
+  const data = await feishuJson(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+  return data.record;
+}
+
 async function loadCatalog(env) {
   const items = await loadRecords(env);
   const cats = items.map(publicCat).filter(Boolean);

@@ -1,7 +1,7 @@
 {
   "name": "cat-sales-workspace-v1-preview",
   "private": true,
-  "version": "3.1.0-preview.1",
+  "version": "3.2.0-preview.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "admin:secrets": "node scripts/generate-admin-secrets.mjs",
+    "assistant:secrets": "node scripts/generate-assistant-secrets.mjs",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
