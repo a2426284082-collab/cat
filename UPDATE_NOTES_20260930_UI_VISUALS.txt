@@ -1,0 +1,25 @@
+2026-09-30 UI Visual Refresh
+
+This update focuses on visual and interaction improvements for the sales-support experience without changing the core handbook content:
+
+1) Sales Support Center (/manuals/)
+- redesigned landing page for a cleaner, more trustworthy look
+- clearer entry points for handbook / training / AI assistant
+- stronger visual hierarchy and less “PPT-like” feel
+
+2) Simulation Training (/training/)
+- replaced the simple code-drawn phone feel with a richer WeChat-style phone presentation
+- upgraded the overall layout, cards, and action states
+- preserved the original training logic while improving immersion and readability
+
+3) AI Sales Assistant (/assistant/)
+- redesigned login page and main workspace
+- improved conversation rendering and reply cards
+- cleaner copy/history/new conversation interactions
+
+4) Added lightweight SVG visual assets
+- phone shell
+- wallpaper
+- support-center hero illustration
+
+Core product logic, cloud functions, handbook content, and API behavior were not changed.
