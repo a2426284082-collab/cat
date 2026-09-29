@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(process.cwd(), 'index.html'),
         admin: resolve(process.cwd(), 'admin/index.html'),
         assistant: resolve(process.cwd(), 'assistant/index.html'),
+        training: resolve(process.cwd(), 'training/index.html'),
       },
     },
   },
