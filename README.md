@@ -28,6 +28,8 @@ npm run admin:secrets
 
 ## AI销售助手
 
+助手支持按客户建立连续对话、读取最近 10 轮上下文、重新打开历史对话继续沟通，以及一键新建对话。每次成功生成回复消耗该销售当月 1 次额度。
+
 内部销售助手位于 `/assistant/`。销售粘贴客户原话并可填写猫咪编号，系统先匹配风险规则和标准话术，再由 DeepSeek 生成可复制回复。它不会读取微信或自动发送消息，也不会自行承诺库存、健康、运输、退款、赔偿或最低价。
 
 执行 `npm run assistant:secrets`，把生成的 `ASSISTANT_SESSION_SECRET` 添加到 EdgeOne 服务端环境变量。另需添加 `DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`、`FEISHU_SALES_TABLE_ID`、`FEISHU_AI_LOG_TABLE_ID`。可选的 `DEEPSEEK_API_URL` 默认是 `https://api.deepseek.com/chat/completions`。所有密钥都不能使用 `VITE_` 前缀。部署后在管理端“销售账号”中逐个创建邀请码、调整月额度或停用账号。
