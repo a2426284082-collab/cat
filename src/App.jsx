@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Cat, Check, ChevronLeft, ChevronRight, Clipboard, Copy, Download, FolderHeart, ImageOff, KeyRound, LayoutGrid, LogIn, LogOut, Maximize2, Menu, PlayCircle, RefreshCw, Search, Settings2, Share2, Sparkles, User as UserRound, X } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
+const CATALOG_CACHE_KEY = 'public-cat-catalog-v1';
+const CATALOG_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 24;
 // 默认保持公开看猫模式。需要启用销售工作台时，在部署环境中设置 VITE_SALES_MODE=true 后重新构建。
 const SALES_MODE = import.meta.env.VITE_SALES_MODE === 'true';
@@ -17,6 +19,17 @@ const ageNumber = value => { const match=String(value??'').trim().match(/^(\d+(?
 const salesText = cat => [`猫咪编号：${cat.id}`,`品种：${cat.breed||'待补充'}`,`花色：${cat.color||'待补充'}`,`性别：${cat.gender||'待补充'}`,`月龄：${ageText(cat.age)||'待补充'}`,`疫苗：${cat.vaccine||'待补充'}`,`描述：${cat.description||'待补充'}`,`参考价格：${cat.price==null?'请咨询':money(cat.price)}`,'库存实时变化，成交前请凭猫咪编号再次确认。'].join('\n');
 const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const loadCatalogCache = () => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY));
+    if (!cached || !Array.isArray(cached.data) || !cached.data.length || !Number.isFinite(cached.savedAt)) return [];
+    if (Date.now() - cached.savedAt > CATALOG_CACHE_MAX_AGE) return [];
+    return cached.data;
+  } catch { return []; }
+};
+const saveCatalogCache = data => {
+  try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data })); } catch {}
+};
 function quote(base, profile, override) { if (override !== '' && Number.isFinite(Number(override))) return Math.max(0, Number(override)); if (base == null) return null; let value = profile.mode === 'rate' ? base * (1 + Number(profile.markup || 0) / 100) : base + Number(profile.markup || 0); if (profile.ending === '99') value = Math.max(99, Math.ceil((value + 1) / 100) * 100 - 1); if (profile.ending === '10') value = Math.round(value / 10) * 10; if (profile.ending === '100') value = Math.round(value / 100) * 100; return Math.round(value); }
 
 export default function App() {
@@ -34,13 +47,29 @@ function Login({ onEnter, close, reason }) {
 }
 
 function Workspace({ salesMode, signedIn, requireAuth, onLogin, onLogout }) {
-  const [cats,setCats]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[tab,setTab]=useState('catalog'),[mobileNav,setMobileNav]=useState(false);
+  const [cats,setCats]=useState(()=>loadCatalogCache()),[loading,setLoading]=useState(true),[error,setError]=useState(''),[tab,setTab]=useState('catalog'),[mobileNav,setMobileNav]=useState(false);
   const [saved,setSaved]=useState(()=>load('sales-saved',[])),[selected,setSelected]=useState([]),[prices,setPrices]=useState(()=>load('sales-prices',{}));
   const [profile,setProfile]=useState(()=>load('sales-profile',{name:'麦麦',phone:'微信：maimai-cat',mode:'fixed',markup:800,ending:'99'}));
   const [filters,setFilters]=useState({query:'',breed:'',color:'',gender:'',min:'',max:'',minAge:'',maxAge:''}),[settings,setSettings]=useState(false),[share,setShare]=useState(false),[notice,setNotice]=useState('');
   const [playing,setPlaying]=useState(null),[preview,setPreview]=useState(null),[detail,setDetail]=useState(null);
-  const [visibleCount,setVisibleCount]=useState(PAGE_SIZE),loadMoreRef=useRef(null);
-  const refresh=async signal=>{setLoading(true);try{const r=await fetch('/api/public-cats',{cache:'no-cache',signal});const b=await r.json();if(!r.ok||!b.success||!Array.isArray(b.data))throw new Error();setCats(b.data);setError('');}catch(e){if(e.name!=='AbortError'){setError('暂时无法读取线上猫源，当前显示演示数据。');setCats(DEMO_CATS);}}finally{if(!signal?.aborted)setLoading(false);}};
+  const [visibleCount,setVisibleCount]=useState(PAGE_SIZE),loadMoreRef=useRef(null),catsRef=useRef(cats);
+  useEffect(()=>{catsRef.current=cats;},[cats]);
+  const refresh=async (signal,{manual=false}={})=>{
+    if (!catsRef.current.length || manual) setLoading(true);
+    try {
+      const r=await fetch('/api/public-cats',{cache:manual?'reload':'default',signal});
+      const b=await r.json();
+      if(!r.ok||!b.success||!Array.isArray(b.data))throw new Error();
+      setCats(b.data);
+      saveCatalogCache(b.data);
+      setError('');
+    } catch(e) {
+      if(e.name!=='AbortError') {
+        if (!catsRef.current.length) { setCats(DEMO_CATS); setError('暂时无法读取线上猫源，当前显示演示数据。'); }
+        else setError('线上猫源刷新失败，当前先显示最近一次成功读取的数据。');
+      }
+    } finally { if(!signal?.aborted)setLoading(false); }
+  };
   useEffect(()=>{const c=new AbortController();refresh(c.signal);const t=setInterval(()=>!document.hidden&&refresh(c.signal),REFRESH_MS);return()=>{c.abort();clearInterval(t);};},[]);
   useEffect(()=>save('sales-saved',saved),[saved]); useEffect(()=>save('sales-prices',prices),[prices]); useEffect(()=>save('sales-profile',profile),[profile]);
   useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),2200);return()=>clearTimeout(t);},[notice]);
@@ -61,11 +90,11 @@ function Workspace({ salesMode, signedIn, requireAuth, onLogin, onLogout }) {
     <div className={`${salesMode?'max-w-[1500px] lg:grid lg:grid-cols-[220px_1fr]':'max-w-7xl'} mx-auto min-h-[calc(100vh-64px)]`}>{salesMode&&<aside className={`${mobileNav?'block':'hidden'} lg:block border-r border-stone-200 bg-white p-4`}><nav className="space-y-1">{[['catalog',LayoutGrid,'猫源库'],['saved',FolderHeart,'我的货源'],['materials',Sparkles,'素材工具']].map(([id,Icon,label])=><button key={id} onClick={()=>openTab(id)} className={`w-full flex items-center justify-between rounded-xl px-3 py-3 text-sm ${tab===id?'bg-[#edf4f0] text-[#173e31] font-semibold':'hover:bg-stone-50'}`}><span className="flex items-center gap-3"><Icon size={18}/>{label}</span>{id==='saved'&&<em className="not-italic text-xs">{signedIn?saved.length:<KeyRound size={13}/>}</em>}</button>)}</nav><div className={`mt-8 rounded-2xl p-4 ${signedIn?'bg-[#183f32] text-white':'border border-stone-200 bg-stone-50'}`}><p className={`text-xs ${signedIn?'text-white/60':'text-stone-400'}`}>{signedIn?'当前销售':'游客使用中'}</p><b className="mt-1 block">{signedIn?profile.name:'无需登录即可找猫'}</b><p className={`mt-3 text-xs ${signedIn?'text-white/70':'text-stone-500'}`}>{signedIn?`默认加价：${profile.mode==='rate'?`${profile.markup}%`:`${profile.markup}元`}`:'勾选内容会保留到登录完成'}</p></div><a href="/manuals/" className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-stone-500"><BookOpen size={15}/>销售手册</a></aside>}
       <main className="p-4 sm:p-7 min-w-0">
         {salesMode&&tab==='materials'?<Materials selected={selectedCats} profile={profile} prices={prices} onExport={exportCsv} onShare={()=>setShare(true)}/>:<>
-          <div className="flex flex-wrap justify-between items-end gap-4"><div><p className="text-sm text-emerald-800 font-semibold">{salesMode&&tab==='saved'?'PERSONAL STOCK':'LIVE CATALOG'}</p><h1 className="mt-1 text-2xl font-semibold">{salesMode&&tab==='saved'?'我的货源':'在售猫咪'}</h1><p className="mt-1 text-sm text-stone-500">{salesMode&&tab==='saved'?'收藏常用货源并设置自己的售价':'当前在售猫咪，库存变化前请再次确认'}</p></div><button onClick={()=>refresh()} className="flex items-center gap-2 text-sm text-stone-500"><RefreshCw size={16} className={loading?'animate-spin':''}/>刷新</button></div>
+          <div className="flex flex-wrap justify-between items-end gap-4"><div><p className="text-sm text-emerald-800 font-semibold">{salesMode&&tab==='saved'?'PERSONAL STOCK':'LIVE CATALOG'}</p><h1 className="mt-1 text-2xl font-semibold">{salesMode&&tab==='saved'?'我的货源':'在售猫咪'}</h1><p className="mt-1 text-sm text-stone-500">{salesMode&&tab==='saved'?'收藏常用货源并设置自己的售价':'当前在售猫咪，库存变化前请再次确认'}</p></div><button onClick={()=>refresh(undefined,{manual:true})} className="flex items-center gap-2 text-sm text-stone-500"><RefreshCw size={16} className={loading?'animate-spin':''}/>刷新</button></div>
           <Filters value={filters} set={setFilters} breeds={breeds} colors={colors}/>
           {error&&<p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p>}
-          <div className="mb-4 flex items-center justify-between text-sm text-stone-500"><span>找到 {filtered.length} 只猫咪{filtered.length>pageCats.length&&` · 已显示 ${pageCats.length} 只`}</span>{salesMode&&selected.length>0&&<button onClick={()=>openTab('materials')} className="rounded-xl bg-[#183f32] px-4 py-2 text-white">已选 {selected.length} 只 · 去制作资料</button>}</div>
-          {filtered.length===0?<Empty saved={salesMode&&tab==='saved'}/>:<><div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">{pageCats.map((cat,index)=><CatCard key={cat.id} cat={cat} priority={index<8} salesMode={salesMode} signedIn={signedIn} saved={saved.includes(cat.id)} selected={selected.includes(cat.id)} salePrice={quote(cat.price,profile,prices[cat.id]??'')} custom={prices[cat.id]??''} setCustom={v=>setPrices(p=>({...p,[cat.id]:v}))} onSave={()=>toggleSaved(cat.id)} onSelect={()=>toggleSelected(cat.id)} onPlay={()=>setPlaying(cat)} onPreview={()=>setPreview(cat)} onDetail={()=>setDetail(cat)}/>)}</div>{hasMore&&<div ref={loadMoreRef} className="py-8 text-center"><button onClick={()=>setVisibleCount(count=>Math.min(count+PAGE_SIZE,filtered.length))} className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm text-stone-500 shadow-sm">加载更多猫咪</button></div>}</>}
+          <div className="mb-4 flex items-center justify-between text-sm text-stone-500"><span>{loading&&!cats.length?'正在加载猫咪…':`找到 ${filtered.length} 只猫咪${filtered.length>pageCats.length?` · 已显示 ${pageCats.length} 只`:''}`}</span>{salesMode&&selected.length>0&&<button onClick={()=>openTab('materials')} className="rounded-xl bg-[#183f32] px-4 py-2 text-white">已选 {selected.length} 只 · 去制作资料</button>}</div>
+          {loading&&!cats.length?<CatalogSkeleton/>:filtered.length===0?<Empty saved={salesMode&&tab==='saved'}/>:<><div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">{pageCats.map((cat,index)=><CatCard key={cat.id} cat={cat} priority={index<8} salesMode={salesMode} signedIn={signedIn} saved={saved.includes(cat.id)} selected={selected.includes(cat.id)} salePrice={quote(cat.price,profile,prices[cat.id]??'')} custom={prices[cat.id]??''} setCustom={v=>setPrices(p=>({...p,[cat.id]:v}))} onSave={()=>toggleSaved(cat.id)} onSelect={()=>toggleSelected(cat.id)} onPlay={()=>setPlaying(cat)} onPreview={()=>setPreview(cat)} onDetail={()=>setDetail(cat)}/>)}</div>{hasMore&&<div ref={loadMoreRef} className="py-8 text-center"><button onClick={()=>setVisibleCount(count=>Math.min(count+PAGE_SIZE,filtered.length))} className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm text-stone-500 shadow-sm">加载更多猫咪</button></div>}</>}
         </>}
       </main>
     </div>{settings&&<PriceSettings profile={profile} set={setProfile} close={()=>setSettings(false)}/>} {share&&<SharePreview cats={selectedCats} profile={profile} prices={prices} close={()=>setShare(false)} notify={setNotice}/>} {playing&&<Video cat={playing} close={()=>setPlaying(null)}/>} {preview&&<Photo cat={preview} close={()=>setPreview(null)}/>} {detail&&<Detail cat={detail} close={()=>setDetail(null)} notify={setNotice}/>} {notice&&<div className="fixed z-[90] bottom-5 left-1/2 -translate-x-1/2 bg-stone-900 text-white rounded-xl px-4 py-3 text-sm shadow-xl flex gap-2"><Check size={17}/>{notice}</div>}
@@ -76,6 +105,8 @@ function Filters({value,set,breeds,colors}){const field=(k,v)=>set(x=>({...x,[k]
 function Select({value,set,values,label}){return <select value={value} onChange={e=>set(e.target.value)} className="rounded-xl bg-stone-50 px-3 py-2.5 text-sm"><option value="">{label}</option>{values.map(v=><option key={v}>{v}</option>)}</select>}
 function Range({label,min,max,setMin,setMax}){return <fieldset className="col-span-2"><legend className="mb-1 text-xs text-stone-500">{label}</legend><div className="flex items-center gap-2"><input type="number" min="0" value={min} onChange={e=>setMin(e.target.value)} placeholder="最低" className="min-w-0 w-full rounded-xl bg-stone-50 px-3 py-2.5 text-sm"/><span className="text-stone-300">—</span><input type="number" min="0" value={max} onChange={e=>setMax(e.target.value)} placeholder="最高" className="min-w-0 w-full rounded-xl bg-stone-50 px-3 py-2.5 text-sm"/></div></fieldset>}
 function Empty({saved}){return <div className="rounded-2xl border border-dashed border-stone-300 py-20 text-center text-stone-400"><FolderHeart className="mx-auto mb-3"/>{saved?'还没有加入我的货源':'没有符合条件的猫咪'}</div>}
+function CatalogSkeleton(){return <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" aria-label="正在加载猫咪">{Array.from({length:8},(_,i)=><div key={i} className="overflow-hidden rounded-2xl border border-stone-200 bg-white"><div className="aspect-[4/3] animate-pulse bg-stone-100"/><div className="space-y-3 p-4"><div className="h-5 w-2/3 animate-pulse rounded bg-stone-100"/><div className="h-4 w-1/2 animate-pulse rounded bg-stone-100"/><div className="h-4 w-5/6 animate-pulse rounded bg-stone-100"/></div></div>)}</div>}
+
 function CatCard({cat,priority,salesMode,signedIn,saved,selected,salePrice,custom,setCustom,onSave,onSelect,onPlay,onPreview,onDetail}){
   const image=cat.images?.[0]||cat.image;
   return <article className={`rounded-2xl overflow-hidden border bg-white shadow-sm ${salesMode&&selected?'border-emerald-700 ring-2 ring-emerald-700/10':'border-stone-200'}`}>

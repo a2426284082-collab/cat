@@ -37,6 +37,8 @@ test('public API filters on server, exposes only allowed fields, and protects im
   try {
     const result = await list({ env });
     assert.equal(result.status, 200);
+    assert.match(result.headers.get('cache-control') || '', /s-maxage=300/);
+    assert.match(result.headers.get('cache-control') || '', /stale-while-revalidate=86400/);
     const body = await result.json();
     assert.equal(body.data.length, 2);
     assert.deepEqual(body.data[0], { id: 'CAT001', breed: '英短', color: '金渐层', gender: '公', age: '4', vaccine: '已接种两针', description: '性格亲人，活泼好动', price: 3800, image: '/api/public-images/public_file', images: ['/api/public-images/public_file', '/api/public-images/second_file'], videos: [{ name: '玩耍.mp4', url: '/api/public-videos/video_one' }, { name: '睡觉.webm', url: '/api/public-videos/video_two' }] });
