@@ -90,7 +90,13 @@ export function sameOrigin(request) {
       const value = request.headers.get(name)?.split(',')[0]?.trim();
       if (value) candidates.add(value);
     }
-    if (!candidates.has(supplied.host)) return false;
+    if (!candidates.has(supplied.host)) {
+      // EdgeOne may execute the function on an internal host without exposing
+      // the original public host in forwarding headers. Sec-Fetch-Site is a
+      // browser-controlled header and still reliably distinguishes a request
+      // made by this page from a cross-site form/fetch request.
+      return supplied.protocol === 'https:' && request.headers.get('sec-fetch-site') === 'same-origin';
+    }
     const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
     return !forwardedProtocol || `${forwardedProtocol}:` === supplied.protocol;
   } catch { return false; }
