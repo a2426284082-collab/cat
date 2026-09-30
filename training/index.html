@@ -47,18 +47,12 @@
 
   <main class="layout">
     <section class="device-stage">
-      <div class="device-head">
-        <small>WECHAT STYLE TRAINING</small>
-        <h2>更像真实聊天<br>而不是在看 PPT</h2>
-        <p>左侧手机改成接近真实微信的视觉表达。你在右侧每完成一步，左边的聊天会同步往前推进，让销售更容易代入“自己正在接一个客户”。</p>
-      </div>
-
       <div class="device-shell">
         <img class="shell" src="/ui-assets/wechat-phone-shell.svg" alt="手机壳示意">
         <div class="screen">
           <div class="status"><span>14:28</span><div class="icons"><div class="sig"><i></i><i></i><i></i><i></i></div><span>5G</span><div class="battery"><b></b></div></div></div>
           <div class="wx-top">
-            <div class="left"><span>‹</span><div class="avatar-mini">林</div><div><b>客户小林</b><small>模拟对话 · 微信风格</small></div></div>
+            <div class="left"><span>‹</span><div class="avatar-mini">林</div><div><b>客户小林</b><small>在线</small></div></div>
             <div class="right"><span>•••</span></div>
           </div>
           <div class="chat-wrap" id="chat"></div>
@@ -66,11 +60,6 @@
         </div>
       </div>
 
-      <div class="device-notes">
-        <article><b>看起来更像真实场景</b><span>不再是简单代码画的黑框手机，而是完整手机壳、状态栏与微信聊天结构。</span></article>
-        <article><b>每一步只练一个动作</b><span>提取需求、筛猫、报价、发资料、答疑、确认成交，逐步往前走。</span></article>
-        <article><b>练习时不消耗额度</b><span>整段带练都用固定内容；只有主动打开真实 AI 助手时才会计入额度。</span></article>
-      </div>
     </section>
 
     <section class="panel-shell">
@@ -79,7 +68,7 @@
   </main>
 
   <script>
-    const S={selected:[],messages:[]};
+    const S={selected:[],messages:[],prices:{}};
     const cats=[
       ['C-102','海双布偶妹妹','2个月','¥900'],
       ['C-118','蓝双布偶妹妹','3个月','¥1050'],
@@ -115,12 +104,12 @@
 
     function start(){
       prog(1,'接住需求');
-      S.messages=[];S.selected=[];
+      S.messages=[];S.selected=[];S.prices={};
       say('你好，想买一只布偶妹妹，最好两三个月，预算1500左右，可以发杭州吗？');
       shell(
         'STEP 01 · 接住需求',
         '先把客户要什么整理清楚',
-        '不要急着发一堆猫。先从客户原话里找出关键信息：客户想要什么、预算多少、要发到哪里。界面内容不需要改记忆点，只要看起来更清楚、更舒服。',
+        '先看客户说了什么，确认品种、性别、年龄、预算和收货城市。',
         `<div class="fields">
           <div class="field"><small>品种</small><b>布偶猫</b></div>
           <div class="field"><small>性别</small><b>母</b></div>
@@ -128,9 +117,9 @@
           <div class="field"><small>预算</small><b>1500 元左右</b></div>
           <div class="field"><small>收货城市</small><b>杭州</b></div>
         </div>
-        <div class="notice"><b>真实接待时：</b>由你自己整理即可；复杂长消息也可以交给常用 AI 提取，不必在标准训练中消耗平台额度。</div>
+        
         <div class="actions"><button class="primary" onclick="filterStep()">需求清楚了，去筛猫 →</button></div>`,
-        ['先提取，再行动','客户原话里通常已经给了 5 个条件']
+        []
       );
     }
 
@@ -140,19 +129,19 @@
       shell(
         'STEP 02 · 猫源筛选',
         '只选 3 只最接近的给客户',
-        '筛选条件已经替你带入。现在亲手选择 3 只猫，选太多会让客户反而更难选。',
+        '按照客户要求，挑 3 只合适的猫。',
         `<div class="mock-filter">
           <div class="chips"><span class="chip on">布偶猫</span><span class="chip on">母</span><span class="chip on">2—3个月</span><span class="chip">供货价≤1200</span></div>
           <div class="cats" id="catsWrap">${renderCatButtons()}</div>
           <div class="pick-foot"><span class="count-badge" id="count">已选择 0 / 3 只</span><button class="primary" id="picknext" disabled onclick="priceStep()">选好了，设置报价 →</button></div>
         </div>`,
-        ['筛猫时先满足硬条件','推荐数量控制在 3—5 只']
+        []
       );
       updatePickUI();
     }
 
     function renderCatButtons(){
-      return cats.slice(0,3).map((c,i)=>`<button class="cat ${S.selected.includes(i)?'selected':''}" id="cat${i}" onclick="pick(${i})"><div class="catpic"><span>🐱</span></div><div class="catinfo"><b>${c[1]}</b>${c[2]} · ${c[3]}<div class="pill">编号 ${c[0]}</div></div></button>`).join('');
+      return cats.map((c,i)=>`<button class="cat ${S.selected.includes(i)?'selected':''}" id="cat${i}" onclick="pick(${i})"><div class="catpic"><span>🐱</span></div><div class="catinfo"><b>${c[1]}</b>${c[2]} · ${c[3]}<div class="pill">编号 ${c[0]}</div></div></button>`).join('');
     }
     function updatePickUI(){
       const wrap=document.querySelector('#catsWrap'); if(wrap) wrap.innerHTML=renderCatButtons();
@@ -171,11 +160,11 @@
       shell(
         'STEP 03 · 报价与资料',
         '客户只看最终报价，不看你的成本',
-        '根据客户预算设置销售价，再把资料整理成可以直接发送的形式。界面上把供货价、建议售价和输入框分开，销售看起来就没那么“乱”。',
-        `<div class="price-grid">${S.selected.map((i,n)=>`<div class="price-row"><span><b>${cats[i][0]}</b><br>${cats[i][1]}</span><span>供货 ${cats[i][3]}</span><input value="${priceDefaults[n]}" aria-label="${cats[i][0]} 报价"></div>`).join('')}</div>
+        '设置每只猫的报价，下一步会显示给客户看的资料。',
+        `<div class="price-grid">${S.selected.map((i,n)=>`<div class="price-row"><span><b>${cats[i][0]}</b><br>${cats[i][1]}</span><span>供货 ${cats[i][3]}</span><input type="number" min="1" inputmode="numeric" value="${S.prices[i]??priceDefaults[n]}" oninput="S.prices[${i}]=Number(this.value)" aria-label="${cats[i][0]} 报价"></div>`).join('')}</div>
         <div class="notice"><b>报价提醒：</b>报价同时考虑客户预算、平台供货价和你的利润，不需要向客户解释成本或加价。</div>
         <div class="actions"><button class="primary" onclick="materialStep()">生成客户资料 →</button></div>`,
-        ['对客户只展示销售价','成本不用主动解释']
+        []
       );
     }
 
@@ -185,10 +174,10 @@
       shell(
         'STEP 04 · 发给客户',
         '一次给出清楚、有限的选择',
-        '真实操作中可以复制文案、图片视频或客户展示页。这里先练最核心的：把客户真正看得懂的信息整齐发出去。',
-        `<div class="materials">${S.selected.map((i,n)=>`<div class="material"><div class="photo"><span>🐱</span></div><div><b>${cats[i][1]} · ${priceDefaults[n]} 元</b><p>${cats[i][2]}，疫苗信息以成交前核对为准<br>编号：${cats[i][0]}</p></div></div>`).join('')}</div>
+        '核对猫咪编号、价格和资料，再发给客户。',
+        `<div class="materials">${S.selected.map((i,n)=>`<div class="material"><div class="photo"><span>🐱</span></div><div><b>${cats[i][1]} · ${S.prices[i]??priceDefaults[n]} 元</b><p>${cats[i][2]}，疫苗信息以成交前核对为准<br>编号：${cats[i][0]}</p></div></div>`).join('')}</div>
         <div class="actions"><button class="primary" onclick="feedbackStep()">我已经发给客户 →</button></div>`,
-        ['客户更容易在 3 个选择里做决定','保持信息简洁、统一']
+        []
       );
     }
 
@@ -197,14 +186,14 @@
       shell(
         'STEP 05 · 处理反馈',
         '客户的回复，最终会落到三条路',
-        '界面不再像“文字说明页面”，而是把三种高频反馈直接做成可点的分支。真实接待时，你就按客户状态选对应的下一步。',
+        '选择客户的回复，看看接下来怎么处理。',
         `<div class="branch">
           <button onclick="branch('no')"><span class="icon">↩️</span><b>不满意</b><small>重新调整条件筛选，例如预算更低、想换花色、想看更大月龄。</small></button>
           <button onclick="branch('ask')"><span class="icon">💬</span><b>有疑问</b><small>遇到健康、运输、退款等高风险问题，交给 AI 助手更稳。</small></button>
           <button onclick="branch('yes')"><span class="icon">✅</span><b>已选中</b><small>客户已经有偏好，下一步去确认库存与成交条件。</small></button>
         </div>
-        <p class="tiny" style="margin-top:16px">建议先体验“不满意”和“有疑问”，最后再选择“已选中”完成整条链路。</p>`,
-        ['不是每次都直接成交','重要的是知道下一步往哪走']
+        <p class="tiny" style="margin-top:16px">可尝试不同回复；选择“已选中”继续成交。</p>`,
+        []
       );
     }
 
@@ -214,26 +203,26 @@
         shell(
           '反馈 A · 不满意',
           '改变条件，重新筛选',
-          '先找出不满意的原因，再保留其余需求。你不需要重新从头接一遍，只要把“变化的那一个条件”抓出来。',
+          '问清楚哪里不合适，再按调整后的条件筛选。',
           `<div class="notice"><b>保留：</b>布偶猫、妹妹、2—3个月、杭州<br><b>调整：</b>报价预算降低</div>
           <div class="actions">
             <button class="choice" onclick="filterStep()"><div><b>按新预算重新筛选</b><small>回到猫源库重新选择 3—5 只，其他条件保持不变。</small></div></button>
-            <button class="ghost-link" onclick="feedbackStep()"><div><b>先返回体验其他反馈</b><small>继续看看“有疑问”和“已选中”分支是什么样。</small></div></button>
+            <button class="ghost-link" onclick="feedbackStep()"><div><b>返回客户反馈</b><small>选择另一种回复。</small></div></button>
           </div>`,
-          ['先问清“不喜欢什么”','修改最少的条件继续筛']
+          []
         );
       }else if(type==='ask'){
         say('可以保证没有猫癣、到家一定健康吗？');
         shell(
           '反馈 B · 有疑问',
           '不会回答，就交给 AI 助手',
-          '健康、运输、退款等高风险问题不要自行保证。训练里给你看固定示范话术；真实接待时，可以跳去 AI 助手生成一版更贴近现场的回复。',
+          '健康等问题先核对资料，不要保证“绝对没问题”。',
           `<div class="notice"><b>建议回复</b><br>活体不适合口头承诺“绝对不会出现问题”。我可以按猫咪编号核对目前的健康资料和最新状态，具体售后以成交前确认的书面约定为准。</div>
           <div class="actions">
-            <a class="primary" href="/assistant/">进入真实 AI 助手（计入额度）</a>
-            <button class="ghost-link" onclick="feedbackStep()"><div><b>训练里先不消耗额度</b><small>回到分支页，继续体验后面的成交流程。</small></div></button>
+            <a class="primary" href="/assistant/">打开 AI 销售助手</a>
+            <button class="ghost-link" onclick="feedbackStep()"><div><b>返回客户反馈</b><small>选择另一种回复。</small></div></button>
           </div>`,
-          ['高风险问题不要乱保证','先核实，再承诺']
+          []
         );
       }else{
         say('我喜欢第二只，就要这只了，今天能买吗？');
@@ -247,7 +236,7 @@
       shell(
         '反馈 C · 已选中',
         '先确认，再成交',
-        '客户选中不等于立刻收钱。先向平台提交猫咪编号，确认库存和成交条件，这个动作本身就能帮新人少犯错。',
+        '先核对编号、库存、健康资料、运输与售后条件。',
         `<div class="fields">
           <div class="field"><small>意向猫咪</small><b>${c[0]}</b></div>
           <div class="field"><small>客户城市</small><b>杭州</b></div>
@@ -256,7 +245,7 @@
         </div>
         <div class="notice"><b>成交前提醒：</b>未确认库存前不要向客户保证，也不要急着收款。</div>
         <div class="actions"><button class="primary" onclick="finish()">平台已确认，可以成交 →</button></div>`,
-        ['别跳过库存确认','把最终条件一次核清楚']
+        []
       );
     }
 
@@ -265,13 +254,13 @@
       shell(
         'COMPLETE',
         '你已经走完第一条成交链路',
-        '以后重复使用：接需求、筛 3—5 只、报价发资料，再根据反馈重新筛选、AI 答疑或确认成交。页面观感这次也更像一个真的销售工具，而不是纯文本课件。',
-        `<div class="done"><div class="seal">✓</div><h2>第一次实战完成</h2><p>真正接待时不需要背流程，遇到哪一步就回来查看。你甚至可以把这页当作“新人第一条单的演练入口”。</p></div>
+        '你已完成一次模拟接待。',
+        `<div class="done"><div class="seal">✓</div><h2>第一次实战完成</h2><p>有客户咨询时，可以回到这里查看对应步骤。</p></div>
         <div class="actions">
           <button class="primary" onclick="start()">重新练习一次</button>
           <a class="ghost-link" href="/" style="justify-content:center"><div><b>回到猫源大厅</b><small>继续去找猫源或给客户发资料。</small></div></a>
         </div>`,
-        ['流程不是背出来的，是练出来的']
+        []
       );
     }
 
@@ -279,13 +268,13 @@
     shell(
       'SIMULATION · 约 8 分钟',
       '跟着完成第一次接待',
-      '左边是一段接近微信视觉的模拟私聊；右边会带你走完从客户提出需求，到筛猫、报价、答疑和确认成交的全过程。先解决“看起来像 PPT、代入感不够”的问题，再保留你现有的成交逻辑。',
-      `<div class="notice"><b>标准训练说明：</b>整个带练完全使用预设内容，不调用 AI，也不消耗 Token。只有主动进入真实 AI 助手时，才会计入额度。</div>
+      '模拟客户已经发来消息。点击开始，依次练习选猫、报价和处理反馈。',
+      `
       <div class="actions">
         <button class="primary" onclick="start()">开始模拟接待</button>
-        <a class="ghost-link" href="/manuals/"><div><b>我暂时不需要带练</b><small>先回销售支持中心，看看手册或 AI 助手。</small></div></a>
+        <a class="ghost-link" href="/manuals/"><div><b>返回支持中心</b><small>查看其他工具。</small></div></a>
       </div>`,
-      ['训练先重体验，不重考核','让销售愿意点开，比教更多内容更重要']
+      []
     );
     bubbles();
   </script>

@@ -77,7 +77,7 @@ function Access({ done }) {
             先交给助手起草一版
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-stone-600 md:text-base">
-            它不是“写作文页面”，而是给销售在聊天途中直接借力的回复工具。把客户原话贴进来，快速拿到一段可以检查、复制、再自行调整的回复草稿。
+            粘贴客户原话，生成一段可复制的回复。发送前请核对猫咪资料和承诺内容。
           </p>
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
             {[
@@ -98,7 +98,7 @@ function Access({ done }) {
             <Bot size={28} />
           </span>
           <h2 className="mt-5 text-2xl font-bold text-stone-900">进入 AI 销售助手</h2>
-          <p className="mt-2 text-sm leading-7 text-stone-500">使用管理员发放的个人邀请码进入。建议一个销售只用一个邀请码，方便额度与历史记录管理。</p>
+          <p className="mt-2 text-sm leading-7 text-stone-500">输入你的邀请码。</p>
           <label className="mt-7 block text-sm font-medium text-stone-700">
             邀请码
             <input
@@ -416,7 +416,7 @@ export default function AssistantApp() {
                     <Bot size={32} />
                   </span>
                   <p className="mt-4 text-base text-stone-600">粘贴客户消息，开始一条连续对话。</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-400">它更像是一个销售 Copilot：不会替你成交，但能让你更快给出第一版稳妥回复。</p>
+                  <p className="mt-2 text-sm leading-7 text-stone-400">生成后可复制回复，也可以在同一条对话中继续追问。</p>
                 </div>
               </div>
             )}

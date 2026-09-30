@@ -21,86 +21,20 @@
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.chips span{padding:6px 10px;border-radius:999px;background:#f5f2ee;color:#676159;font-size:12px}.card .foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:22px;font-weight:800;font-size:14px}.arrow{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#f8f3ed;color:var(--orange);font-size:18px}
     .mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.mini{padding:16px;border-radius:18px;background:#fff;border:1px solid var(--line)}.mini b{display:block;font-size:14px}.mini span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.65}
     .hint{margin-top:20px;border-radius:18px;background:linear-gradient(145deg,#f0efec,#f8f6f2);padding:16px 18px;color:var(--muted);font-size:13px;line-height:1.7;border:1px solid #ebe5dd}
+    .compact-head{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:28px 0 24px;padding:26px 32px;border:1px solid var(--line);border-radius:28px;background:#fffdfa;overflow:hidden}.compact-head h1{font-size:clamp(30px,4vw,42px);margin:12px 0 6px}.compact-head p{margin:0;color:var(--muted);font-size:14px}.compact-head img{width:180px;height:130px;object-fit:cover;border-radius:20px}.card{min-height:216px}.card h3{margin-top:20px}.grid{gap:14px}@media(max-width:600px){.compact-head{margin:20px 0;padding:22px}.compact-head img{width:92px;height:92px}.card{min-height:190px;padding:22px}}
     @media(max-width:900px){.hero{grid-template-columns:1fr}.switches,.mini-grid,.grid{grid-template-columns:1fr}.wrap{width:min(100% - 22px,720px)}.hero-visual{min-height:260px}.section-title{display:block}.section-title p{margin-top:8px}}
   </style>
 </head>
 <body>
   <main class="wrap">
     <a class="back" href="/">← 返回猫咪合作平台</a>
-    <section class="hero">
-      <div>
-        <span class="eyebrow">SALES SUPPORT CENTER</span>
-        <h1>不用先把教程全看完<br>先解决你眼前这一步</h1>
-        <p>这几页不是“考试型培训”，而是给销售随时取用的成交支持：想系统了解，可以看手册；正在接待客户，就直接进入带练或 AI 助手。</p>
-        <div class="quick-asks">
-          <a href="/training/">👀 有客户了，不知道怎么接</a>
-          <a href="/assistant/">💬 客户追问，我不会回</a>
-          <a href="/guide/">📘 想先搞懂合作与成交</a>
-        </div>
-        <div class="switches">
-          <div class="switch"><b>想先看清楚流程</b><span>从手册开始，理解怎么找客户、怎么报价、怎么成交。</span></div>
-          <div class="switch"><b>想马上上手练一遍</b><span>进入模拟实战，走完一条完整成交链路。</span></div>
-          <div class="switch"><b>正在聊天，卡住了</b><span>把客户消息丢给 AI 助手，先拿到一版回复草稿。</span></div>
-        </div>
-      </div>
-      <div class="hero-visual">
-        <img src="/ui-assets/manual-hero-cat.svg" alt="销售支持中心视觉示意">
-        <div class="hero-note"><b>这几页的目标</b><span>减少心理负担，让销售想用的时候可以直接打开、直接借力，而不是像在看 PPT。</span></div>
-      </div>
+    <header class="compact-head"><div><span class="eyebrow">SALES SUPPORT</span><h1>销售支持中心</h1><p>选一个现在用得上的工具。</p></div><img src="/ui-assets/manual-hero-cat.svg" alt="" aria-hidden="true"></header>
+    <section class="grid" aria-label="销售工具">
+      <a class="card" href="/guide/"><span class="badge">01</span><h3>基础与成交手册</h3><p>合作规则、报价、客户沟通与成交事项。</p><div class="foot"><span>查看手册</span><span class="arrow">→</span></div></a>
+      <a class="card green" href="/guide-sales/"><span class="badge">02</span><h3>销路实操手册</h3><p>发布内容、寻找需求与合作渠道。</p><div class="foot"><span>查看手册</span><span class="arrow">→</span></div></a>
+      <a class="card training" href="/training/"><span class="badge">练</span><h3>模拟实战</h3><p>跟着一位模拟客户练习选猫、报价与答疑。</p><div class="foot"><span>开始练习</span><span class="arrow">→</span></div></a>
+      <a class="card green" href="/assistant/"><span class="badge">AI</span><h3>AI 销售助手</h3><p>粘贴客户消息，生成可检查、可复制的回复。</p><div class="foot"><span>打开助手</span><span class="arrow">→</span></div></a>
     </section>
-
-    <div class="section-title">
-      <div>
-        <h2>现在更适合从哪一页开始？</h2>
-      </div>
-      <p>保留原有内容结构，但把入口做得更清楚：什么时候用什么，一眼就能判断。</p>
-    </div>
-
-    <section class="grid">
-      <a class="card" href="/guide/">
-        <span class="badge">01</span>
-        <h3>基础与成交手册</h3>
-        <p>适合第一次想搞懂合作方式、报价逻辑、客户沟通与成交前后注意事项的人。内容不变，入口更明确。</p>
-        <div class="chips"><span>合作规则</span><span>报价方法</span><span>沟通成交</span></div>
-        <div class="foot"><span>打开第一册</span><span class="arrow">→</span></div>
-      </a>
-
-      <a class="card green" href="/guide-sales/">
-        <span class="badge">02</span>
-        <h3>销路实操手册</h3>
-        <p>按实际渠道教你怎么发、怎么找、怎么聊、怎么维护。适合“知道要卖，但不知道去哪找人”的销售。</p>
-        <div class="chips"><span>内容发布</span><span>主动找需求</span><span>合作转介绍</span></div>
-        <div class="foot"><span>打开第二册</span><span class="arrow">→</span></div>
-      </a>
-
-      <a class="card training" href="/training/">
-        <span class="badge">练</span>
-        <h3>模拟实战带练</h3>
-        <p>在更像真实微信对话的界面里，亲手走一遍“客户来询问 → 筛猫 → 报价 → 答疑 → 确认成交”的过程。</p>
-        <div class="chips"><span>约 8 分钟</span><span>模拟实战</span><span>不消耗 AI 额度</span></div>
-        <div class="foot"><span>进入带练</span><span class="arrow">→</span></div>
-      </a>
-
-      <a class="card green" href="/assistant/">
-        <span class="badge">AI</span>
-        <h3>AI 销售助手</h3>
-        <p>遇到议价、健康、运输、退款等难题时，快速生成一段能检查、能复制、风险更稳妥的回复草稿。</p>
-        <div class="chips"><span>难题话术</span><span>风险提醒</span><span>连续对话</span></div>
-        <div class="foot"><span>打开助手</span><span class="arrow">→</span></div>
-      </a>
-    </section>
-
-    <div class="section-title">
-      <div><h2>这次只做体验，不动手册内容</h2></div>
-      <p>你提到详细手册内容是写死的，所以这一轮优化重点放在入口页、带练页和 AI 助手页的观感与交互上。</p>
-    </div>
-    <section class="mini-grid">
-      <article class="mini"><b>更像工具，不像 PPT</b><span>减少纯文本堆叠，多用分区、卡片与视觉层级，把“下一步”讲清楚。</span></article>
-      <article class="mini"><b>先解决心理拖延</b><span>销售不需要先看完所有内容，看到眼前的问题就能直接进对应页面。</span></article>
-      <article class="mini"><b>保留原逻辑</b><span>原有路径与内容保留，只把看起来“像临时页”的感受压下去。</span></article>
-    </section>
-
-    <p class="hint">提示：如果销售已经在接客户，不用要求他先把两本手册看完。直接让他去“模拟实战”或者“AI 销售助手”，更容易真正开始使用。</p>
   </main>
 </body>
 </html>
