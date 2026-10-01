@@ -10,6 +10,7 @@ const lessons = [ ['接住需求','听清客户想要什么'], ['筛选猫咪','
 const initial = () => ({ step: 0, reached: 0, selected: [], prices: {}, budget: 1500, branch: '', checked: [], finished: false, visited: [] });
 let state = initial();
 let storageAvailable = true;
+let mobileView = 'practice';
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
   if (saved && Number.isInteger(saved.step) && saved.step >= 0 && saved.step <= 6) {
@@ -65,6 +66,8 @@ function updateChat() {
   $('#chat').innerHTML = `<div class="chat-time">模拟接待 · 客户小林</div>` + m.map(x => `<div class="chat-message ${x.me?'me':''}"><span class="chat-speaker">${x.me?'你 · 销售':'小林 · 客户'}</span><div class="chat-bubble">${x.text}</div></div>`).join('');
   $('#chat').scrollTop = $('#chat').scrollHeight;
   $('#customerBudget').textContent = `预算约 ${money(state.budget)}`;
+  $('#mobileCustomerMessage').textContent = [...m].reverse().find(v => !v.me)?.text || '查看客户需求';
+  $('.mobile-unread').hidden = mobileView === 'conversation';
 }
 function render(focus = false) {
   updateSidebar(); updateChat();
@@ -94,10 +97,11 @@ function render(focus = false) {
     shell('STEP 06 / 06 · 确认成交','先确认清楚，再往前一步。','客户选中了第二只。模拟核对以下四项，记住真实成交前需要确认的内容。',`<div class="order-summary">${icon('cat')}<div><strong>${cats[i].id} · ${cats[i].name}</strong><small>意向报价 ${money(state.prices[i])} · 收货城市 杭州</small></div></div><div class="checklist">${[['猫咪编号与库存','确认是客户选中的猫，并再次核实仍可出售。'],['健康资料与最新状态','核对现有健康资料，不以聊天代替实际检查。'],['最终价格与运输安排','确认费用、方式、时间和交接要求。'],['售后约定与付款流程','让客户看清书面约定，再推进付款。']].map(([t,d],i)=>`<label><input type="checkbox" data-check="${i}" ${state.checked.includes(i)?'checked':''}><span><strong>${t}</strong><small>${d}</small></span></label>`).join('')}</div>${notice('此处勾选仅表示已学习核对事项，不代表真实库存或交易条件已确认。',true)}${actions(back('prev'),button('模拟确认完成','finish',false,state.checked.length!==4))}<p class="panel-helper" id="checkCount">已学习 ${state.checked.length} / 4 项成交前核对事项</p>`);
   }
   save();
+  syncMobileView();
   if (focus) {
     $('.panel-heading')?.focus({preventScroll:true});
     const top = $('.lesson-workspace').getBoundingClientRect().top;
-    if (top < 0 || matchMedia('(max-width:760px)').matches) $('.lesson-workspace').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});
+    if (top < 0 || matchMedia('(max-width:900px)').matches) $('.lesson-workspace').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'start'});
   }
 }
 function updateSelection() {
@@ -123,7 +127,7 @@ function validatePrices() {
   $('[data-action="next"]').disabled=messages.length>0;
   return !messages.length;
 }
-function go(n) { state.step=n; state.reached=Math.max(state.reached,n);state.branch='';state.finished=false;render(true); }
+function go(n) { mobileView='practice'; state.step=n; state.reached=Math.max(state.reached,n);state.branch='';state.finished=false;render(true); }
 function reset() { state=initial();go(1);toast('已开始新的一轮模拟练习'); }
 function requestReset() { if(state.step===0){reset();return;} $('#resetDialog').showModal(); }
 function handleAction(a) {
@@ -141,6 +145,8 @@ function handleAction(a) {
   if(a==='finish' && state.checked.length===4){state.finished=true;render(true);}
 }
 document.addEventListener('click',e=>{
+  const view=e.target.closest('[data-mobile-view]');
+  if(view){setMobileView(view.dataset.mobileView);return;}
   const action=e.target.closest('[data-action]');if(action&&!action.disabled){handleAction(action.dataset.action);return;}
   const pick=e.target.closest('[data-pick]');
   if(pick&&!pick.disabled){const i=Number(pick.dataset.pick);if(state.selected.includes(i))state.selected=state.selected.filter(v=>v!==i);else if(state.selected.length<3)state.selected.push(i);state.reached=2;state.prices={};state.checked=[];updateSelection();updateSidebar();save();return;}
@@ -157,9 +163,50 @@ document.addEventListener('change',e=>{
 });
 $('#restart').addEventListener('click',requestReset);
 $('#resetDialog').addEventListener('close',()=>{if($('#resetDialog').returnValue==='reset')reset();});
-$('#chatToggle').addEventListener('click',()=>{if(!matchMedia('(max-width:760px)').matches)return;const expanded=$('#customerPanel').classList.toggle('is-open');$('#chatToggle').setAttribute('aria-expanded',String(expanded));if(expanded)$('#chat').scrollTop=$('#chat').scrollHeight;});
-const mobile=matchMedia('(max-width:760px)');
-function setChatAccessibility(){ $('#chatToggle').setAttribute('aria-expanded',String(!mobile.matches||$('#customerPanel').classList.contains('is-open'))); }
-mobile.addEventListener('change',setChatAccessibility);
-setChatAccessibility();
+const mobile=matchMedia('(max-width:900px)');
+function syncMobileView() {
+  const isMobile=mobile.matches;
+  document.body.classList.toggle('mobile-chat-visible',isMobile && mobileView==='conversation');
+  document.querySelectorAll('.mobile-practice-tabs [role="tab"]').forEach(tab=>{
+    const active=tab.dataset.mobileView===mobileView;
+    tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+  });
+  // Desktop keeps the original side-by-side phone; mobile switches full panels.
+  for(const [id,label] of [['practicePanel','practiceTab'],['customerPanel','conversationTab']]) {
+    const el=$('#'+id);
+    if(isMobile){el.setAttribute('role','tabpanel');el.setAttribute('aria-labelledby',label);}
+    else{el.removeAttribute('role');el.removeAttribute('aria-labelledby');}
+  }
+  $('#chatToggle').setAttribute('aria-expanded','true');
+  $('#chatToggle').tabIndex = -1;
+  if(isMobile) {
+    const nav=$('#steps'),active=nav.querySelector('[aria-current="step"]');
+    if(active) nav.scrollLeft += active.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth-active.offsetWidth)/2;
+  }
+  if(isMobile && mobileView==='conversation')$('.mobile-unread').hidden=true;
+}
+function setMobileView(view) {
+  mobileView=view;
+  syncMobileView();
+  if(mobile.matches) {
+    $('.mobile-practice-tabs').scrollIntoView({block:'start',behavior:'instant'});
+    if(view==='conversation')$('#chat').scrollTop=$('#chat').scrollHeight;
+  }
+}
+$('.mobile-practice-tabs').addEventListener('keydown',e=>{
+  if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+  e.preventDefault();setMobileView(e.key==='Home'?'practice':e.key==='End'?'conversation':mobileView==='practice'?'conversation':'practice');
+  $(`[role="tab"][aria-selected="true"]`).focus({preventScroll:true});
+});
+mobile.addEventListener('change',syncMobileView);
+function updatePracticeViewport(){
+  const v=window.visualViewport;
+  const inset=mobile.matches && v ? Math.max(0,window.innerHeight-v.height-v.offsetTop) : 0;
+  document.body.style.setProperty('--practice-keyboard-inset',`${inset}px`);
+}
+window.visualViewport?.addEventListener('resize',updatePracticeViewport);
+window.visualViewport?.addEventListener('scroll',updatePracticeViewport);
+window.addEventListener('resize',updatePracticeViewport);
+updatePracticeViewport();
+syncMobileView();
 render();

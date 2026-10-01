@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, ArrowUpRight, Cat, Check, ChevronDown, Clipboard, History, LogOut, MessageSquare, Plus, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowUpRight, Cat, Check, ChevronDown, Clipboard, History, LogOut, MessageSquare, Plus, ShieldCheck, Sparkles, X } from 'lucide-react';
 import './assistant.css';
 
 const examples = [
@@ -120,6 +120,32 @@ export default function AssistantApp() {
   const [copied, setCopied] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const inputRef = useRef(null);
+  const shellRef = useRef(null);
+  const settingsRef = useRef(null);
+  useEffect(() => {
+    if (!user) return;
+    const viewport = window.visualViewport;
+    const small = window.matchMedia('(max-width:900px)');
+    const update = () => {
+      const shell = shellRef.current;
+      if (!shell) return;
+      const height = viewport?.height || window.innerHeight;
+      shell.style.setProperty('--mobile-app-height', `${height}px`);
+      shell.style.setProperty('--mobile-app-top', `${viewport?.offsetTop || 0}px`);
+      shell.classList.toggle('keyboard-open', small.matches && height < window.innerHeight - 120);
+    };
+    document.body.classList.add('assistant-active');
+    update();
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      document.body.classList.remove('assistant-active');
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [!!user]);
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [turns, busy]);
   useEffect(() => {
@@ -153,6 +179,7 @@ export default function AssistantApp() {
   }, [history]);
 
   async function loadHistory() {
+    inputRef.current?.blur();
     try {
       const r = await api('/api/assistant/history');
       setHistory(r.data || []);
@@ -225,7 +252,7 @@ export default function AssistantApp() {
   if (!user) return <Access done={setUser} />;
 
   return (
-    <div className="sales-app sales-shell">
+    <div className="sales-app sales-shell" ref={shellRef}>
       <aside className="sales-sidebar">
         <a className="sales-brand" href="/"><span className="brand-mark"><Cat size={23}/></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
         <button className="new-chat" onClick={fresh} disabled={busy}><Plus size={18}/> 开始新对话 <span>↗</span></button>
@@ -241,7 +268,7 @@ export default function AssistantApp() {
       </aside>
 
       <main className="sales-main">
-        <header className="workspace-header"><div><span className="header-title">销售对话</span><span className="header-divider"/><span className="header-subtitle">你的专属沟通搭档</span></div><div className="header-actions"><span className="context-badge"><span/> 连续对话</span><button className="mobile-action" onClick={fresh} disabled={busy} aria-label="新对话"><Plus size={19}/></button><button className="mobile-action" onClick={loadHistory} disabled={busy} aria-label="历史会话"><History size={19}/></button><button className="mobile-action" onClick={logout} disabled={busy} aria-label="退出登录"><LogOut size={18}/></button></div></header>
+        <header className="workspace-header"><div className="mobile-header-brand"><a className="mobile-home" href="/manuals/" aria-label="返回销售支持中心"><ArrowLeft size={20}/></a><span className="header-title">销售助手<small className="mobile-account-info">{user.name} · 本月 {user.used}/{user.quota} 次</small></span><span className="header-divider"/><span className="header-subtitle">你的专属沟通搭档</span></div><div className="header-actions"><span className="context-badge"><span/> 连续对话</span><button className="mobile-action" onClick={fresh} disabled={busy} aria-label="新对话"><Plus size={19}/><small>新对话</small></button><button className="mobile-action" onClick={loadHistory} disabled={busy} aria-label="历史会话"><History size={19}/><small>历史</small></button><button className="mobile-action" onClick={logout} disabled={busy} aria-label="退出登录"><LogOut size={18}/><small>退出</small></button></div></header>
         <div className="chat-scroll">
           {!turns.length && !busy ? <section className="welcome">
             <div className="welcome-symbol"><Sparkles size={30} strokeWidth={1.5}/></div>
@@ -255,14 +282,20 @@ export default function AssistantApp() {
         <div className="composer-area">
           {error && <p className="sales-error" role="alert">{error}</p>}
           <form className="composer" onSubmit={e => {e.preventDefault(); generate();}}>
-            <div className="composer-context"><span><span className="tiny-dot"/>{turns.length ? '继续当前客户的对话' : '客户说了什么？'}</span><button type="button" disabled={busy} onClick={() => setSettingsOpen(v => !v)} aria-expanded={settingsOpen} aria-controls="reply-settings">{tone}{catId ? ` · ${catId}` : ''}<ChevronDown size={14} className={settingsOpen ? 'rotated' : ''}/></button></div>
-            {settingsOpen && <div className="composer-settings" id="reply-settings"><label>猫咪编号（可选）<input value={catId} onChange={e => setCatId(e.target.value)} disabled={busy} placeholder="例如 C-118"/></label><label>回复风格<select value={tone} onChange={e => setTone(e.target.value)} disabled={busy}><option>亲切自然</option><option>简短直接</option><option>稳重专业</option></select></label></div>}
-            <textarea ref={inputRef} aria-label="客户消息" value={message} onChange={e => setMessage(e.target.value)} disabled={busy} maxLength={5000} rows={3} placeholder="粘贴客户原话，或补充你想咨询的问题…" onKeyDown={e => {if(e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {e.preventDefault(); generate();}}}/>
+            <div className="composer-context"><span><span className="tiny-dot"/>{turns.length ? '继续当前客户的对话' : '客户说了什么？'}</span><button type="button" disabled={busy} onClick={() => {setSettingsOpen(true); settingsRef.current?.showModal();}} aria-expanded={settingsOpen} aria-controls="reply-settings">{tone}{catId ? ` · ${catId}` : ''}<ChevronDown size={14} className={settingsOpen ? 'rotated' : ''}/></button></div>
+
+            <textarea ref={inputRef} aria-label="客户消息" value={message} onChange={e => setMessage(e.target.value)} disabled={busy} maxLength={5000} rows={2} placeholder="粘贴客户原话，或补充你想咨询的问题…" onKeyDown={e => {if(e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {e.preventDefault(); generate();}}}/>
             <div className="composer-toolbar"><span><MessageSquare size={14}/><span className="desktop-hint">支持连续追问</span><span className="character-count">{message.length} / 5000</span></span><button className="send-button" type="submit" disabled={busy || message.trim().length < 2}><span>{busy ? '正在生成' : '生成回复'}</span><ArrowUp size={17}/></button></div>
           </form>
           <div className="composer-footnote"><span><ShieldCheck size={13}/> 发送前，请核对猫咪资料与承诺内容</span><span className="desktop-hint">Ctrl / ⌘ + Enter 发送</span></div>
         </div>
       </main>
+      <dialog ref={settingsRef} className="reply-settings-dialog" aria-label="回复设置" onClose={() => setSettingsOpen(false)} onClick={e => { if(e.target === e.currentTarget) settingsRef.current?.close(); }}>
+        <form method="dialog"><header><div><h2>回复设置</h2><p>补充猫咪编号，让回复更贴近当前客户。</p></div><button className="settings-close" aria-label="关闭回复设置"><X size={21}/></button></header>
+          <div className="composer-settings" id="reply-settings"><label>猫咪编号（可选）<input value={catId} onChange={e => setCatId(e.target.value)} disabled={busy} placeholder="例如 C-118"/></label><label>回复风格<select value={tone} onChange={e => setTone(e.target.value)} disabled={busy}><option>亲切自然</option><option>简短直接</option><option>稳重专业</option></select></label></div>
+          <button className="settings-done">完成设置</button>
+        </form>
+      </dialog>
       {showHistory && <div className="history-overlay" onClick={e => e.target === e.currentTarget && setShowHistory(false)}><section className="history-dialog" role="dialog" aria-modal="true" aria-label="历史客户对话" onKeyDown={e => {if(e.key !== 'Tab') return; const els = e.currentTarget.querySelectorAll('button:not(:disabled)'); const first=els[0], last=els[els.length-1]; if(e.shiftKey && document.activeElement===first){e.preventDefault();last?.focus();} else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first?.focus();}}}><header><div><h2>历史客户对话</h2><p>找到之前的沟通，接着聊。</p></div><button autoFocus onClick={() => {setShowHistory(false);inputRef.current?.focus();}} aria-label="关闭历史会话"><X size={21}/></button></header><div className="history-list">{conversations.map(item => <button key={item.id} disabled={busy} onClick={() => openConversation(item)} className="history-item"><MessageSquare size={18}/><span><strong>{item.title}</strong><small>{item.rows.length} 轮对话 · {item.latest?.replace('T', ' ').slice(0,16)}</small></span><ArrowUpRight size={17}/></button>)}{!conversations.length && <div className="history-empty"><History size={32}/><p>还没有历史对话</p><small>生成第一条回复后，会自动保存在这里。</small></div>}</div></section></div>}
     </div>
   );
