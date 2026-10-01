@@ -50,3 +50,23 @@ body{min-height:100vh}
  .panel-actions{position:fixed;left:0;right:0;bottom:var(--practice-keyboard-inset,0px);max-width:720px;width:100%;margin:0 auto;padding:12px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));border-top:1px solid #e8e1ef;box-shadow:0 -4px 20px #4433540a;background:#fff;z-index:20}
  .mobile-chat-visible .training-main{padding-bottom:0}
 }
+
+/* Mobile guided training v3: one continuous flow, no practice/chat mode switching. */
+.mobile-guided-chat{display:none}
+@media(max-width:900px){
+ .mobile-practice-tabs,.mobile-customer-preview,.mobile-return-practice{display:none!important}
+ .training-layout{display:flex!important;flex-direction:column!important}
+ .lesson-sidebar{display:flex!important}
+ .lesson-workspace{display:block!important;order:1!important}
+ .training-layout>.customer-panel{display:none!important}
+ .mobile-guided-chat{display:block;background:#fff;border:1px solid #e7e1eb;border-radius:14px 14px 0 0;overflow:hidden}
+ .lesson-workspace>.lesson-panel{border-radius:0 0 14px 14px;border-top:0}
+ .mobile-guided-top{display:flex;align-items:center;gap:10px;padding:13px 14px;background:#faf9fc;border-bottom:1px solid #eee8f1}
+ .mobile-guided-top>span:nth-child(2){flex:1;min-width:0}.mobile-guided-top b{display:block;font-size:13px;color:#615766}.mobile-guided-top small{display:block;margin-top:3px;font-size:10px;color:#a096a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .mobile-live-dot{font-size:9px!important;color:#82639d!important;background:#f0e9f6;padding:5px 7px;border-radius:999px;flex:none}
+ .mobile-guided-context{padding:10px 14px;background:#f7f5f9;display:flex;gap:7px;align-items:flex-start;flex-direction:column}.mobile-guided-context span{font-size:9px;color:#a096a6}.mobile-guided-context b{font-size:11px;line-height:1.6;color:#766c7d;font-weight:550}
+ .mobile-guided-messages{padding:14px;background:#f1f1f3;max-height:245px;overflow:auto}.mobile-message{margin:0 0 12px;max-width:88%}.mobile-message:last-child{margin-bottom:0}.mobile-message>span{display:block;font-size:9px;color:#9d9ba1;margin:0 0 4px 2px}.mobile-message p{margin:0;background:#fff;border:1px solid #e4e4e7;border-radius:5px;padding:10px 11px;font-size:13px;line-height:1.75;color:#3f3f43}.mobile-message.me{margin-left:auto}.mobile-message.me>span{text-align:right;margin-right:2px}.mobile-message.me p{background:#b4e98d;border-color:#a9df81;color:#34462d}
+ .mobile-task-arrow{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;background:#fff7e9;border-top:1px solid #f1e2c7;color:#8b6735}.mobile-task-arrow span{font-size:16px}.mobile-task-arrow b{font-size:11px;font-weight:600}
+ .lesson-panel{padding-top:18px!important}.panel-eyebrow{margin-top:0}
+ .training-main{padding-bottom:88px!important}
+}

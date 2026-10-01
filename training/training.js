@@ -10,7 +10,6 @@ const lessons = [ ['接住需求','听清客户想要什么'], ['筛选猫咪','
 const initial = () => ({ step: 0, reached: 0, selected: [], prices: {}, budget: 1500, branch: '', checked: [], finished: false, visited: [] });
 let state = initial();
 let storageAvailable = true;
-let mobileView = 'practice';
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
   if (saved && Number.isInteger(saved.step) && saved.step >= 0 && saved.step <= 6) {
@@ -66,8 +65,14 @@ function updateChat() {
   $('#chat').innerHTML = `<div class="chat-time">模拟接待 · 客户小林</div>` + m.map(x => `<div class="chat-message ${x.me?'me':''}"><span class="chat-speaker">${x.me?'你 · 销售':'小林 · 客户'}</span><div class="chat-bubble">${x.text}</div></div>`).join('');
   $('#chat').scrollTop = $('#chat').scrollHeight;
   $('#customerBudget').textContent = `预算约 ${money(state.budget)}`;
-  $('#mobileCustomerMessage').textContent = [...m].reverse().find(v => !v.me)?.text || '查看客户需求';
-  $('.mobile-unread').hidden = mobileView === 'conversation';
+  const mobileChat = $('#mobileChat');
+  if (mobileChat) {
+    const recent = m.slice(-3);
+    mobileChat.innerHTML = recent.map(x => `<div class="mobile-message ${x.me?'me':''}"><span>${x.me?'你':'客户小林'}</span><p>${x.text}</p></div>`).join('');
+    mobileChat.scrollTop = mobileChat.scrollHeight;
+  }
+  const mobileBudget = $('#mobileCustomerBudget');
+  if (mobileBudget) mobileBudget.textContent = `布偶妹妹 · 2—3个月 · 预算约 ${money(state.budget)} · 杭州`;
 }
 function render(focus = false) {
   updateSidebar(); updateChat();
@@ -127,7 +132,7 @@ function validatePrices() {
   $('[data-action="next"]').disabled=messages.length>0;
   return !messages.length;
 }
-function go(n) { mobileView='practice'; state.step=n; state.reached=Math.max(state.reached,n);state.branch='';state.finished=false;render(true); }
+function go(n) { state.step=n; state.reached=Math.max(state.reached,n);state.branch='';state.finished=false;render(true); }
 function reset() { state=initial();go(1);toast('已开始新的一轮模拟练习'); }
 function requestReset() { if(state.step===0){reset();return;} $('#resetDialog').showModal(); }
 function handleAction(a) {
@@ -145,8 +150,6 @@ function handleAction(a) {
   if(a==='finish' && state.checked.length===4){state.finished=true;render(true);}
 }
 document.addEventListener('click',e=>{
-  const view=e.target.closest('[data-mobile-view]');
-  if(view){setMobileView(view.dataset.mobileView);return;}
   const action=e.target.closest('[data-action]');if(action&&!action.disabled){handleAction(action.dataset.action);return;}
   const pick=e.target.closest('[data-pick]');
   if(pick&&!pick.disabled){const i=Number(pick.dataset.pick);if(state.selected.includes(i))state.selected=state.selected.filter(v=>v!==i);else if(state.selected.length<3)state.selected.push(i);state.reached=2;state.prices={};state.checked=[];updateSelection();updateSidebar();save();return;}
@@ -164,41 +167,12 @@ document.addEventListener('change',e=>{
 $('#restart').addEventListener('click',requestReset);
 $('#resetDialog').addEventListener('close',()=>{if($('#resetDialog').returnValue==='reset')reset();});
 const mobile=matchMedia('(max-width:900px)');
-function syncMobileView() {
-  const isMobile=mobile.matches;
-  document.body.classList.toggle('mobile-chat-visible',isMobile && mobileView==='conversation');
-  document.querySelectorAll('.mobile-practice-tabs [role="tab"]').forEach(tab=>{
-    const active=tab.dataset.mobileView===mobileView;
-    tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
-  });
-  // Desktop keeps the original side-by-side phone; mobile switches full panels.
-  for(const [id,label] of [['practicePanel','practiceTab'],['customerPanel','conversationTab']]) {
-    const el=$('#'+id);
-    if(isMobile){el.setAttribute('role','tabpanel');el.setAttribute('aria-labelledby',label);}
-    else{el.removeAttribute('role');el.removeAttribute('aria-labelledby');}
-  }
-  $('#chatToggle').setAttribute('aria-expanded','true');
-  $('#chatToggle').tabIndex = -1;
-  if(isMobile) {
-    const nav=$('#steps'),active=nav.querySelector('[aria-current="step"]');
-    if(active) nav.scrollLeft += active.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth-active.offsetWidth)/2;
-  }
-  if(isMobile && mobileView==='conversation')$('.mobile-unread').hidden=true;
+function syncMobileLayout() {
+  if (!mobile.matches) return;
+  const nav=$('#steps'),active=nav.querySelector('[aria-current="step"]');
+  if(active) nav.scrollLeft += active.getBoundingClientRect().left - nav.getBoundingClientRect().left - (nav.clientWidth-active.offsetWidth)/2;
 }
-function setMobileView(view) {
-  mobileView=view;
-  syncMobileView();
-  if(mobile.matches) {
-    $('.mobile-practice-tabs').scrollIntoView({block:'start',behavior:'instant'});
-    if(view==='conversation')$('#chat').scrollTop=$('#chat').scrollHeight;
-  }
-}
-$('.mobile-practice-tabs').addEventListener('keydown',e=>{
-  if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
-  e.preventDefault();setMobileView(e.key==='Home'?'practice':e.key==='End'?'conversation':mobileView==='practice'?'conversation':'practice');
-  $(`[role="tab"][aria-selected="true"]`).focus({preventScroll:true});
-});
-mobile.addEventListener('change',syncMobileView);
+mobile.addEventListener('change',syncMobileLayout);
 function updatePracticeViewport(){
   const v=window.visualViewport;
   const inset=mobile.matches && v ? Math.max(0,window.innerHeight-v.height-v.offsetTop) : 0;
@@ -208,5 +182,5 @@ window.visualViewport?.addEventListener('resize',updatePracticeViewport);
 window.visualViewport?.addEventListener('scroll',updatePracticeViewport);
 window.addEventListener('resize',updatePracticeViewport);
 updatePracticeViewport();
-syncMobileView();
+syncMobileLayout();
 render();
