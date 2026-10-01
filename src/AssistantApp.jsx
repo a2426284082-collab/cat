@@ -1,13 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, Check, Clipboard, History, LogOut, Plus, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUp, ArrowUpRight, Cat, Check, ChevronDown, Clipboard, History, LogOut, MessageSquare, Plus, ShieldCheck, Sparkles, X } from 'lucide-react';
+import './assistant.css';
 
 const examples = [
-  '你们是一手猫源吗？',
-  '这只为什么比别人贵？',
-  '能保证没有猫癣吗？',
-  '运输安全吗？',
-  '定金能退吗？',
-  '收到以后生病怎么办？'
+  { title: '客户觉得价格高', text: '这只为什么比别人贵？', category: '价格沟通', icon: '01' },
+  { title: '想确认猫咪健康', text: '能保证没有猫癣吗？', category: '建立信任', icon: '02' },
+  { title: '担心运输不安全', text: '运输安全吗？', category: '消除顾虑', icon: '03' },
+  { title: '询问定金和售后', text: '定金能退吗？', category: '售后解答', icon: '04' }
 ];
 
 const newId = () => `chat_${crypto.randomUUID().replaceAll('-', '')}`;
@@ -31,9 +30,9 @@ function toneLabel(tone) {
 }
 
 function riskTone(risk) {
-  if (risk === 'high') return 'bg-red-50 text-red-700 border-red-200';
-  if (risk === 'medium') return 'bg-amber-50 text-amber-700 border-amber-200';
-  return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (risk === 'high') return 'risk-high';
+  if (risk === 'medium') return 'risk-medium';
+  return 'risk-low';
 }
 
 function riskText(risk) {
@@ -65,63 +64,24 @@ function Access({ done }) {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 px-4 py-8 md:px-6">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-        <section className="overflow-hidden rounded-[28px] border border-stone-200 bg-gradient-to-br from-orange-50 via-white to-emerald-50 p-7 shadow-sm md:p-10">
-          <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-700">
-            AI SALES COPILOT
-          </span>
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-stone-900 md:text-5xl">
-            遇到不会回的客户消息
-            <br className="hidden md:block" />
-            先交给助手起草一版
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-stone-600 md:text-base">
-            粘贴客户原话，生成一段可复制的回复。发送前请核对猫咪资料和承诺内容。
-          </p>
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            {[
-              ['连续对话', '同一个客户可连续追问，减少前情重复。'],
-              ['风险提醒', '健康、运输、退款等敏感问题会提醒你别乱承诺。'],
-              ['可直接复制', '生成结果支持一键复制，立刻发回给客户。']
-            ].map(([title, desc]) => (
-              <article key={title} className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                <b className="block text-sm text-stone-900">{title}</b>
-                <span className="mt-2 block text-xs leading-6 text-stone-500">{desc}</span>
-              </article>
-            ))}
-          </div>
+    <main className="sales-app access-page">
+      <a className="sales-brand" href="/"><span className="brand-mark"><Cat size={23} /></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
+      <div className="access-layout">
+        <section className="access-story">
+          <span className="eyebrow">让每一次沟通，更有底气</span>
+          <h1>好好聊天，<br />让心动更近一步。</h1>
+          <p>从客户的第一句询问，到每一次耐心解答。<br />你的 AI 销售搭档，陪你把话说得更好。</p>
+          <div className="access-sample"><span><Sparkles size={17} /> 回复思路示例</span><p>“这只为什么比别人贵？”</p><div>先理解客户的预算，再结合这只猫咪的实际资料，说明值得比较的地方。</div></div>
+          <div className="access-features"><span><MessageSquare size={16} /> 连续对话</span><span><ShieldCheck size={16} /> 风险提醒</span><span><Clipboard size={16} /> 一键复制</span></div>
         </section>
-
-        <form onSubmit={submit} className="rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm md:p-9">
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-orange-500 text-white shadow-sm">
-            <Bot size={28} />
-          </span>
-          <h2 className="mt-5 text-2xl font-bold text-stone-900">进入 AI 销售助手</h2>
-          <p className="mt-2 text-sm leading-7 text-stone-500">输入你的邀请码。</p>
-          <label className="mt-7 block text-sm font-medium text-stone-700">
-            邀请码
-            <input
-              type="password"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              required
-              autoFocus
-              className="mt-2 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none transition focus:border-orange-300 focus:bg-white"
-              placeholder="输入你的邀请码"
-            />
-          </label>
-          {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          <button
-            disabled={busy}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 py-3.5 font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Sparkles size={17} />
-            {busy ? '验证中…' : '进入助手'}
-          </button>
-          <div className="mt-5 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-4 text-xs leading-6 text-stone-500">
-            进入后可直接粘贴客户消息；只有真正生成回复时才会消耗额度。
-          </div>
+        <form onSubmit={submit} className="access-form">
+          <span className="brand-mark"><Sparkles size={25} /></span>
+          <h2>欢迎回来</h2><p>输入邀请码，开始今天的客户沟通。</p>
+          <label htmlFor="access-code">邀请码</label>
+          <input id="access-code" type="password" value={code} onChange={e => setCode(e.target.value)} required autoFocus placeholder="请输入你的邀请码" />
+          {error && <p className="sales-error" role="alert">{error}</p>}
+          <button className="primary-button" disabled={busy}>{busy ? '验证中…' : '进入销售助手'}<ArrowUpRight size={18}/></button>
+          <small>只有生成回复时才会消耗额度。</small>
         </form>
       </div>
     </main>
@@ -129,46 +89,20 @@ function Access({ done }) {
 }
 
 function Conversation({ turns, onCopy, copied }) {
-  return (
-    <div className="space-y-5">
-      {turns.map((turn, index) => (
-        <div key={`${turn.time || index}-${index}`} className="space-y-3">
-          <div className="flex justify-end">
-            <div className="max-w-[88%] rounded-[22px] rounded-br-md bg-stone-900 px-4 py-3 text-sm leading-7 text-white shadow-sm whitespace-pre-wrap">
-              {turn.message}
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <div className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-orange-500 text-white shadow-sm">
-              <Bot size={18} />
-            </div>
-            <div className="min-w-0 flex-1 rounded-[24px] rounded-tl-md border border-orange-100 bg-white p-4 shadow-sm">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700">
-                  {turn.intent || '回复草稿'}
-                </span>
-                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${riskTone(turn.riskLevel)}`}>
-                  {riskText(turn.riskLevel)}
-                </span>
-                <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[11px] text-stone-500">
-                  {toneLabel(turn.tone)}
-                </span>
-              </div>
-              <div className="text-sm leading-7 text-stone-700 whitespace-pre-wrap">{turn.reply}</div>
-              <div className="mt-4 flex items-center justify-between border-t border-stone-100 pt-3 text-[11px] text-stone-400">
-                <span>{turn.time ? turn.time.replace('T', ' ').slice(0, 16) : '刚刚生成'}</span>
-                <button onClick={() => onCopy(turn.reply, index)} className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-stone-600 transition hover:bg-stone-200">
-                  {copied === index ? <Check size={13} /> : <Clipboard size={13} />}
-                  {copied === index ? '已复制' : '复制回复'}
-                </button>
-              </div>
-            </div>
-          </div>
+  return <div className="turn-list">{turns.map((turn, index) => (
+    <article className="conversation-turn" key={`${turn.time || index}-${index}`}>
+      <div className="customer-message"><span>客户消息</span><p>{turn.message}</p></div>
+      <div className="assistant-message">
+        <span className="reply-avatar"><Sparkles size={18}/></span>
+        <div className="reply-content">
+          <div className="reply-heading"><strong>销售助手</strong><span>为你起草</span></div>
+          <div className="reply-tags"><span>{turn.intent || '回复草稿'}</span><span>{toneLabel(turn.tone)}</span><span className={`risk-tag ${riskTone(turn.riskLevel)}`}>{riskText(turn.riskLevel)}</span></div>
+          <p className="reply-text">{turn.reply}</p>
+          <div className="reply-footer"><button onClick={() => onCopy(turn.reply, index)}>{copied === index ? <Check size={14}/> : <Clipboard size={14}/>} {copied === index ? '已复制' : '复制回复'}</button><time>{turn.time ? new Date(turn.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '刚刚生成'}</time></div>
         </div>
-      ))}
-    </div>
-  );
+      </div>
+    </article>
+  ))}</div>;
 }
 
 export default function AssistantApp() {
@@ -184,6 +118,16 @@ export default function AssistantApp() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const inputRef = useRef(null);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [turns, busy]);
+  useEffect(() => {
+    if (!showHistory) return;
+    const close = e => { if (e.key === 'Escape') setShowHistory(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [showHistory]);
 
   useEffect(() => {
     api('/api/assistant/session')
@@ -219,6 +163,8 @@ export default function AssistantApp() {
   }
 
   function fresh() {
+    if (busy) return;
+    setCopied(null);
     setConversationId(newId());
     setTurns([]);
     setMessage('');
@@ -228,6 +174,9 @@ export default function AssistantApp() {
   }
 
   function openConversation(item) {
+    if (busy) return;
+    setMessage('');
+    setCopied(null);
     setConversationId(item.id);
     setTurns(item.rows);
     setCatId(item.rows.find(v => v.catId)?.catId || '');
@@ -237,7 +186,7 @@ export default function AssistantApp() {
 
   async function generate() {
     const customerMessage = message.trim();
-    if (customerMessage.length < 2) return;
+    if (busy || customerMessage.length < 2) return;
     setBusy(true);
     setError('');
     try {
@@ -268,193 +217,53 @@ export default function AssistantApp() {
   async function logout() {
     await api('/api/assistant/logout', { method: 'POST', body: '{}' }).catch(() => {});
     setUser(null);
+    fresh();
+    setHistory([]);
   }
 
-  if (checking) {
-    return <div className="grid min-h-screen place-items-center bg-stone-50 text-stone-500">正在打开助手…</div>;
-  }
-
+  if (checking) return <div className="sales-app sales-loading"><Sparkles size={28}/><p>正在打开你的销售工作台…</p></div>;
   if (!user) return <Access done={setUser} />;
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex min-h-[74px] max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-orange-500 text-white shadow-sm">
-              <Bot size={22} />
-            </span>
-            <div>
-              <b className="block text-stone-900">AI 销售助手 · {user.name}</b>
-              <small className="block text-[11px] text-stone-400">本月 {user.used}/{user.quota} 次 · 当前为连续对话模式</small>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fresh} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50">
-              <Plus size={15} /> 新对话
-            </button>
-            <button onClick={loadHistory} className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50">
-              <History size={15} /> 历史
-            </button>
-            <button onClick={logout} title="退出" className="rounded-xl p-2 text-stone-500 transition hover:bg-stone-100">
-              <LogOut size={17} />
-            </button>
-          </div>
+    <div className="sales-app sales-shell">
+      <aside className="sales-sidebar">
+        <a className="sales-brand" href="/"><span className="brand-mark"><Cat size={23}/></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
+        <button className="new-chat" onClick={fresh} disabled={busy}><Plus size={18}/> 开始新对话 <span>↗</span></button>
+        <div className="sidebar-caption">工作空间</div>
+        <button className="sidebar-link active" onClick={() => { setShowHistory(false); inputRef.current?.focus(); }}><MessageSquare size={18}/> 销售对话 <span className="nav-dot"/></button>
+        <button className="sidebar-link" onClick={loadHistory} disabled={busy}><History size={18}/> 历史会话 <ArrowUpRight size={14}/></button>
+        <div className="sidebar-note"><span className="note-icon"><Sparkles size={18}/></span><h3>每一次回复，都更从容</h3><p>贴上客户原话，剩下的一起想。<br/>同一位客户，接着聊就好。</p><div><span/> 参考最近 10 轮对话</div></div>
+        <div className="sidebar-bottom">
+          <div className="quota-label"><span>本月使用额度</span><strong>{user.used} <em>/ {user.quota}</em></strong></div>
+          <div className="quota-track"><span style={{width: `${Math.min(100, Math.max(0, Number(user.used) / Math.max(1, Number(user.quota)) * 100))}%`}}/></div>
+          <div className="account"><span className="account-avatar">{user.name?.slice(0,1) || '销'}</span><div><strong>{user.name}</strong><small>销售工作台</small></div><button onClick={logout} disabled={busy} aria-label="退出登录" title="退出登录"><LogOut size={17}/></button></div>
         </div>
-      </header>
+      </aside>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="mb-5 grid gap-3 md:grid-cols-3">
-          {[
-            ['把客户原话直接粘贴进来', '不用先整理成长文，助手会根据上下文生成一版回复草稿。'],
-            ['同一个客户尽量放在同一条对话里', 'AI 会参考最近 10 轮内容，所以更换客户时记得点“新对话”。'],
-            ['高风险问题先求稳', '健康、运输、退款等内容不要自行乱承诺，先检查 AI 给出的风险提醒。']
-          ].map(([title, desc]) => (
-            <article key={title} className="rounded-2xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
-              <b className="block text-sm text-stone-900">{title}</b>
-              <span className="mt-2 block text-xs leading-6 text-stone-500">{desc}</span>
-            </article>
-          ))}
+      <main className="sales-main">
+        <header className="workspace-header"><div><span className="header-title">销售对话</span><span className="header-divider"/><span className="header-subtitle">你的专属沟通搭档</span></div><div className="header-actions"><span className="context-badge"><span/> 连续对话</span><button className="mobile-action" onClick={fresh} disabled={busy} aria-label="新对话"><Plus size={19}/></button><button className="mobile-action" onClick={loadHistory} disabled={busy} aria-label="历史会话"><History size={19}/></button><button className="mobile-action" onClick={logout} disabled={busy} aria-label="退出登录"><LogOut size={18}/></button></div></header>
+        <div className="chat-scroll">
+          {!turns.length && !busy ? <section className="welcome">
+            <div className="welcome-symbol"><Sparkles size={30} strokeWidth={1.5}/></div>
+            <div className="eyebrow">你的 AI 销售搭档</div>
+            <h1>这位客户，我们一起聊。</h1>
+            <p>粘贴客户的消息，把难回答的话，变成自然的沟通。</p>
+            <div className="scenario-heading"><span>不知道怎么开口？从这里开始</span><span>点击带入 <ArrowUpRight size={13}/></span></div>
+            <div className="scenario-grid">{examples.map(item => <button key={item.icon} className="scenario-card" onClick={() => {setMessage(item.text); inputRef.current?.focus();}}><div><span className="scenario-number">{item.icon}</span><span className="scenario-category">{item.category}</span><ArrowUpRight size={15}/></div><strong>{item.title}</strong><p>“{item.text}”</p></button>)}</div>
+          </section> : <div className="conversation-area"><div className="conversation-meta"><span>当前客户对话</span><span>{turns.length} 轮 · 回复自动保存</span></div><Conversation turns={turns} onCopy={copy} copied={copied}/>{busy && <div className="thinking" role="status"><Sparkles size={19}/><span>正在结合客户上下文，整理回复<span className="thinking-dots">…</span></span></div>}<div ref={endRef}/></div>}
         </div>
-
-        <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
-          <section className="h-fit rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h1 className="text-lg font-bold text-stone-900">把客户消息贴进来</h1>
-                <p className="mt-1 text-xs leading-6 text-stone-500">如果正在接待客户，这里就是你的“即时辅助区”。</p>
-              </div>
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold text-orange-700">额度 {user.used}/{user.quota}</span>
-            </div>
-
-            <textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              rows={8}
-              maxLength={5000}
-              className="mt-4 w-full rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm leading-7 outline-none transition focus:border-orange-300 focus:bg-white"
-              placeholder="客户刚刚说了什么？直接粘贴原话即可。"
-            />
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <label className="text-sm text-stone-700">
-                猫咪编号（可选）
-                <input
-                  value={catId}
-                  onChange={e => setCatId(e.target.value)}
-                  className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none transition focus:border-orange-300 focus:bg-white"
-                  placeholder="例如 C-118"
-                />
-              </label>
-              <label className="text-sm text-stone-700">
-                回复风格
-                <select
-                  value={tone}
-                  onChange={e => setTone(e.target.value)}
-                  className="mt-1.5 w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 outline-none transition focus:border-orange-300 focus:bg-white"
-                >
-                  <option>亲切自然</option>
-                  <option>简短直接</option>
-                  <option>稳重专业</option>
-                </select>
-              </label>
-            </div>
-
-            {!turns.length && (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-stone-400">常见问题一键带入</p>
-                <div className="flex flex-wrap gap-2">
-                  {examples.map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setMessage(v)}
-                      className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-600 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {error && <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-
-            <button
-              onClick={generate}
-              disabled={busy || message.trim().length < 2}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 py-3.5 font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Sparkles size={18} />
-              {busy ? '正在结合上下文生成回复…' : '生成本轮回复'}
-            </button>
-
-            <div className="mt-4 rounded-2xl border border-stone-100 bg-stone-50 p-4">
-              <b className="block text-sm text-stone-800">使用建议</b>
-              <ul className="mt-2 space-y-1.5 pl-4 text-xs leading-6 text-stone-500">
-                <li>同一个客户尽量持续在同一条对话中追问。</li>
-                <li>复制前先看一眼措辞，必要时自己微调。</li>
-                <li>涉及健康、售后、运输承诺时，先看风险标签。</li>
-              </ul>
-            </div>
-          </section>
-
-          <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-4">
-              <div>
-                <h2 className="font-bold text-stone-900">当前客户对话</h2>
-                <p className="mt-1 text-xs text-stone-400">{turns.length ? `${turns.length} 轮对话 · 自动保存` : '还没有生成回复'}</p>
-              </div>
-              {conversationId && <span className="rounded-full bg-stone-100 px-3 py-1 text-[11px] text-stone-500">会话 ID：{conversationId.slice(-8)}</span>}
-            </div>
-
-            {turns.length ? (
-              <Conversation turns={turns} onCopy={copy} copied={copied} />
-            ) : (
-              <div className="grid min-h-[520px] place-items-center rounded-[24px] border border-dashed border-stone-200 bg-stone-50/70 text-center text-stone-400">
-                <div className="px-6">
-                  <span className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-white text-orange-500 shadow-sm">
-                    <Bot size={32} />
-                  </span>
-                  <p className="mt-4 text-base text-stone-600">粘贴客户消息，开始一条连续对话。</p>
-                  <p className="mt-2 text-sm leading-7 text-stone-400">生成后可复制回复，也可以在同一条对话中继续追问。</p>
-                </div>
-              </div>
-            )}
-          </section>
+        <div className="composer-area">
+          {error && <p className="sales-error" role="alert">{error}</p>}
+          <form className="composer" onSubmit={e => {e.preventDefault(); generate();}}>
+            <div className="composer-context"><span><span className="tiny-dot"/>{turns.length ? '继续当前客户的对话' : '客户说了什么？'}</span><button type="button" disabled={busy} onClick={() => setSettingsOpen(v => !v)} aria-expanded={settingsOpen} aria-controls="reply-settings">{tone}{catId ? ` · ${catId}` : ''}<ChevronDown size={14} className={settingsOpen ? 'rotated' : ''}/></button></div>
+            {settingsOpen && <div className="composer-settings" id="reply-settings"><label>猫咪编号（可选）<input value={catId} onChange={e => setCatId(e.target.value)} disabled={busy} placeholder="例如 C-118"/></label><label>回复风格<select value={tone} onChange={e => setTone(e.target.value)} disabled={busy}><option>亲切自然</option><option>简短直接</option><option>稳重专业</option></select></label></div>}
+            <textarea ref={inputRef} aria-label="客户消息" value={message} onChange={e => setMessage(e.target.value)} disabled={busy} maxLength={5000} rows={3} placeholder="粘贴客户原话，或补充你想咨询的问题…" onKeyDown={e => {if(e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {e.preventDefault(); generate();}}}/>
+            <div className="composer-toolbar"><span><MessageSquare size={14}/><span className="desktop-hint">支持连续追问</span><span className="character-count">{message.length} / 5000</span></span><button className="send-button" type="submit" disabled={busy || message.trim().length < 2}><span>{busy ? '正在生成' : '生成回复'}</span><ArrowUp size={17}/></button></div>
+          </form>
+          <div className="composer-footnote"><span><ShieldCheck size={13}/> 发送前，请核对猫咪资料与承诺内容</span><span className="desktop-hint">Ctrl / ⌘ + Enter 发送</span></div>
         </div>
       </main>
-
-      {showHistory && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4" onClick={e => e.target === e.currentTarget && setShowHistory(false)}>
-          <div className="mx-auto max-w-3xl rounded-[28px] bg-white p-5 shadow-2xl md:p-6">
-            <div className="flex items-center justify-between gap-3 border-b border-stone-100 pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-stone-900">历史客户对话</h2>
-                <p className="mt-1 text-xs text-stone-400">选择一条历史记录，可继续在原会话基础上追问。</p>
-              </div>
-              <button onClick={() => setShowHistory(false)} className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-600 hover:bg-stone-200">
-                关闭
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              {conversations.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => openConversation(item)}
-                  className="block w-full rounded-2xl border border-stone-200 p-4 text-left transition hover:border-orange-200 hover:bg-orange-50/40"
-                >
-                  <div className="text-sm font-semibold text-stone-800">{item.title}</div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-stone-400">
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1">{item.rows.length} 轮</span>
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1">{item.latest?.replace('T', ' ').slice(0, 16)}</span>
-                  </div>
-                </button>
-              ))}
-              {!conversations.length && <p className="py-12 text-center text-stone-400">还没有历史对话</p>}
-            </div>
-          </div>
-        </div>
-      )}
+      {showHistory && <div className="history-overlay" onClick={e => e.target === e.currentTarget && setShowHistory(false)}><section className="history-dialog" role="dialog" aria-modal="true" aria-label="历史客户对话" onKeyDown={e => {if(e.key !== 'Tab') return; const els = e.currentTarget.querySelectorAll('button:not(:disabled)'); const first=els[0], last=els[els.length-1]; if(e.shiftKey && document.activeElement===first){e.preventDefault();last?.focus();} else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first?.focus();}}}><header><div><h2>历史客户对话</h2><p>找到之前的沟通，接着聊。</p></div><button autoFocus onClick={() => {setShowHistory(false);inputRef.current?.focus();}} aria-label="关闭历史会话"><X size={21}/></button></header><div className="history-list">{conversations.map(item => <button key={item.id} disabled={busy} onClick={() => openConversation(item)} className="history-item"><MessageSquare size={18}/><span><strong>{item.title}</strong><small>{item.rows.length} 轮对话 · {item.latest?.replace('T', ' ').slice(0,16)}</small></span><ArrowUpRight size={17}/></button>)}{!conversations.length && <div className="history-empty"><History size={32}/><p>还没有历史对话</p><small>生成第一条回复后，会自动保存在这里。</small></div>}</div></section></div>}
     </div>
   );
 }
