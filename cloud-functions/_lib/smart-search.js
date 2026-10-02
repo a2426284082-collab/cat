@@ -39,17 +39,32 @@ export function parseDemandLocally(text, { breeds = [], colors = [] } = {}) {
   const result = { query: '', breed: '', color: '', gender: '', min: '', max: '', minAge: '', maxAge: '', city: '' };
   result.breed = findCatalogValue(source, breeds, BREED_ALIASES);
   result.color = findCatalogValue(source, colors);
-  if (/(妹妹|母猫|母孩子|女孩|女宝)/.test(source)) result.gender = '母';
-  else if (/(弟弟|公猫|男孩|男宝)/.test(source)) result.gender = '公';
+  const flexibleGender=/(性别.{0,4}(?:无所谓|不限)|(?:男孩|弟弟|公猫).{0,6}(?:女孩|妹妹|母猫).{0,4}(?:都行|都可以|均可))/.test(source);
+  if (!flexibleGender && /(妹妹|母猫|母孩子|女孩|女宝)/.test(source)) result.gender = '母';
+  else if (!flexibleGender && /(弟弟|公猫|男孩|男宝)/.test(source)) result.gender = '公';
+
+  const negative=/(不要|不想要|排除|别要|不考虑)/.test(source);
+  const alternatives=/(或者|二选一|都可以|都行|均可)/.test(source);
+  if (negative && result.color && new RegExp(`(?:不要|不想要|排除|别要|不考虑).{0,3}${result.color}`).test(source)) result.color='';
+  if (negative && result.breed && new RegExp(`(?:不要|不想要|排除|别要|不考虑).{0,3}${result.breed.replace('猫','')}`).test(source)) result.breed='';
+  if (alternatives) {
+    const breedHits=(breeds||[]).filter(value=>source.includes(value)||source.includes(value.replace('猫','')));
+    const colorHits=(colors||[]).filter(value=>source.includes(value));
+    if(breedHits.length>1)result.breed='';
+    if(colorHits.length>1)result.color='';
+  }
 
   const number = '[0-9一二两三四五六七八九十]+';
   const ageRange = source.match(new RegExp(`(${number})\\s*(?:个?月|月龄)?\\s*(?:到|至|[-~—])\\s*(${number})\\s*(?:个?月|月龄)`));
   const looseRange = source.match(/(两三|三四|四五|五六|六七|七八|八九)\s*个?月/);
+  const ageCeiling = source.match(new RegExp(`(${number})\\s*(?:个?月|月龄)\\s*(?:以内|以下|以下的|内)`));
   const singleAge = source.match(new RegExp(`(${number})\\s*(?:个?月|月龄)`));
   if (ageRange) {
     result.minAge = String(chineseNumber(ageRange[1])); result.maxAge = String(chineseNumber(ageRange[2]));
   } else if (looseRange) {
     result.minAge = String(chineseNumber(looseRange[1][0])); result.maxAge = String(chineseNumber(looseRange[1][1]));
+  } else if (ageCeiling) {
+    const age = chineseNumber(ageCeiling[1]); if (Number.isFinite(age)) result.maxAge = String(age);
   } else if (singleAge) {
     const age = chineseNumber(singleAge[1]); if (Number.isFinite(age)) result.minAge = result.maxAge = String(age);
   }
@@ -60,10 +75,11 @@ export function parseDemandLocally(text, { breeds = [], colors = [] } = {}) {
   const price = thousands ? Math.round(Number(thousands[1]) * 1000) : Number((budget || ceiling)?.[1]);
   if (Number.isFinite(price) && price > 0) result.max = String(price);
 
-  const city = source.match(/(?:发|寄|送|运到|到|收货地(?:是|在)?)[：: ]*([\u4e00-\u9fa5]{2,8})(?:市|地区)?(?:吗|呢|可以|能不能|能否|[，。,. ]|$)/);
-  if (city) result.city = city[1].replace(/可以$|能$|吗$/g, '');
-  const count = ['breed', 'color', 'gender', 'minAge', 'maxAge', 'max'].filter(key => result[key] !== '').length;
-  return { filters: result, confidence: Math.min(1, count / 5), recognized: count };
+  const city = source.match(/(?:能|可以)?(?:发|寄|送|运)(?:到|往)?[：: ]*([\u4e00-\u9fa5]{2,6}?)(?:市|地区)?(?:吗|呢|可以|能不能|能否|就行|[，。,. ]|$)/);
+  if (city) result.city = city[1];
+  const count = [result.breed,result.color,result.gender,(result.minAge||result.maxAge),(result.min||result.max)].filter(Boolean).length;
+  const complex = negative || alternatives || flexibleGender || /(八九百|七八百|一千出头|两千出头|小一点|别太大|左右都行)/.test(source);
+  return { filters: result, confidence: Math.min(1, count / 5), recognized: count, needsAI: complex || count < 3 };
 }
 
 const safeNumber = value => Number.isFinite(Number(value)) && Number(value) >= 0 ? String(Number(value)) : '';
@@ -76,8 +92,8 @@ const closest = (value, values) => {
 
 export async function parseDemand(env, { text, breeds, colors }) {
   const local = parseDemandLocally(text, { breeds, colors });
-  if (local.recognized >= 3 || !env?.DEEPSEEK_API_KEY || !env?.DEEPSEEK_MODEL) return { ...local, usedAI: false };
-  const system = '你负责从中文购猫需求中提取筛选条件。只输出JSON对象，字段为breed,color,gender,minAge,maxAge,minPrice,maxPrice,city。未知字段为空字符串。gender只能是公、母或空。年龄单位为月，价格单位为人民币元。不要解释，不要推荐猫，不要添加输入中没有的信息。';
+  if (!local.needsAI || !env?.DEEPSEEK_API_KEY || !env?.DEEPSEEK_MODEL) return { ...local, usedAI: false };
+  const system = '你负责从中文购猫需求中提取筛选条件。只输出JSON对象，字段为breed,color,gender,minAge,maxAge,minPrice,maxPrice,city。未知字段为空字符串。gender只能是公、母或空。年龄单位为月，价格单位为人民币元。客户说不要或排除的品种、花色不能填入；出现多个都可以的备选项时，对应字段留空，避免错误缩小结果；性别无所谓或公母都行时gender留空。年龄“以内”只填maxAge。不要解释，不要推荐猫，不要添加输入中没有的信息。';
   const payload = { customerMessage: clean(text).slice(0, 300), availableBreeds: (breeds || []).slice(0, 80), availableColors: (colors || []).slice(0, 80) };
   const response = await fetch(env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: env.DEEPSEEK_MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(payload) }], response_format: { type: 'json_object' }, temperature: 0, max_tokens: 250 }), signal: AbortSignal.timeout(15000) });
   if (!response.ok) return { ...local, usedAI: false };

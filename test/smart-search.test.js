@@ -16,10 +16,22 @@ test('local smart search extracts common customer demand without AI', () => {
 });
 
 test('common demand avoids model request', async () => {
-  const result = await parseDemand({ DEEPSEEK_API_KEY: 'unused', DEEPSEEK_MODEL: 'unused' }, { text: '找英短弟弟，三个月，预算一千五左右', ...catalog });
+  const result = await parseDemand({ DEEPSEEK_API_KEY: 'unused', DEEPSEEK_MODEL: 'unused' }, { text: '找英短弟弟，三个月，预算1500左右', ...catalog });
   assert.equal(result.usedAI, false);
   assert.equal(result.filters.breed, '英短');
   assert.equal(result.filters.gender, '公');
+});
+
+test('negative and flexible requirements never become wrong hard filters', () => {
+  const negative=parseDemandLocally('不想要金渐层，英短可以，公猫，四个月以内，最高预算1800',catalog);
+  assert.equal(negative.filters.color,'');
+  assert.equal(negative.filters.maxAge,'4');
+  assert.equal(negative.filters.minAge,'');
+  assert.equal(negative.needsAI,true);
+  const flexible=parseDemandLocally('蓝双或者海双都行，男孩女孩都可以，两个月左右',catalog);
+  assert.equal(flexible.filters.color,'');
+  assert.equal(flexible.filters.gender,'');
+  assert.equal(flexible.needsAI,true);
 });
 
 test('public endpoint validates input and returns filter JSON', async () => {
