@@ -104,7 +104,49 @@ function Workspace({ salesMode, signedIn, requireAuth, onLogin, onLogout }) {
   </div>;
 }
 
-function Filters({value,set,breeds,colors}){const field=(k,v)=>set(x=>({...x,[k]:v}));return <div className="my-6 grid grid-cols-2 md:grid-cols-4 gap-3 rounded-2xl border border-stone-200 bg-white p-4"><label className="col-span-2 md:col-span-1 relative"><Search size={16} className="absolute left-3 top-3 text-stone-400"/><input value={value.query} onChange={e=>field('query',e.target.value)} placeholder="编号、品种、花色" className="w-full rounded-xl bg-stone-50 py-2.5 pl-9 pr-3 text-sm"/></label><Select value={value.breed} set={v=>field('breed',v)} values={breeds} label="全部品种"/><Select value={value.color} set={v=>field('color',v)} values={colors} label="全部花色"/><Select value={value.gender} set={v=>field('gender',v)} values={['公','母']} label="不限性别"/><Range label="价格区间（元）" min={value.min} max={value.max} setMin={v=>field('min',v)} setMax={v=>field('max',v)}/><Range label="月龄区间（月）" min={value.minAge} max={value.maxAge} setMin={v=>field('minAge',v)} setMax={v=>field('maxAge',v)}/></div>}
+function Filters({value,set,breeds,colors}){
+  const field=(k,v)=>set(x=>({...x,[k]:v}));
+  const [smartOpen,setSmartOpen]=useState(false),[demand,setDemand]=useState(''),[smartLoading,setSmartLoading]=useState(false),[smartMessage,setSmartMessage]=useState(''),[city,setCity]=useState('');
+  const day=new Date().toISOString().slice(0,10),quotaKey=`smart-search-${day}`;
+  const used=()=>{try{return Number(localStorage.getItem(quotaKey)||0);}catch{return 0;}};
+  const submitDemand=async e=>{
+    e.preventDefault();const text=demand.trim();
+    if(text.length<2)return setSmartMessage('先粘贴一句客户需求');
+    if(used()>=20)return setSmartMessage('今天的智能整理次数已用完，请直接使用下方筛选条件');
+    setSmartLoading(true);setSmartMessage('');
+    try{
+      const response=await fetch('/api/smart-search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text,breeds,colors})});
+      const body=await response.json();if(!response.ok||!body.success)throw new Error(body.message||'智能整理失败');
+      const result=body.data?.filters||{};
+      if(!body.data?.recognized)throw new Error('没有识别出明确条件，请换一种说法或手动筛选');
+      set({query:'',breed:result.breed||'',color:result.color||'',gender:result.gender||'',min:result.min||'',max:result.max||'',minAge:result.minAge||'',maxAge:result.maxAge||''});
+      setCity(result.city||'');setSmartOpen(false);
+      setSmartMessage(body.data.usedAI?'已智能填写筛选条件，请检查后再挑选':'已快速填写筛选条件，请检查后再挑选');
+      if(body.data.usedAI)try{localStorage.setItem(quotaKey,String(used()+1));}catch{}
+    }catch(error){setSmartMessage(error.message||'暂时无法智能整理，请手动筛选');}
+    finally{setSmartLoading(false);}
+  };
+  const tags=[value.breed,value.color,value.gender,value.minAge&&(value.maxAge&&value.maxAge!==value.minAge?`${value.minAge}—${value.maxAge}个月`:`${value.minAge}个月`),value.max&&`${value.max}元以内`,city&&`收货地：${city}`].filter(Boolean);
+  return <div className="my-6 grid grid-cols-2 md:grid-cols-4 gap-3 rounded-2xl border border-stone-200 bg-white p-4">
+    <div className="col-span-2 md:col-span-4 rounded-xl border border-[#f0dfca] bg-[#fffaf4] overflow-hidden">
+      <button type="button" onClick={()=>setSmartOpen(open=>!open)} className="w-full min-h-[44px] px-3.5 py-2.5 flex items-center gap-2 text-left text-sm text-stone-700 hover:bg-[#fff7ed]">
+        <Sparkles size={16} className="shrink-0 text-[#d8842e]"/><span className="font-medium">有客户需求？</span><span className="min-w-0 flex-1 truncate text-stone-500">粘贴一句话，自动填写筛选条件</span><span className="text-xs text-[#b86c24]">{smartOpen?'收起':'智能整理 ›'}</span>
+      </button>
+      {smartOpen&&<form onSubmit={submitDemand} className="border-t border-[#f0dfca] p-3 sm:p-4">
+        <textarea autoFocus value={demand} onChange={e=>setDemand(e.target.value.slice(0,300))} placeholder="例如：想找一只两三个月的布偶妹妹，预算1500以内，可以发杭州" className="w-full min-h-[82px] resize-y rounded-xl border border-stone-200 bg-white px-3.5 py-3 text-sm leading-6 outline-none focus:border-[#d8842e]"/>
+        <div className="mt-2 flex items-center justify-between gap-3"><span className="text-[11px] text-stone-400">只整理品种、花色、性别、月龄和预算</span><button disabled={smartLoading||demand.trim().length<2} className="shrink-0 rounded-lg bg-[#183f32] px-4 py-2 text-sm font-medium text-white disabled:bg-stone-300">{smartLoading?'正在整理…':'查看匹配猫咪'}</button></div>
+      </form>}
+    </div>
+    {(smartMessage||tags.length>0)&&<div className="col-span-2 md:col-span-4 flex flex-wrap items-center gap-2 text-xs">
+      {smartMessage&&<span className={smartMessage.includes('失败')||smartMessage.includes('无法')||smartMessage.includes('没有')||smartMessage.includes('用完')?'text-amber-700':'text-emerald-700'}>{smartMessage}</span>}
+      {tags.map(tag=><span key={tag} className="rounded-full bg-[#edf4f0] px-2.5 py-1 text-[#315c49]">{tag}</span>)}
+      {city&&<span className="text-stone-400">城市仅用于运输提醒，不作为硬筛选</span>}
+    </div>}
+    <label className="col-span-2 md:col-span-1 relative"><Search size={16} className="absolute left-3 top-3 text-stone-400"/><input value={value.query} onChange={e=>field('query',e.target.value)} placeholder="编号、品种、花色" className="w-full rounded-xl bg-stone-50 py-2.5 pl-9 pr-3 text-sm"/></label>
+    <Select value={value.breed} set={v=>field('breed',v)} values={breeds} label="全部品种"/><Select value={value.color} set={v=>field('color',v)} values={colors} label="全部花色"/><Select value={value.gender} set={v=>field('gender',v)} values={['公','母']} label="不限性别"/>
+    <Range label="价格区间（元）" min={value.min} max={value.max} setMin={v=>field('min',v)} setMax={v=>field('max',v)}/><Range label="月龄区间（月）" min={value.minAge} max={value.maxAge} setMin={v=>field('minAge',v)} setMax={v=>field('maxAge',v)}/>
+  </div>;
+}
 function Select({value,set,values,label}){return <select value={value} onChange={e=>set(e.target.value)} className="rounded-xl bg-stone-50 px-3 py-2.5 text-sm"><option value="">{label}</option>{values.map(v=><option key={v}>{v}</option>)}</select>}
 function Range({label,min,max,setMin,setMax}){return <fieldset className="col-span-2"><legend className="mb-1 text-xs text-stone-500">{label}</legend><div className="flex items-center gap-2"><input type="number" min="0" value={min} onChange={e=>setMin(e.target.value)} placeholder="最低" className="min-w-0 w-full rounded-xl bg-stone-50 px-3 py-2.5 text-sm"/><span className="text-stone-300">—</span><input type="number" min="0" value={max} onChange={e=>setMax(e.target.value)} placeholder="最高" className="min-w-0 w-full rounded-xl bg-stone-50 px-3 py-2.5 text-sm"/></div></fieldset>}
 function Empty({saved}){return <div className="rounded-2xl border border-dashed border-stone-300 py-20 text-center text-stone-400"><FolderHeart className="mx-auto mb-3"/>{saved?'还没有加入我的货源':'没有符合条件的猫咪'}</div>}
