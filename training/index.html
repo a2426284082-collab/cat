@@ -1,11 +1,47 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"><meta name="robots" content="noindex,nofollow"><title>新手实战带练 · 猫咪合作平台</title><link rel="stylesheet" href="/ui-assets/sales-learning.css"></head>
-<body class="training-page"><header class="site-header"><div class="site-header-inner"><a href="/" class="site-brand"><span class="brand-tile"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#cat"/></svg></span><span>猫咪合作平台<small>SALES WORKSPACE</small></span></a><nav aria-label="主导航"><a href="/">猫源库</a><a href="/manuals/" >销售支持</a><a href="/training/" aria-current="page">新手带练</a><a href="/assistant/">AI 助手 <svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#arrow-up"/></svg></a></nav><a class="header-back" href="/manuals/"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#back"/></svg><span>支持中心</span></a></div></header>
-<main class="training-main"><header class="training-heading"><div><span class="eyebrow">LEARN BY DOING</span><h1>第一次接待，我们陪你练。</h1><p>先学会找到潜在客户，再跟着客户小林走完一条完整的成交流程。</p></div><div class="training-label"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#clock"/></svg> 约 12 分钟 <span>·</span> 模拟练习</div></header>
-<div class="training-layout"><aside class="lesson-sidebar"><div class="lesson-summary"><span>本次练习进度</span><b id="lessonPercent">0%</b></div><div class="lesson-progress"><span id="lessonProgress"></span></div><nav class="lesson-steps" id="steps" aria-label="练习步骤"></nav><div class="lesson-sidebar-note"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#compass"/></svg><b>不用急，跟着做就好。</b><p>可以返回已走过的步骤，<br>也可以随时重新练习。</p></div><button class="restart-button" id="restart"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#reset"/></svg> 重新开始</button><small id="saveStatus" class="save-status">进度保存在当前浏览器</small></aside>
-<section class="lesson-workspace" id="practicePanel" aria-label="练习操作区"><div class="mobile-guided-chat" aria-label="当前模拟客户消息"><div class="mobile-guided-top"><span class="mobile-customer-avatar">林</span><span><b>客户小林</b><small>模拟客户 · 先看消息，再完成下面这一步</small></span><span class="mobile-live-dot">练习中</span></div><div class="mobile-guided-context"><span>客户需求</span><b id="mobileCustomerBudget">布偶妹妹 · 2—3个月 · 预算约 ¥1,500 · 杭州</b></div><div id="mobileChat" class="mobile-guided-messages" role="log" aria-label="当前模拟对话"></div><div class="mobile-task-arrow"><span>↓</span><b>看完客户消息，直接完成下面的任务</b></div></div><div id="panel" class="lesson-panel"></div></section>
-<aside class="customer-panel" id="customerPanel"><div class="phone-section-label"><b>客户手机</b><span>模拟微信对话</span></div><div class="phone-device"><div class="phone-status" aria-hidden="true"><b>9:41</b><span class="phone-island"></span><span class="phone-signals">▮▮▮ <span class="phone-battery"></span></span></div><button class="customer-heading" id="chatToggle" aria-expanded="false" aria-controls="customerBody"><span class="phone-back" aria-hidden="true">‹</span><span><b>客户小林</b><small>模拟客户 · 随练习更新</small></span><span class="phone-menu" aria-hidden="true">•••</span><svg class="icon" aria-hidden="true"><use href="/ui-assets/sales-icons.svg#chevron"/></svg></button><div class="customer-body" id="customerBody"><div class="customer-context"><span>客户需求</span><p>布偶妹妹 · 2—3 个月<br><b id="customerBudget">预算约 ¥1,500</b> · 杭州</p></div><div class="practice-chat" id="chat" role="log" aria-label="模拟客户对话"></div><div class="phone-composer" aria-hidden="true"><span>⊕</span><span class="phone-input">在练习区完成回复</span><span>☺</span></div><div class="phone-home" aria-hidden="true"></div></div></div><p class="phone-caption">这里只展示模拟对话，不会发送真实消息。</p></aside>
-</div><footer class="page-footer"><span>练习中的猫咪、价格和对话均为模拟资料。</span><span id="stepStatus" aria-live="polite">准备开始</span></footer></main>
-<div class="toast" id="toast" role="status" hidden></div>
-<dialog class="reset-dialog" id="resetDialog"><form method="dialog"><span class="dialog-icon"><svg class="icon " aria-hidden="true"><use href="/ui-assets/sales-icons.svg#reset"/></svg></span><h2>重新练习一次？</h2><p>本次模拟进度会清空，你可以从从第一步获客练习重新开始。</p><div><button class="button secondary" value="cancel" autofocus>继续当前练习</button><button class="button primary" value="reset">重新开始</button></div></form></dialog>
-<script type="module" src="./training.js"></script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#7953f7">
+  <title>新手实战带练 · 猫咪合作平台</title>
+  <link rel="stylesheet" href="./training.css">
+  <script type="module" src="./training.js"></script>
+</head>
+<body>
+  <header class="site-header"><div class="site-header-inner">
+    <a href="/" class="site-brand"><span class="brand-tile"><svg class="icon" aria-hidden="true"><use href="/ui-assets/sales-icons.svg#cat"></use></svg></span><span>猫咪合作平台<small>SALES WORKSPACE</small></span></a>
+    <nav aria-label="主导航"><a href="/">猫源库</a><a href="/manuals/">销售支持</a><a href="/training/" aria-current="page">新手带练</a><a href="/assistant/">AI 助手 <svg class="icon" aria-hidden="true"><use href="/ui-assets/sales-icons.svg#arrow-up"></use></svg></a></nav>
+    <div class="header-tools"><a class="header-back" href="/manuals/">支持中心</a><button class="quiet-button" id="restart">↻ <span>重新练习</span></button></div>
+  </div></header>
+  <main class="training-main">
+    <header class="page-heading"><div><span class="eyebrow">你的第一位客户，从这里开始</span><h1>第一次接待，我们陪你练。</h1><p>从发出第一条作品，到接住第一位客户。每一步只做一件事。</p></div><span class="time-badge">简单跟着做 <span>· 可以随时暂停</span></span></header>
+    <div class="training-layout">
+      <aside class="lesson-sidebar" aria-label="练习路线">
+        <div class="lesson-summary"><span>本次练习进度</span><strong id="lessonPercent">0%</strong></div>
+        <div class="progress-track"><span id="lessonProgress"></span></div>
+        <nav id="steps" aria-label="练习步骤"></nav>
+        <div class="sidebar-note"><span>✦</span><b>不用急，跟着做就好。</b><p>点错也没关系，我会告诉你<br>为什么，再陪你试一次。</p></div>
+        <small id="saveStatus">进度保存在当前浏览器</small>
+      </aside>
+      <section class="lesson-workspace" aria-label="带练操作区">
+        <div class="workspace-top"><button class="icon-button" id="topBack" aria-label="返回上一步">‹</button><b id="phaseTitle">新手带练</b><span class="practice-badge">模拟</span></div>
+        <div class="phase-track"><span id="phaseProgress"></span></div>
+        <div id="panel"></div>
+      </section>
+      <aside class="coach-aside" aria-label="带练教练与客户对话">
+        <div class="coach-intro"><span class="coach-avatar">✦</span><div><b>你的带练搭子</b><small>每一步，我都在</small></div><span class="online-dot"></span></div>
+        <div class="coach-copy"><span>这一步，先记住</span><p id="coachTip">不用背话术，先跟着做一次。</p></div>
+        <div class="customer-top"><span class="customer-avatar">林</span><div><b>客户小林</b><small id="customerStage">完成获客后，她会来咨询</small></div></div>
+        <div class="chat" id="chat" role="log" aria-label="模拟客户对话" aria-live="polite"></div>
+        <p class="chat-caption">模拟对话，跟着练习更新</p>
+      </aside>
+    </div>
+    <footer class="page-footer"><span>猫咪、价格和对话均为模拟资料，不会发送真实消息或产生订单。</span><span id="stepStatus" aria-live="polite">准备开始</span></footer>
+  </main>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <dialog id="resetDialog"><form method="dialog"><span class="dialog-symbol">↻</span><h2>再从头练一次？</h2><p>当前练习进度会清空，我们从第一步重新开始。</p><div class="dialog-actions"><button class="button secondary" value="cancel" autofocus>继续当前练习</button><button class="button primary" value="reset">重新开始</button></div></form></dialog>
+</body>
+</html>
