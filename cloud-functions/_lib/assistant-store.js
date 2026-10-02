@@ -16,3 +16,14 @@ export async function usageFor(env,salesId,at=Date.now()){const key=month(at);re
 export async function createSeller(env,{name,quota}){const salesId=`S${randomBytes(4).toString('hex').toUpperCase()}`,invite=newInvite(salesId),now=new Date().toISOString();const record=await createTableRecord(env,env.FEISHU_SALES_TABLE_ID,{'销售ID':salesId,'姓名':String(name).trim().slice(0,50),'邀请码哈希':invite.hash,'月额度':Math.max(1,Math.min(100000,number(quota,100))),'状态':'启用','创建时间':now});return{...sellerFrom(record),inviteCode:invite.code};}
 export async function updateSeller(env,recordId,input){const fields={};if('name'in input)fields['姓名']=String(input.name).trim().slice(0,50);if('quota'in input)fields['月额度']=Math.max(1,Math.min(100000,number(input.quota,100)));if('status'in input){if(!['启用','停用'].includes(input.status))throw new Error('invalid status');fields['状态']=input.status;}let inviteCode;if(input.rotate){const current=(await sellers(env)).find(v=>v.recordId===recordId);if(!current)throw new Error('seller not found');const invite=newInvite(current.salesId);fields['邀请码哈希']=invite.hash;inviteCode=invite.code;}if(!Object.keys(fields).length)throw new Error('no changes');const record=await updateTableRecord(env,env.FEISHU_SALES_TABLE_ID,recordId,fields);return{...sellerFrom(record),inviteCode};}
 export async function writeLog(env,{seller,conversationId,message,catId,result}){const now=new Date().toISOString();return createTableRecord(env,env.FEISHU_AI_LOG_TABLE_ID,{'对话ID':String(conversationId).slice(0,80),'销售ID':seller.salesId,'销售姓名':seller.name,'时间':now,'月份':month(now),'客户问题':String(message).slice(0,5000),'猫咪编号':String(catId||'').slice(0,100),'建议回复':String(result.reply).slice(0,5000),'风险等级':result.riskLevel,'问题类型':result.intent,'模型':result.model||'内置话术','输入Token':number(result.tokenUsage?.input),'输出Token':number(result.tokenUsage?.output)});}
+
+// Keep usage metadata, but clear deleted conversation content without new table columns.
+export async function deleteConversation(env, salesId, conversationId) {
+  const rows = (await logs(env)).filter(row => row.salesId === salesId && row.conversationId === conversationId);
+  for (const row of rows) {
+    await updateTableRecord(env, env.FEISHU_AI_LOG_TABLE_ID, row.recordId, {
+      '对话ID': `deleted_${row.recordId}`.slice(0, 80),
+      '客户问题': '', '建议回复': '', '猫咪编号': '', '问题类型': '', '风险等级': ''
+    });
+  }
+}
