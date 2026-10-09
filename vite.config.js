@@ -9,6 +9,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(process.cwd(), 'index.html'),
+        cats: resolve(process.cwd(), 'cats/index.html'),
         admin: resolve(process.cwd(), 'admin/index.html'),
         assistant: resolve(process.cwd(), 'assistant/index.html'),
         training: resolve(process.cwd(), 'training/index.html'),

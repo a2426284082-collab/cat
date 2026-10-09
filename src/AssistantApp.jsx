@@ -65,7 +65,7 @@ function Access({ done }) {
 
   return (
     <main className="sales-app access-page">
-      <a className="sales-brand" href="/"><span className="brand-mark"><Cat size={23} /></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
+      <a className="sales-brand" href="/cats/"><span className="brand-mark"><Cat size={23} /></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
       <div className="access-layout">
         <section className="access-story">
           <span className="eyebrow">让每一次沟通，更有底气</span>
@@ -279,7 +279,7 @@ export default function AssistantApp() {
       {showHistory && <button className="sidebar-backdrop" aria-label="关闭历史会话" onClick={() => setShowHistory(false)}/> }
       <aside className={`sales-sidebar ${showHistory ? 'sidebar-open' : ''}`}>
         <button className="sidebar-close" onClick={() => setShowHistory(false)} aria-label="关闭历史会话"><X size={20}/></button>
-        <a className="sales-brand" href="/"><span className="brand-mark"><Cat size={23}/></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
+        <a className="sales-brand" href="/cats/"><span className="brand-mark"><Cat size={23}/></span><span>猫咪销售助手<small>SALES COPILOT</small></span></a>
         <button className="new-chat" onClick={fresh} disabled={busy}><Plus size={18}/> 开始新对话 <span>↗</span></button>
         <div className="sidebar-caption">历史对话 <button onClick={loadHistory} disabled={historyLoading || busy}>刷新</button></div>
         <nav className="conversation-nav" aria-label="历史对话">
