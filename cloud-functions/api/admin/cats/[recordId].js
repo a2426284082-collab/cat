@@ -1,5 +1,6 @@
 import { json, requireAdmin } from '../../../_lib/admin-auth.js';
 import { updateAdminCat } from '../../../_lib/feishu.js';
+import { serviceFailure } from '../../../_lib/service-errors.js';
 
 export async function onRequestPatch({ env, request, params }) {
   if (!requireAdmin(request, env)) return json({ success: false, message: '请先登录' }, 401);
@@ -8,5 +9,5 @@ export async function onRequestPatch({ env, request, params }) {
   let body;
   try { body = await request.json(); } catch { return json({ success: false, message: '请求格式错误' }, 400); }
   try { return json({ success: true, data: await updateAdminCat(env, recordId, body) }); }
-  catch (error) { return json({ success: false, message: error?.message === 'invalid fields' ? '提交字段格式不正确' : '更新飞书记录失败' }, error?.message === 'invalid fields' ? 400 : 502); }
+  catch (error) { return error?.message === 'invalid fields' ? json({ success: false, message: '提交字段格式不正确' }, 400) : serviceFailure(error, '更新飞书记录失败', 502); }
 }

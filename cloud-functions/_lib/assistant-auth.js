@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { json } from './admin-auth.js';
+import { requiredConfiguration } from './service-errors.js';
 const COOKIE='cat_sales_assistant',MAX_AGE=7*24*60*60,failures=new Map();
 const equal=(a,b)=>{const x=Buffer.from(String(a)),y=Buffer.from(String(b));return x.length===y.length&&timingSafeEqual(x,y);};
 const sign=(text,secret)=>createHmac('sha256',secret).update(text).digest('base64url');
-const signingSecret=env=>{const value=String(env?.ASSISTANT_SESSION_SECRET||'');if(value.length<32)throw new Error('assistant auth not configured');return value;};
+export const signingSecret=env=>{requiredConfiguration(env,['ASSISTANT_SESSION_SECRET']);const value=String(env.ASSISTANT_SESSION_SECRET);if(value.length<32)throw Object.assign(new Error('assistant auth not configured'),{code:'CONFIG_MISSING',missing:['ASSISTANT_SESSION_SECRET']});return value;};
 const ip=request=>String(request.headers.get('x-forwarded-for')||request.headers.get('x-real-ip')||'unknown').split(',')[0].trim().slice(0,100);
 export function loginAllowed(request){const key=ip(request),now=Date.now(),v=failures.get(key);if(!v||now>v.until){failures.set(key,{count:0,until:now+15*60*1000});return true;}return v.count<5;}
 export function failLogin(request){const key=ip(request),now=Date.now(),v=failures.get(key);failures.set(key,!v||now>v.until?{count:1,until:now+15*60*1000}:{...v,count:v.count+1});}

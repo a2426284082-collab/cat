@@ -1,4 +1,6 @@
 import { createHmac, pbkdf2Sync, timingSafeEqual } from 'node:crypto';
+import { createLoginChallenge, passwordParameters, verifyLoginProof } from './login-challenge.js';
+import { requiredConfiguration } from './service-errors.js';
 
 const COOKIE = 'cat_admin_session';
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -12,10 +14,12 @@ const safeEqual = (a, b) => {
 };
 
 function settings(env) {
+  requiredConfiguration(env, ['ADMIN_USERNAME', 'ADMIN_PASSWORD_HASH', 'ADMIN_SESSION_SECRET']);
   const username = String(env?.ADMIN_USERNAME || '').trim();
   const passwordHash = String(env?.ADMIN_PASSWORD_HASH || '').trim();
   const sessionSecret = String(env?.ADMIN_SESSION_SECRET || '').trim();
-  if (!username || !passwordHash || sessionSecret.length < 32) throw new Error('admin auth not configured');
+  if (sessionSecret.length < 32) throw Object.assign(new Error('admin auth not configured'), { code: 'CONFIG_MISSING', missing: ['ADMIN_SESSION_SECRET'] });
+  if (!passwordParameters(passwordHash)) throw Object.assign(new Error('invalid admin password hash'), { code: 'AUTH_HASH_INVALID' });
   return { username, passwordHash, sessionSecret };
 }
 
@@ -51,6 +55,19 @@ export function clearLoginFailures(request) { attempts.delete(clientKey(request)
 export function authenticateCredentials(env, username, password) {
   const configured = settings(env);
   return safeEqual(String(username), configured.username) && verifyPassword(password, configured.passwordHash);
+}
+
+export function adminLoginChallenge(env, request, username) {
+  const configured = settings(env);
+  return createLoginChallenge({ request, secret: configured.sessionSecret, scope: 'admin', subject: String(username), encoded: configured.passwordHash });
+}
+
+export function authenticateAdminProof(env, request, body) {
+  const configured = settings(env);
+  return safeEqual(String(body?.username), configured.username) && verifyLoginProof({
+    request, secret: configured.sessionSecret, scope: 'admin', subject: configured.username,
+    encoded: configured.passwordHash, challenge: body?.challenge, proof: body?.proof,
+  });
 }
 
 export function createSessionCookie(env) {

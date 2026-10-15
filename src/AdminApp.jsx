@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { loginProof } from './login-proof.js';
 import { Bot, Cat, Clipboard, LogOut, MessageSquare, Pencil, Plus, RefreshCw, RotateCw, Search, Users, X } from 'lucide-react';
 
 async function api(url, options) {
@@ -22,7 +23,12 @@ function Login({ onLogin }) {
   const [error, setError] = useState('');
   async function submit(event) {
     event.preventDefault(); setBusy(true); setError('');
-    try { const result = await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) }); onLogin(result.user); }
+    try {
+      const challenge = (await api('/api/admin/challenge', { method: 'POST', body: JSON.stringify({ username }) })).data;
+      const proof = await loginProof(challenge, password);
+      const result = await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, challenge: challenge.challenge, proof }) });
+      onLogin(result.user);
+    }
     catch (reason) { setError(reason.message); }
     finally { setBusy(false); }
   }

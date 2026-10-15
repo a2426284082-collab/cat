@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loginProof } from './login-proof.js';
 import { ArrowLeft, ArrowUp, ArrowUpRight, Cat, Check, ChevronDown, Clipboard, History, LogOut, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import './assistant.css';
 
@@ -51,9 +52,14 @@ function Access({ done }) {
     setBusy(true);
     setError('');
     try {
+      const cleaned = code.trim(), dot = cleaned.indexOf('.');
+      if (dot < 2 || !cleaned.slice(dot + 1)) throw new Error('邀请码格式不正确');
+      const salesId = cleaned.slice(0, dot);
+      const challenge = (await api('/api/assistant/challenge', { method: 'POST', body: JSON.stringify({ salesId }) })).data;
+      const proof = await loginProof(challenge, cleaned.slice(dot + 1));
       const r = await api('/api/assistant/login', {
         method: 'POST',
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ salesId, challenge: challenge.challenge, proof })
       });
       done(r.user);
     } catch (reason) {

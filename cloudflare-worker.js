@@ -2,6 +2,9 @@
 import * as publicCats from './cloud-functions/api/public-cats.js';
 import * as publicImages from './cloud-functions/api/public-images/[token].js';
 import * as publicVideos from './cloud-functions/api/public-videos/[token].js';
+import * as adminChallenge from './cloud-functions/api/admin/challenge.js';
+import * as assistantChallenge from './cloud-functions/api/assistant/challenge.js';
+import { serviceFailure } from './cloud-functions/_lib/service-errors.js';
 import * as smartSearch from './cloud-functions/api/smart-search.js';
 import * as adminLogin from './cloud-functions/api/admin/login.js';
 import * as adminLogout from './cloud-functions/api/admin/logout.js';
@@ -34,6 +37,8 @@ const routes = [
   route('/api/public-cats', publicCats),
   route('/api/public-images/:token', publicImages),
   route('/api/public-videos/:token', publicVideos),
+  route('/api/admin/challenge', adminChallenge),
+  route('/api/assistant/challenge', assistantChallenge),
   route('/api/smart-search', smartSearch),
   route('/api/admin/login', adminLogin),
   route('/api/admin/logout', adminLogout),
@@ -95,7 +100,7 @@ export default {
       } catch { return json('请求参数无效', 400); }
       try {
         const response = await handler({
-          request: platformRequest(request), env, params, data: {},
+          request: platformRequest(request), env, params, data: {}, runtime: 'cloudflare',
           waitUntil: promise => ctx.waitUntil(promise),
         });
         if (request.method === 'HEAD') {
@@ -103,9 +108,9 @@ export default {
           return new Response(null, { status: response.status, headers: response.headers });
         }
         return response;
-      } catch {
+      } catch (error) {
         // Do not expose credentials or upstream request details to browsers.
-        return json('服务暂时不可用，请检查服务端配置或稍后重试', 503);
+        return serviceFailure(error, '服务暂时不可用，请检查服务端配置或稍后重试');
       }
     }
     return json('接口不存在', 404);

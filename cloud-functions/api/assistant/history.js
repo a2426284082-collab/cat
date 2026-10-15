@@ -1,3 +1,4 @@
+import { serviceFailure } from '../../_lib/service-errors.js';
 import { json, requireAssistant } from '../../_lib/assistant-auth.js';
 import { logs, deleteConversation } from '../../_lib/assistant-store.js';
 export async function onRequestGet({ env, request }) {
@@ -6,7 +7,7 @@ export async function onRequestGet({ env, request }) {
   try {
     const data = (await logs(env)).filter(v => v.salesId === session.salesId && !v.conversationId.startsWith('deleted_')).sort((a, b) => b.time.localeCompare(a.time));
     return json({ success: true, data });
-  } catch { return json({ success: false, message: '读取历史失败，请重试' }, 502); }
+  } catch (error) { return serviceFailure(error, '读取历史失败，请重试', 502); }
 }
 export async function onRequestDelete({ env, request }) {
   const session = requireAssistant(request, env);
@@ -17,5 +18,5 @@ export async function onRequestDelete({ env, request }) {
   try {
     await deleteConversation(env, session.salesId, body.conversationId);
     return json({ success: true });
-  } catch { return json({ success: false, message: '删除未完成，请重试' }, 502); }
+  } catch (error) { return serviceFailure(error, '删除未完成，请重试', 502); }
 }

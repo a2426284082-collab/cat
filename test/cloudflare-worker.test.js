@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { pbkdf2Sync } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import worker from '../cloudflare-worker.js';
+import { loginProof } from '../src/login-proof.js';
 
 const origin = 'https://cat.example';
 const context = { waitUntil() {} };
@@ -48,7 +49,10 @@ test('existing admin password hashes and cookies work without resetting credenti
   const salt = Buffer.from('cloudflare-test-salt');
   const hash = pbkdf2Sync('test-password', salt, 120000, 32, 'sha256');
   const env = { ADMIN_USERNAME: 'test-admin', ADMIN_PASSWORD_HASH: `120000.${salt.toString('base64url')}.${hash.toString('base64url')}`, ADMIN_SESSION_SECRET: 'test-session-secret-at-least-32-characters' };
-  const login = await run('/api/admin/login', env, { method: 'POST', headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.21' }, body: JSON.stringify({ username: 'test-admin', password: 'test-password' }) });
+  const start = await run('/api/admin/challenge', env, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'test-admin' }) });
+  const challenge = (await start.json()).data;
+  const proof = await loginProof(challenge, 'test-password');
+  const login = await run('/api/admin/login', env, { method: 'POST', headers: { Origin: origin, Cookie: start.headers.get('set-cookie').split(';')[0], 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.21' }, body: JSON.stringify({ username: 'test-admin', challenge: challenge.challenge, proof }) });
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie');
   assert.match(cookie, /HttpOnly; Secure; SameSite=Strict/);

@@ -129,6 +129,7 @@ export async function loadTableRecords(envInput, tableId, maximum = 5000) {
     items.push(...(data.items ?? []));
     if (items.length > maximum) throw new Error('table too large');
     pageToken = data.has_more ? data.page_token : '';
+    if (data.has_more && !pageToken) throw new Error('pagination token missing');
   } while (pageToken);
   return items;
 }
