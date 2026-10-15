@@ -1,6 +1,7 @@
 {
   "name": "cat",
   "main": "cloudflare-worker.js",
+  "keep_vars": true,
   "compatibility_date": "2026-10-15",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {

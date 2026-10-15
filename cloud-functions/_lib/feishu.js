@@ -8,15 +8,30 @@ let catalogCache = { key: '', value: null, until: 0, pending: null };
 
 function config(env) {
   const keys = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_APP_TOKEN', 'FEISHU_TABLE_ID'];
-  if (keys.some(key => !env?.[key])) throw new Error('missing configuration');
+  const missing = keys.filter(key => !env?.[key]);
+  if (missing.length) throw Object.assign(new Error('missing configuration'), { code: 'CONFIG_MISSING', missing });
   return env;
 }
 
 async function feishuJson(url, options) {
-  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(12000) });
-  if (!response.ok) throw new Error('Feishu HTTP error');
-  const result = await response.json();
-  if (result.code !== 0) throw new Error('Feishu API error');
+  // Retain only fixed stage labels and numeric upstream codes. Never return or
+  // log upstream URLs, messages, request headers, app tokens or credentials.
+  const path = new URL(url).pathname;
+  const stage = path.includes('/auth/') ? 'auth' : path.includes('/bitable/') ? 'records' : 'media';
+  let response;
+  try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(12000) }); }
+  catch (error) {
+    const code = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'FEISHU_TIMEOUT' : 'FEISHU_NETWORK_ERROR';
+    throw Object.assign(new Error('Feishu connection failed'), { code, stage });
+  }
+  if (!response.ok) throw Object.assign(new Error('Feishu HTTP error'), { code: 'FEISHU_HTTP_ERROR', stage, upstreamStatus: response.status });
+  let result;
+  try { result = await response.json(); }
+  catch { throw Object.assign(new Error('Feishu invalid response'), { code: 'FEISHU_INVALID_RESPONSE', stage }); }
+  if (result?.code !== 0) throw Object.assign(new Error('Feishu API error'), {
+    code: 'FEISHU_API_ERROR', stage,
+    ...(Number.isInteger(result?.code) ? { feishuCode: result.code } : {}),
+  });
   return result.data ?? result;
 }
 
@@ -28,7 +43,7 @@ async function accessToken(env) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ app_id: env.FEISHU_APP_ID, app_secret: env.FEISHU_APP_SECRET }),
   });
-  if (!result.tenant_access_token) throw new Error('Feishu token missing');
+  if (!result.tenant_access_token) throw Object.assign(new Error('Feishu token missing'), { code: 'FEISHU_TOKEN_MISSING', stage: 'auth' });
   tokenCache = {
     key,
     value: result.tenant_access_token,
