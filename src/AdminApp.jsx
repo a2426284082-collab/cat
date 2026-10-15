@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { loginProof } from './login-proof.js';
+import { changedCatFields } from './admin-edit.js';
 import { Bot, Cat, Clipboard, LogOut, MessageSquare, Pencil, Plus, RefreshCw, RotateCw, Search, Users, X } from 'lucide-react';
 
 async function api(url, options) {
@@ -50,8 +51,8 @@ function Editor({ cat, onClose, onSaved }) {
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
   async function save(event) {
     event.preventDefault(); setBusy(true); setError('');
-    const fields = ['status','breed','color','gender','age','vaccine','price','supplier','supplierOriginalId','costPrice','description','rawDescription','verificationNote'];
-    const body = Object.fromEntries(fields.map(key => [key, form[key] ?? '']));
+    const body = changedCatFields(cat, form);
+    if (!Object.keys(body).length) { setBusy(false); onClose(); return; }
     try { await api(`/api/admin/cats/${encodeURIComponent(cat.recordId)}`, { method: 'PATCH', body: JSON.stringify(body) }); onSaved({ ...cat, ...body }); }
     catch (reason) { setError(reason.message); }
     finally { setBusy(false); }
