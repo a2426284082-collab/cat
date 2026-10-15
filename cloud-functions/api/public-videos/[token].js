@@ -1,4 +1,5 @@
 import { getCatalog, getVideoChunk } from '../../_lib/feishu.js';
+import { getTemporaryVideoLink } from '../../_lib/video-links.js';
 
 const CHUNK_SIZE = 4 * 1024 * 1024;
 
@@ -18,6 +19,20 @@ export async function onRequestGet({ env, params, request }) {
     const catalog = await getCatalog(env);
     const type = catalog.videoTokens.get(fileToken);
     if (!type) return new Response(null, { status: 404 });
+    const proxy = env.FEISHU_VIDEO_DELIVERY === 'proxy' ||
+      (request?.url && new URL(request.url).searchParams.get('delivery') === 'proxy');
+    if (!proxy) {
+      const url = await getTemporaryVideoLink(env, fileToken, request?.url);
+      if (url) return new Response(null, {
+        status: 302,
+        headers: {
+          Location: url,
+          'Cache-Control': 'private, no-store',
+          'Referrer-Policy': 'no-referrer',
+          'X-Robots-Tag': 'noindex, nofollow',
+        },
+      });
+    }
     const chunk = await getVideoChunk(env, fileToken, start, end, type);
     if (!chunk) return new Response(null, { status: 416 });
     return new Response(chunk.bytes, {

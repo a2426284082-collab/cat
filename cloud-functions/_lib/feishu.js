@@ -244,6 +244,17 @@ export async function getImage(envInput, fileToken) {
   return { bytes, type };
 }
 
+export async function getMediaDownloadLink(envInput, fileToken) {
+  const env = config(envInput);
+  const token = await accessToken(env);
+  const url = new URL(`${FEISHU}/drive/v1/medias/batch_get_tmp_download_url`);
+  url.searchParams.append('file_tokens', fileToken);
+  const data = await feishuJson(url, { headers: { Authorization: `Bearer ${token}` } });
+  const result = data.tmp_download_urls?.find(item => item.file_token === fileToken);
+  if (!result?.tmp_download_url) throw new Error('media link unavailable');
+  return result.tmp_download_url;
+}
+
 export async function getVideoChunk(envInput, fileToken, start, end, type) {
   const env = config(envInput);
   const token = await accessToken(env);

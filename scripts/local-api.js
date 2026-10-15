@@ -23,7 +23,7 @@ createServer(async (req, res) => {
   else if (/^\/api\/public-images\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
     result = await image({ env: process.env, params: { token: path.split('/').pop() } });
   } else if (/^\/api\/public-videos\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
-    result = await video({ env: process.env, params: { token: path.split('/').pop() }, request: new Request(`http://localhost${path}`, { headers: req.headers }) });
+    result = await video({ env: process.env, params: { token: path.split('/').pop() }, request: new Request(`http://localhost${req.url}`, { headers: req.headers }) });
   } else result = new Response(null, { status: 404 });
   res.writeHead(result.status, Object.fromEntries(result.headers));
   res.end(Buffer.from(await result.arrayBuffer()));
