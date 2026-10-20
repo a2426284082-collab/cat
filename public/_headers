@@ -1,0 +1,41 @@
+/cats
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/cats/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/admin
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/admin/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/assistant
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/assistant/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/training
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/training/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/manuals
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/manuals/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/guide
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/guide/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/guide-sales
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/guide-sales/*
+  X-Robots-Tag: noindex, nofollow, noarchive

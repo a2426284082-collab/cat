@@ -7,7 +7,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 test('recruitment homepage cannot open or preload the business workspace', () => {
   const html = read('index.html');
   assert.match(html, /奶茶猫/);
-  assert.match(html, /naichamao_0926/);
+  assert.match(html, /wxid_i1f7e9abeyk322/);
   assert.doesNotMatch(html, /<iframe\b|<script\b[^>]*\bsrc\s*=|<script\b[^>]*type=["']module["']/i);
   assert.doesNotMatch(html, /\/api\/|\/src\/|rel=["'](?:modulepreload|prefetch|preload)["']/i);
   const links = [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["']/gi)].map(match => match[1]);

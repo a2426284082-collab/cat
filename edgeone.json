@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build && node scripts/edgeone-seo.mjs",
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }]
+    }
+  ]
+}

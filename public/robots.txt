@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /.internal-cache/
+
+Sitemap: https://petcloud88.top/sitemap.xml
