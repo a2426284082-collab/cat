@@ -98,6 +98,6 @@ test('all existing API files are imported; frontend and secrets are not bundled 
   const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
   assert.equal(config.main, 'cloudflare-worker.js');
   assert.equal(config.assets.directory, './dist');
-  assert.deepEqual(config.assets.run_worker_first, ['/api', '/api/*']);
+  assert.deepEqual(config.assets.run_worker_first, ['/api', '/api/*', '/baidu_verify_codeva-5BMeKqCfaF.html']);
   assert.equal(config.vars, undefined);
 });

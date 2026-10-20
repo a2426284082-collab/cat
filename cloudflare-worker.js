@@ -77,6 +77,16 @@ function platformRequest(request) {
 export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
+    // Serve this exact verification URL before Assets normalizes away .html.
+    // This is a public website-ownership token, not an application credential.
+    if (pathname === '/baidu_verify_codeva-5BMeKqCfaF.html') {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return json('请求方法不支持', 405, { Allow: 'GET, HEAD' });
+      }
+      return new Response(request.method === 'HEAD' ? null : '94b18aaa2a0235ab7528ca9a05093e7f', {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    }
     if (pathname !== '/api' && !pathname.startsWith('/api/')) {
       return env.ASSETS.fetch(request);
     }
