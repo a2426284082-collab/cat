@@ -1,0 +1,215 @@
+{
+  "from_version": "3.3.x or 3.4.x",
+  "to_version": "3.4.2",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "e1dbbd96baf4d3bbbdc023ccc0ad986ee42d45a156f447d65e2176c6f072832b"
+    },
+    {
+      "path": "README.md",
+      "sha256": "2a786b964928e5ba1ea5d1bed51730e2e3247cc366d9de6bfbe60603033ee6db"
+    },
+    {
+      "path": "WORKSPACE_UPDATE.md",
+      "sha256": "777c3ed6598b12256b4ed7ba284dfe39ec0325558ff60ebe9668ceb9d8fd436a"
+    },
+    {
+      "path": "guide-sales/index.html",
+      "sha256": "b6fd9838714eed7654dcc5b3d92ac0d5fb233a30e9babf4615e2aacbae327d31"
+    },
+    {
+      "path": "guide/index.html",
+      "sha256": "e593a086b9c268734decc9c2017a35928e88beb426d71c3ac51157586c282b58"
+    },
+    {
+      "path": "manuals/index.html",
+      "sha256": "05d6b7ce93bbbcc93cfa8e940b08c5df17e816d4e577d29d9e746d38db662600"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "6f9f8c2a1a9b882dda3ae63ab90a571774a23b6102f7297a0853d40f1d0aeb70"
+    },
+    {
+      "path": "package.json",
+      "sha256": "8dbebc8b54fa70f74b3b98515c081a69c45532c39952c315221419020ecc05e3"
+    },
+    {
+      "path": "public/ui-assets/manual-5fc4a5c43f4999cf.webp",
+      "sha256": "5fc4a5c43f4999cf9d30cce838bc49ef1d877510b8acb994e6a5dc82351bcfb0"
+    },
+    {
+      "path": "public/ui-assets/manual-5fd8fafbf018fa91.webp",
+      "sha256": "5fd8fafbf018fa914532c7ae9196072c819e4f5b9507af38c9ca0cc8956f8915"
+    },
+    {
+      "path": "public/ui-assets/manual-75d8ad643cb03a6a.webp",
+      "sha256": "75d8ad643cb03a6a83aa8b86ec5657c13dffa50037fa006cb465b061ae36c55c"
+    },
+    {
+      "path": "public/ui-assets/manual-86e80c5ab5abf879.webp",
+      "sha256": "86e80c5ab5abf879ee5aa28c8f9d2a12456b97a23b60f77b90070347b4edee6c"
+    },
+    {
+      "path": "public/ui-assets/manual-a0a42a6a83ae6844.webp",
+      "sha256": "a0a42a6a83ae684454b4b92b9e15824ff5a8d8078a1a32b4a4d0593a32dad570"
+    },
+    {
+      "path": "public/ui-assets/manual-aaac1b5f97a2d1ed.webp",
+      "sha256": "aaac1b5f97a2d1ed5fb540d842a0de0230c33cdda082092a965b4152ed1c6721"
+    },
+    {
+      "path": "public/ui-assets/manual-b862379f5cdc4c7e.webp",
+      "sha256": "b862379f5cdc4c7e2e56de4df61b378ddc9deb5b89cca69eeaabdd3516a7c226"
+    },
+    {
+      "path": "public/ui-assets/manual-f4790aa0d05038bf.webp",
+      "sha256": "f4790aa0d05038bfe99d4922d28dd23e0e5892a060d4a318f1f9b13702c78392"
+    },
+    {
+      "path": "scripts/build-workspace-preview.mjs",
+      "sha256": "8f04d44cacb17bf7a9b6d40d52269640805e6281220e641a19dc54d1d564e22f"
+    },
+    {
+      "path": "scripts/test-sales-components.mjs",
+      "sha256": "a3d662fe6854234b996d1381d218cbb7b1e4f95b3c001efde4e08b62841c06fd"
+    },
+    {
+      "path": "src/App.jsx",
+      "sha256": "90b2cfad3db9dea43fd741b8a31f99a7f3fc4c22128478296634e118b410a7b2"
+    },
+    {
+      "path": "src/AssistantApp.jsx",
+      "sha256": "f401da57a9492fbf6ff314ab99264815924e90f71fe585dd4eb41f4923a227c9"
+    },
+    {
+      "path": "src/SalesWorkspace.jsx",
+      "sha256": "0463178ec1130f667bb226641dd38ae797c921b983643f38f988eb16c9e0b72e"
+    },
+    {
+      "path": "src/assistant-main.jsx",
+      "sha256": "ec1c8517e52c65ef0f8d8e605f6fa21f2731e0fe4334e46be0e55217a76091c4"
+    },
+    {
+      "path": "src/components/SalesAI.jsx",
+      "sha256": "e08ab8db746c32aec2050d08489727b19e25d320b6e2cfba3b4c69e53f8538d5"
+    },
+    {
+      "path": "src/components/sales-ai.css",
+      "sha256": "723ed5eb8cf81b56bb8829d5aa2b45c810174029b3f9a3cbd47b74dd710df786"
+    },
+    {
+      "path": "src/learning/BasicsPage.jsx",
+      "sha256": "1b48a819499e641ee51d228f9dcc91b6bef95c3e43a89ed8996cf0e2b1afdcac"
+    },
+    {
+      "path": "src/learning/LegacyPage.jsx",
+      "sha256": "63dffa29a1ae31790d0e444f1056dfd4b5393432a5a776c2aba6c0aa079429b9"
+    },
+    {
+      "path": "src/learning/MethodsPage.jsx",
+      "sha256": "543015716db597575659f0277d95dbc6504707a38dfd57e76765748cbe170fac"
+    },
+    {
+      "path": "src/learning/TrainingPage.jsx",
+      "sha256": "0af594ca0937daac9ba4e7db0fbac8293a33dca98b9da9475ac05626052a0da1"
+    },
+    {
+      "path": "src/learning/basics.css",
+      "sha256": "71642061489daa9343da73abe7322fe43a0e08f3dfe835276f08a30dfae02cde"
+    },
+    {
+      "path": "src/learning/basics.html",
+      "sha256": "03d177aed3f57213aaa9c0e0426fea7048604957c68f935336ced1fc420a4bf8"
+    },
+    {
+      "path": "src/learning/basics.js",
+      "sha256": "18591a1315a6b8d8be77ef81e5e426bc77647a0ef314bd5b7b53540968ec8660"
+    },
+    {
+      "path": "src/learning/environment.js",
+      "sha256": "6cd6480ea241313f3d8d1497f0bbd9a21030a2a28b415ed40ac52060024f0c95"
+    },
+    {
+      "path": "src/learning/methods.css",
+      "sha256": "12cecd4fff8dd9512daa5ba34708cc5c75366f6409de7d9f231d2adf8ab71b28"
+    },
+    {
+      "path": "src/learning/methods.html",
+      "sha256": "242da907c9d47a2a1fe86cfdf5b9de5b4225f723e7246a383e8582ba067cafc4"
+    },
+    {
+      "path": "src/learning/methods.js",
+      "sha256": "d6bee299a5ed544d6dc39bfea2240733597286bb06215424346c51cff5716983"
+    },
+    {
+      "path": "src/learning/training.css",
+      "sha256": "dc206d639ead9aaed9a14fd2b09f7f94a6cd20e5c360aca206c246c08def7403"
+    },
+    {
+      "path": "src/learning/training.html",
+      "sha256": "43d106e61e3169fe69a4a06d8f45637df52299813b25782a5b8948fef80c92a2"
+    },
+    {
+      "path": "src/learning/training.js",
+      "sha256": "9ed2d95b3361334f17a1a9fc6f3ee66e9d50bba78ee9ad4c4741e4d60af368d9"
+    },
+    {
+      "path": "src/main.jsx",
+      "sha256": "ec1c8517e52c65ef0f8d8e605f6fa21f2731e0fe4334e46be0e55217a76091c4"
+    },
+    {
+      "path": "src/workspace/SupportPage.jsx",
+      "sha256": "afa279cc3eafc223f8703e6cc55150848eeffd415c29d3b402aba39343da10de"
+    },
+    {
+      "path": "src/workspace/catalog.jsx",
+      "sha256": "f5d3ca70dc98f367e459e12c13896468b2178f809aee6d6d10b2bd2daf5519c5"
+    },
+    {
+      "path": "src/workspace/navigation.js",
+      "sha256": "562dda0667c14ce4b0db2b9fc50871a37c10998fa0474a5de855834401d6a2c2"
+    },
+    {
+      "path": "src/workspace/preview.jsx",
+      "sha256": "0b78f671a1b15477a76d0a95176d142b5934307862f9414385f8c0298d31482b"
+    },
+    {
+      "path": "src/workspace/workspace.css",
+      "sha256": "89605a3f052e8dfa52b1baffc63b437a611667d6b7db621ac02da992499e9007"
+    },
+    {
+      "path": "test/dom-setup.mjs",
+      "sha256": "4d6b34bebf06bb5970f5a647c80aa9f5ea5d175e73fbcdc3d83cdc6014f95fcc"
+    },
+    {
+      "path": "test/homepage-routing.test.js",
+      "sha256": "390329b5d1bd5cc2e600fd0c348b8b898264523c56e2cfe403e7b5e454eac9a6"
+    },
+    {
+      "path": "test/preview-smoke.mjs",
+      "sha256": "365237b898491a27c9834781fa4e8bd30ee5d03af03290d8fea76dc089d9b2b8"
+    },
+    {
+      "path": "test/sales-components.test.jsx",
+      "sha256": "1e0724c36c3a9df784bb5e639c7db75684b4e13c64c2a48b1ca270c565fa44d2"
+    },
+    {
+      "path": "test/ui/sales.spec.js",
+      "sha256": "927672fb674122e1c61341ee52f83a02cd4956e1d79be2f3e3c00cc536b411ef"
+    },
+    {
+      "path": "training/index.html",
+      "sha256": "9885cee5478b170b1e15d4b0fd5db2e83c7346cffafc2937cdfcf8afcf9197a4"
+    },
+    {
+      "path": "vite.config.js",
+      "sha256": "17e1bbb7ebf554124ec11178e1f765e4ab24c57d38effcf0314a8ea6b178643b"
+    }
+  ],
+  "deleted": [
+    "public/manuals/index.html",
+    "public/guide/index.html",
+    "public/guide-sales/index.html"
+  ]
+}
