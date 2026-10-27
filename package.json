@@ -1,7 +1,7 @@
 {
   "name": "cat-sales-workspace",
   "private": true,
-  "version": "3.3.0",
+  "version": "3.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,12 +15,14 @@
     "test:d1": "node test/sales-d1-smoke.mjs",
     "test:ui": "playwright test",
     "sales:configure": "node scripts/configure-sales-d1.mjs",
-    "test:components": "node scripts/test-sales-components.mjs"
+    "test:components": "node scripts/test-sales-components.mjs",
+    "preview:offline": "npm run build && node scripts/build-workspace-preview.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "7.18.4"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",

@@ -24,18 +24,26 @@ export async function salesApi(path,options={}){
   if(!response.ok)throw Object.assign(new Error(result.message||'服务暂时不可用，请稍后重试'),{status:response.status,retry_after:result.retry_after,user:result.user});
   return result;
 }
-export default function SalesAI({cats=[],onDetail}){
+export default function SalesAI({cats=[],onDetail,command,active=true}){
   const [prompt,setPrompt]=useState(''),[mode,setMode]=useState('match'),[user,setUser]=useState(null),[checking,setChecking]=useState(true);
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState(null),[cooldown,setCooldown]=useState(0);
+  const [undo,setUndo]=useState(null);
   const [activateOpen,setActivateOpen]=useState(false),[code,setCode]=useState(''),[activationError,setActivationError]=useState(''),[activating,setActivating]=useState(false),[copied,setCopied]=useState(false);
   const input=useRef(null),keyInput=useRef(null),resultRef=useRef(null),pendingSend=useRef(false),sending=useRef(false),activationBusy=useRef(false),copyTimer=useRef(null);
+  const activeRef=useRef(active);activeRef.current=active;
+  useEffect(()=>{
+    if(!command?.id)return;
+    if(prompt.trim())setUndo({prompt,mode,result});else setUndo(null);
+    setPrompt(command.prompt.slice(0,200));setMode(command.mode||'script');setResult(null);setError('');
+    requestAnimationFrame(()=>{if(activeRef.current)input.current?.focus({preventScroll:true});});
+  },[command?.id]);
   useEffect(()=>{
     const controller=new AbortController();
     salesApi('/api/ai/session',{signal:controller.signal}).then(r=>{setUser(r.user);setCooldown(r.user.retry_after||0);}).catch(e=>{if(e.name!=='AbortError'&&e.status!==401)setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setChecking(false);});
     return()=>{controller.abort();clearTimeout(copyTimer.current);};
   },[]);
   useEffect(()=>{
-    const refresh=()=>{if(document.hidden||sending.current)return;salesApi('/api/ai/session').then(r=>{if(!sending.current){setUser(r.user);setCooldown(r.user.retry_after||0);}}).catch(e=>{if(e.status===401&&!sending.current)setUser(null);});};
+    const refresh=()=>{if(document.hidden||sending.current||!activeRef.current)return;salesApi('/api/ai/session').then(r=>{if(!sending.current){setUser(r.user);setCooldown(r.user.retry_after||0);}}).catch(e=>{if(e.status===401&&!sending.current)setUser(null);});};
     const timer=setInterval(refresh,60000);window.addEventListener('focus',refresh);
     return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);};
   },[]);
@@ -48,7 +56,7 @@ export default function SalesAI({cats=[],onDetail}){
     try{
       const response=await salesApi('/api/ai/ask',{method:'POST',body:JSON.stringify({device_id:deviceId(),mode,prompt:prompt.trim()})});
       setUser(response.user);setCooldown(response.user?.retry_after||0);setResult({...response.data,updatedAt:response.catalog_updated_at});
-      requestAnimationFrame(()=>resultRef.current?.scrollIntoView({behavior:'smooth',block:'nearest'}));
+      requestAnimationFrame(()=>{if(activeRef.current)resultRef.current?.scrollIntoView({behavior:'smooth',block:'nearest'});});
     }catch(e){
       setError(e.message);if(e.user)setUser(e.user);if(e.retry_after)setCooldown(e.retry_after);
       if(e.status===401){setUser(null);setActivationError('登录已失效，请重新输入激活码');pendingSend.current=false;setActivateOpen(true);}
@@ -65,13 +73,14 @@ export default function SalesAI({cats=[],onDetail}){
   }
   async function logout(){
     if(busy)return;
-    try{await salesApi('/api/ai/logout',{method:'POST',body:JSON.stringify({device_id:deviceId()})});setUser(null);setResult(null);}
-    catch(e){if(e.status===401){setUser(null);setResult(null);}else setError(e.message);}
+    try{await salesApi('/api/ai/logout',{method:'POST',body:JSON.stringify({device_id:deviceId()})});setUser(null);setResult(null);setPrompt('');setUndo(null);}
+    catch(e){if(e.status===401){setUser(null);setResult(null);setPrompt('');setUndo(null);}else setError(e.message);}
   }
   async function copy(){try{await navigator.clipboard.writeText(result.reply_text);setCopied(true);clearTimeout(copyTimer.current);copyTimer.current=setTimeout(()=>setCopied(false),2200);}catch{setError('复制失败，请长按选择下方话术复制');}}
   const matched=(result?.matched_ids||[]).map(id=>cats.find(cat=>normalizeId(cat.id)===normalizeId(id))).filter(Boolean);
   return <section className="sales-ai" aria-label="AI销售导购助手">
     <div className="sales-ai-heading"><span className="sales-ai-eyebrow"><Sparkles size={13}/> 销售专属 · AI 导购助手</span><h2>把客户需求变成 <span>销冠方案 <Sparkles aria-hidden="true"/></span></h2><p>从在售猫源挑选，让每次推荐都有据可依</p></div>
+    {undo&&<div className="workspace-ai-undo"><span>已带入猫咪编号和话术模板</span><button type="button" disabled={busy} onClick={()=>{setPrompt(undo.prompt);setMode(undo.mode);setResult(undo.result);setUndo(null);}}>恢复上一份草稿</button></div>}
     <div className="sales-ai-glow"><div className="sales-ai-composer">
       <label htmlFor="sales-ai-prompt" className="sr-only">客户需求或猫咪编号</label>
       <textarea id="sales-ai-prompt" ref={input} maxLength={200} value={prompt} onChange={e=>setPrompt(e.target.value.slice(0,200))} disabled={busy} placeholder="描述客户需求或点击下方胶囊，AI 帮你快速从在售库挑猫并生成微信推荐话术"/>

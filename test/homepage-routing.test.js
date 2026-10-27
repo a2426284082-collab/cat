@@ -25,10 +25,18 @@ test('catalogue keeps its React entry and noindex under the new build route', ()
   assert.match(read('vite.config.js'), /cats:\s*resolve\(process\.cwd\(\),\s*'cats\/index\.html'\)/);
 });
 
-test('sales support links return to the catalogue instead of recruitment', () => {
-  for (const path of ['src/App.jsx', 'src/AssistantApp.jsx', 'public/manuals/index.html', 'public/guide/index.html', 'public/guide-sales/index.html', 'training/index.html', 'training/training.js']) {
-    const source = read(path);
-    assert.match(source, /href=["']\/cats\/["']/, path);
-    assert.doesNotMatch(source, /href=["']\/["']/, `${path} must not send sales back to recruitment`);
+test('sales routes boot the same workspace and learning links stay inside it', () => {
+  for(const path of ['manuals','guide','guide-sales','training']){
+    const html=read(`${path}/index.html`);
+    assert.match(html,/src=["']\/src\/main\.jsx["']/);
+    assert.match(html,/noindex/);
+    assert.match(read('vite.config.js'),new RegExp(`${path}/index\\.html`));
   }
+  for(const path of ['src/main.jsx','src/assistant-main.jsx'])assert.match(read(path),/SalesWorkspace/);
+  for(const path of ['src/learning/basics.html','src/learning/methods.html','src/learning/training.html']){
+    assert.doesNotMatch(read(path),/href=["']\/["']/);
+    assert.doesNotMatch(read(path),/<script\b/);
+  }
+  assert.match(read('src/SalesWorkspace.jsx'),/BrowserRouter/);
+  assert.match(read('src/SalesWorkspace.jsx'),/CatalogProvider/);
 });

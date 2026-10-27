@@ -1,7 +1,2 @@
-import React, { useEffect, useState } from 'react';
-import SalesAI from './components/SalesAI.jsx';
-export default function AssistantApp(){
-  const[cats,setCats]=useState([]),[error,setError]=useState(''),[detail,setDetail]=useState(null);
-  useEffect(()=>{const c=new AbortController();fetch('/api/public-cats',{signal:c.signal}).then(r=>r.json()).then(r=>{if(!r.success)throw new Error();setCats(r.data||[]);}).catch(e=>{if(e.name!=='AbortError')setError('猫源暂时读取失败，可返回首页刷新');});return()=>c.abort();},[]);
-  return <main className="mx-auto max-w-6xl p-4 sm:p-8"><nav className="mb-7 flex justify-between text-sm text-stone-500"><a href="/cats/">← 返回在售猫源</a><span>合作销售专用</span></nav><SalesAI cats={cats} onDetail={setDetail}/>{error&&<p className="text-center text-sm text-amber-700">{error}</p>}{detail&&<div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-5" onClick={e=>e.target===e.currentTarget&&setDetail(null)}><div role="dialog" aria-modal="true" aria-label="猫咪资料" className="w-full max-w-md rounded-2xl bg-white p-6"><div className="flex justify-between"><b>{detail.id} · {detail.breed}</b><button onClick={()=>setDetail(null)} aria-label="关闭猫咪资料">关闭</button></div>{detail.image&&<img src={detail.image} alt={detail.breed} className="mt-4 max-h-64 w-full rounded-xl object-cover"/>}<p className="mt-4 whitespace-pre-wrap text-sm leading-7">{detail.description||'描述待补充'}</p><p className="mt-3 text-sm text-stone-500">{detail.gender} · {detail.price==null?'价格待确认':`¥${detail.price}`} · 成交前请核对库存</p></div></div>}</main>;
-}
+// Compatibility export: all sales URLs now share one workspace.
+export { default } from './SalesWorkspace.jsx';

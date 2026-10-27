@@ -28,7 +28,7 @@ test('desktop activation, generation, cooldown, copy and stock details',async({p
   const cookies=await context.cookies();const salesCookie=cookies.find(c=>c.name==='cat_sales_session');
   expect(salesCookie.httpOnly).toBe(true);expect(salesCookie.secure).toBe(true);
   await page.screenshot({path:'test-results/desktop.png',fullPage:true});
-  await page.locator('.sales-ai-cat').click();await expect(page.getByText('猫咪销售资料',{exact:true})).toBeVisible();
+  await page.locator('.sales-ai-cat').click();await expect(page.getByRole('dialog',{name:'猫咪销售资料'})).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -72,4 +72,27 @@ test('admin reuses existing login and manages D1 accounts, audit and emergency s
   await expect(page.getByText('AI 服务已暂停',{exact:true})).toBeVisible();
   await page.screenshot({path:'test-results/admin.png',fullPage:true});
   expect(errors).toEqual([]);
+});
+
+
+test('sales navigation retains the document, filter, draft and browser back history',async({page})=>{
+  await page.goto('/cats/');
+  await expect(page.getByPlaceholder('编号、品种、花色')).toBeVisible();
+  await page.getByPlaceholder('编号、品种、花色').fill('A01');
+  await page.locator('#sales-ai-prompt').fill('预算3000元，客户喜欢圆脸');
+  await page.evaluate(()=>{window.__workspaceDocumentMarker='same-document';});
+  const nav=page.getByRole('navigation',{name:'销售工作台主导航'});
+  await nav.getByRole('link',{name:/销售支持/}).click();
+  await expect(page).toHaveURL(/\/manuals\/$/);
+  await expect(page.getByRole('heading',{name:'把每一次接待，做得更从容。'})).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/cats\/$/);
+  await expect(page.getByPlaceholder('编号、品种、花色')).toHaveValue('A01');
+  await expect(page.locator('#sales-ai-prompt')).toHaveValue('预算3000元，客户喜欢圆脸');
+  expect(await page.evaluate(()=>window.__workspaceDocumentMarker)).toBe('same-document');
+  await page.getByRole('button',{name:'写话术',exact:true}).click();
+  await expect(page).toHaveURL(/\/assistant\/$/);
+  await expect(page.locator('#sales-ai-prompt')).toHaveValue(/#A01/);
+  await page.getByRole('button',{name:'恢复上一份草稿'}).click();
+  await expect(page.locator('#sales-ai-prompt')).toHaveValue('预算3000元，客户喜欢圆脸');
 });

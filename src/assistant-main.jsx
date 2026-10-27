@@ -1,5 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import AssistantApp from './AssistantApp.jsx';
+import SalesWorkspace from './SalesWorkspace.jsx';
 import './index.css';
-ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><AssistantApp/></React.StrictMode>);
+ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><SalesWorkspace/></React.StrictMode>);

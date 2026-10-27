@@ -1,21 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JSDOM } from 'jsdom';
 import React from 'react';
 import SalesAI from '../src/components/SalesAI.jsx';
 import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';
+import {WorkspaceContent} from '../src/SalesWorkspace.jsx';
+import {MemoryRouter} from 'react-router-dom';
 import worker from '../cloudflare-worker.js';
 import { createSessionCookie } from '../cloud-functions/_lib/admin-auth.js';
 import { makeDB } from './sales-db.mjs';
 import { newKey } from '../cloud-functions/_lib/sales-store.js';
-const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://component.example'});
-globalThis.window=dom.window;globalThis.document=dom.window.document;
-Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true});
-globalThis.localStorage=dom.window.localStorage;
-globalThis.requestAnimationFrame=fn=>setTimeout(fn,0);
-globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-dom.window.HTMLElement.prototype.scrollIntoView=function(){};
-const {render,screen,waitFor,cleanup,configure}=await import('@testing-library/react');
+const {render,screen,waitFor,cleanup,configure,within}=await import('@testing-library/react');
 const {default:userEvent}=await import('@testing-library/user-event');
 configure({asyncUtilTimeout:15000});
 function mockSalesAPI({initialUser=null,askFails=false}={}){
@@ -95,4 +89,54 @@ test('admin component works with real authorization, D1 create/log/reset/ban and
     await waitFor(()=>assert.equal(screen.getByRole('button',{name:'立即暂停 AI'}).disabled,false));await user.click(screen.getByRole('button',{name:'立即暂停 AI'}));
     await screen.findByText('AI 服务已暂停');assert.equal(db.sql.prepare('SELECT enabled FROM ai_settings').get().enabled,0);
   }finally{cleanup();globalThis.fetch=original;db.close();}
+});
+
+function workspaceFixture(){
+  const original=globalThis.fetch;let stockCalls=0,paidCalls=0;
+  globalThis.fetch=async(path)=>{
+    if(path==='/api/public-cats'){stockCalls++;return Response.json({success:true,data:[{id:'A01',breed:'布偶猫',color:'蓝双',gender:'母',age:'3',price:2600,description:'圆脸亲人'},{id:'B02',breed:'英短',color:'金渐层',gender:'公',age:'4',price:2200,description:'安静圆脸'}]});}
+    if(path==='/api/ai/session')return Response.json({success:false},{status:401});
+    if(path==='/api/ai/ask'){paidCalls++;throw new Error('Navigation must never call the model');}
+    throw new Error('Unexpected workspace request '+path);
+  };
+  return{stockCalls:()=>stockCalls,paidCalls:()=>paidCalls,restore(){globalThis.fetch=original;}};
+}
+function menu(label){return within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getByRole('link',{name:new RegExp(label)});}
+test('workspace retains catalogue filters and AI draft across client navigation with one shared stock request',async()=>{
+  localStorage.clear();window.sessionStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});
+  try{
+    render(<MemoryRouter initialEntries={['/cats/']}><WorkspaceContent/></MemoryRouter>);
+    const search=await screen.findByPlaceholderText('编号、品种、花色');await screen.findByText('A01');
+    await user.type(search,'A01');await waitFor(()=>assert.match(screen.getByText(/找到 1 只猫咪/).textContent,/1/));
+    await user.type(screen.getByLabelText('客户需求或猫咪编号'),'预算3000元，客户喜欢圆脸');
+    await user.click(menu('销售支持'));await screen.findByRole('heading',{name:'把每一次接待，做得更从容。'});
+    await user.click(menu('猫源库'));assert.equal(screen.getByPlaceholderText('编号、品种、花色').value,'A01');assert.equal(screen.getByLabelText('客户需求或猫咪编号').value,'预算3000元，客户喜欢圆脸');
+    await user.click(screen.getByRole('button',{name:'写话术',exact:true}));
+    await waitFor(()=>assert.match(screen.getByLabelText('客户需求或猫咪编号').value,/#A01/));
+    assert.equal(screen.getByRole('button',{name:'💬 写话术'}).getAttribute('aria-pressed'),'true');
+    await user.click(screen.getByRole('button',{name:'恢复上一份草稿'}));assert.equal(screen.getByLabelText('客户需求或猫咪编号').value,'预算3000元，客户喜欢圆脸');
+    assert.equal(mock.stockCalls(),1);assert.equal(mock.paidCalls(),0);
+  }finally{cleanup();mock.restore();}
+});
+test('workspace builds a two-cat comparison without spending AI quota during navigation',async()=>{
+  localStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});try{
+    render(<MemoryRouter initialEntries={['/cats/']}><WorkspaceContent/></MemoryRouter>);
+    await screen.findByText('B02');const buttons=screen.getAllByRole('button',{name:'加入对比'});await user.click(buttons[0]);
+    assert.equal(screen.getByRole('button',{name:'对比并写话术'}).disabled,true);
+    await user.click(buttons[1]);await user.click(screen.getByRole('button',{name:'对比并写话术'}));
+    await waitFor(()=>assert.match(screen.getByLabelText('客户需求或猫咪编号').value,/#A01.*#B02/));assert.equal(mock.paidCalls(),0);assert.equal(mock.stockCalls(),1);
+  }finally{cleanup();mock.restore();}
+});
+test('embedded handbooks and practice preserve interactions and progress without replacing the common navigation',async()=>{
+  localStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});try{
+    render(<MemoryRouter initialEntries={['/manuals/']}><WorkspaceContent/></MemoryRouter>);
+    await user.click(await screen.findByRole('link',{name:/基础与成交手册/}));
+    await screen.findByRole('heading',{name:'线上卖猫教程'});await screen.findByRole('button',{name:'🌙 深色模式'});
+    await user.click(screen.getByRole('button',{name:'🌙 深色模式'}));assert.equal(screen.getByRole('button',{name:'☀️ 浅色模式'}).getAttribute('aria-pressed'),'true');
+    await user.click(menu('新手带练'));await user.click(await screen.findByRole('button',{name:'开始我的第一次带练'}));
+    await screen.findByRole('heading',{name:/第 1 步：看一条示范/});
+    await user.click(menu('销售支持'));await screen.findByRole('heading',{name:'把每一次接待，做得更从容。'});
+    await user.click(menu('新手带练'));await screen.findByRole('heading',{name:/第 1 步：看一条示范/});
+    assert.equal(screen.getAllByRole('navigation',{name:'销售工作台主导航'}).length,1);assert.equal(mock.paidCalls(),0);
+  }finally{cleanup();mock.restore();}
 });
