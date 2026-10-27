@@ -42,7 +42,7 @@ test('admin and sales-assistant access stay authenticated through the Cloudflare
   for (const path of ['/api/admin/cats/record_one', '/api/admin/sales/record_one']) {
     assert.equal((await run(path, {}, { method: 'PATCH', body: '{}' })).status, 401, path);
   }
-  assert.equal((await run('/api/assistant/reply', {}, { method: 'POST', body: '{}' })).status, 401);
+  assert.equal((await run('/api/assistant/reply', {}, { method: 'POST', body: '{}' })).status, 410);
 });
 
 test('existing admin password hashes and cookies work without resetting credentials', async () => {
@@ -98,6 +98,6 @@ test('all existing API files are imported; frontend and secrets are not bundled 
   const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
   assert.equal(config.main, 'cloudflare-worker.js');
   assert.equal(config.assets.directory, './dist');
-  assert.deepEqual(config.assets.run_worker_first, ['/api', '/api/*', '/baidu_verify_codeva-5BMeKqCfaF.html']);
+  assert.deepEqual(config.assets.run_worker_first, ['/api', '/api/*', '/baidu_verify_codeva-5BMeKqCfaF.html', '/admin-sales', '/admin-sales/*']);
   assert.equal(config.vars, undefined);
 });

@@ -82,34 +82,6 @@ export function parseDemandLocally(text, { breeds = [], colors = [] } = {}) {
   return { filters: result, confidence: Math.min(1, count / 5), recognized: count, needsAI: complex || count < 3 };
 }
 
-const safeNumber = value => Number.isFinite(Number(value)) && Number(value) >= 0 ? String(Number(value)) : '';
-const closest = (value, values) => {
-  const input = clean(value).toLowerCase();
-  if (!input) return '';
-  return (values || []).find(item => clean(item).toLowerCase() === input)
-    || (values || []).find(item => clean(item).toLowerCase().includes(input) || input.includes(clean(item).toLowerCase())) || '';
-};
-
 export async function parseDemand(env, { text, breeds, colors }) {
-  const local = parseDemandLocally(text, { breeds, colors });
-  if (!local.needsAI || !env?.DEEPSEEK_API_KEY || !env?.DEEPSEEK_MODEL) return { ...local, usedAI: false };
-  const system = '你负责从中文购猫需求中提取筛选条件。只输出JSON对象，字段为breed,color,gender,minAge,maxAge,minPrice,maxPrice,city。未知字段为空字符串。gender只能是公、母或空。年龄单位为月，价格单位为人民币元。客户说不要或排除的品种、花色不能填入；出现多个都可以的备选项时，对应字段留空，避免错误缩小结果；性别无所谓或公母都行时gender留空。年龄“以内”只填maxAge。不要解释，不要推荐猫，不要添加输入中没有的信息。';
-  const payload = { customerMessage: clean(text).slice(0, 300), availableBreeds: (breeds || []).slice(0, 80), availableColors: (colors || []).slice(0, 80) };
-  const response = await fetch(env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: env.DEEPSEEK_MODEL, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(payload) }], response_format: { type: 'json_object' }, temperature: 0, max_tokens: 250 }), signal: AbortSignal.timeout(15000) });
-  if (!response.ok) return { ...local, usedAI: false };
-  let parsed = {};
-  try { const data = await response.json(); parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}'); } catch { return { ...local, usedAI: false }; }
-  const ai = {
-    ...local.filters,
-    breed: closest(parsed.breed, breeds) || local.filters.breed,
-    color: closest(parsed.color, colors) || local.filters.color,
-    gender: ['公', '母'].includes(parsed.gender) ? parsed.gender : local.filters.gender,
-    minAge: safeNumber(parsed.minAge) || local.filters.minAge,
-    maxAge: safeNumber(parsed.maxAge) || local.filters.maxAge,
-    min: safeNumber(parsed.minPrice) || local.filters.min,
-    max: safeNumber(parsed.maxPrice) || local.filters.max,
-    city: clean(parsed.city).slice(0, 20) || local.filters.city,
-  };
-  const recognized = ['breed', 'color', 'gender', 'minAge', 'maxAge', 'min', 'max'].filter(key => ai[key] !== '').length;
-  return { filters: ai, confidence: Math.min(1, recognized / 5), recognized, usedAI: true };
+  return { ...parseDemandLocally(text, { breeds, colors }), usedAI: false };
 }

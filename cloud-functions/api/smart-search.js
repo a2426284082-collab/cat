@@ -1,4 +1,4 @@
-import { parseDemand } from '../_lib/smart-search.js';
+import { parseDemandLocally } from '../_lib/smart-search.js';
 
 const buckets = new Map();
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -21,6 +21,6 @@ export async function onRequestPost({ env, request }) {
   const breeds = Array.isArray(body?.breeds) ? body.breeds.map(String).slice(0, 80) : [];
   const colors = Array.isArray(body?.colors) ? body.colors.map(String).slice(0, 80) : [];
   if (text.length < 2 || text.length > 300) return json({ success: false, message: '请输入2至300字的客户需求' }, 400);
-  try { return json({ success: true, data: await parseDemand(env, { text, breeds, colors }) }); }
+  try { return json({ success: true, data: { ...parseDemandLocally(text, { breeds, colors }), usedAI: false } }); }
   catch { return json({ success: false, message: '暂时无法智能整理，请直接使用下方筛选条件' }, 502); }
 }

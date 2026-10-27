@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CatVideoPlayer from './components/CatVideoPlayer.jsx';
+import SalesAI from './components/SalesAI.jsx';
 import { BookOpen, Cat, Check, ChevronLeft, ChevronRight, Clipboard, Copy, Download, FolderHeart, ImageOff, KeyRound, LayoutGrid, LogIn, LogOut, Maximize2, Menu, PlayCircle, RefreshCw, Search, Settings2, Share2, Sparkles, User as UserRound, X } from 'lucide-react';
 
 const REFRESH_MS = 5 * 60 * 1000;
@@ -95,6 +96,7 @@ function Workspace({ salesMode, signedIn, requireAuth, onLogin, onLogout }) {
     {salesMode&&!signedIn&&<div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-800">当前为游客模式：猫咪资料和原有价格正常展示；保存货源、个人报价及素材工具登录后使用。</div>}
     <div className={`${salesMode?'max-w-[1500px] lg:grid lg:grid-cols-[220px_1fr]':'max-w-7xl'} mx-auto min-h-[calc(100vh-64px)]`}>{salesMode&&<aside className={`${mobileNav?'block':'hidden'} lg:block border-r border-stone-200 bg-white p-4`}><nav className="space-y-1">{[['catalog',LayoutGrid,'猫源库'],['saved',FolderHeart,'我的货源'],['materials',Sparkles,'素材工具']].map(([id,Icon,label])=><button key={id} onClick={()=>openTab(id)} className={`w-full flex items-center justify-between rounded-xl px-3 py-3 text-sm ${tab===id?'bg-[#edf4f0] text-[#173e31] font-semibold':'hover:bg-stone-50'}`}><span className="flex items-center gap-3"><Icon size={18}/>{label}</span>{id==='saved'&&<em className="not-italic text-xs">{signedIn?saved.length:<KeyRound size={13}/>}</em>}</button>)}</nav><div className={`mt-8 rounded-2xl p-4 ${signedIn?'bg-[#183f32] text-white':'border border-stone-200 bg-stone-50'}`}><p className={`text-xs ${signedIn?'text-white/60':'text-stone-400'}`}>{signedIn?'当前销售':'游客使用中'}</p><b className="mt-1 block">{signedIn?profile.name:'无需登录即可找猫'}</b><p className={`mt-3 text-xs ${signedIn?'text-white/70':'text-stone-500'}`}>{signedIn?`默认加价：${profile.mode==='rate'?`${profile.markup}%`:`${profile.markup}元`}`:'勾选内容会保留到登录完成'}</p></div><a href="/manuals/" className="mt-4 flex items-center gap-2 px-3 py-2 text-xs text-stone-500"><BookOpen size={15}/>销售手册</a></aside>}
       <main className="p-4 sm:p-7 min-w-0">
+        {tab==='catalog'&&<SalesAI cats={cats} onDetail={setDetail}/>}
         {salesMode&&tab==='materials'?<Materials selected={selectedCats} profile={profile} prices={prices} onExport={exportCsv} onShare={()=>setShare(true)}/>:<>
           <div className="flex flex-wrap justify-between items-end gap-4"><div><p className="text-sm text-emerald-800 font-semibold">{salesMode&&tab==='saved'?'PERSONAL STOCK':'实时猫源库'}</p><h1 className="mt-1 text-2xl font-semibold">{salesMode&&tab==='saved'?'我的货源':'在售猫咪'}</h1><p className="mt-1 text-sm text-stone-500">{salesMode&&tab==='saved'?'收藏常用货源并设置自己的售价':'当前合作猫源库存 · 成交前请凭猫咪编号再次确认'}</p></div><button onClick={()=>refresh(undefined,{manual:true})} className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-500 shadow-sm hover:text-stone-800"><RefreshCw size={16} className={loading?'animate-spin':''}/>刷新</button></div>
           {tab!=='saved'&&<div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-xs text-stone-500 shadow-sm"><span className="flex items-center gap-2 font-medium text-stone-700"><i className={`h-2 w-2 rounded-full ${error?'bg-amber-500':loading?'bg-stone-300':'bg-emerald-600'}`}/>{error?(cats.length?'使用最近同步数据':'数据同步异常'):(loading?'正在同步':'数据同步正常')}</span><span>最后更新：{syncTimeText(lastUpdated)}</span><span>当前在售：<b className="font-semibold text-stone-700">{cats.length}</b> 只</span><span>系统每 5 分钟自动同步</span><span className="ml-auto hidden lg:inline text-stone-400">猫源资料由运营持续维护</span></div>}
@@ -113,12 +115,9 @@ function Workspace({ salesMode, signedIn, requireAuth, onLogin, onLogout }) {
 function Filters({value,set,breeds,colors}){
   const field=(k,v)=>set(x=>({...x,[k]:v}));
   const [smartOpen,setSmartOpen]=useState(false),[demand,setDemand]=useState(''),[smartLoading,setSmartLoading]=useState(false),[smartMessage,setSmartMessage]=useState(''),[city,setCity]=useState('');
-  const day=new Date().toISOString().slice(0,10),quotaKey=`smart-search-${day}`;
-  const used=()=>{try{return Number(localStorage.getItem(quotaKey)||0);}catch{return 0;}};
   const submitDemand=async e=>{
     e.preventDefault();const text=demand.trim();
     if(text.length<2)return setSmartMessage('先粘贴一句客户需求');
-    if(used()>=20)return setSmartMessage('今天的智能整理次数已用完，请直接使用下方筛选条件');
     setSmartLoading(true);setSmartMessage('');
     try{
       const response=await fetch('/api/smart-search',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text,breeds,colors})});
@@ -128,7 +127,6 @@ function Filters({value,set,breeds,colors}){
       set({query:'',breed:result.breed||'',color:result.color||'',gender:result.gender||'',min:result.min||'',max:result.max||'',minAge:result.minAge||'',maxAge:result.maxAge||''});
       setCity(result.city||'');setSmartOpen(false);
       setSmartMessage(body.data.usedAI?'已智能填写筛选条件，请检查后再挑选':'已快速填写筛选条件，请检查后再挑选');
-      if(body.data.usedAI)try{localStorage.setItem(quotaKey,String(used()+1));}catch{}
     }catch(error){setSmartMessage(error.message||'暂时无法智能整理，请手动筛选');}
     finally{setSmartLoading(false);}
   };
