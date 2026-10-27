@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUp, Check, Copy, ImageOff, LogOut, ShieldCheck, Sparkles, X } from 'lucide-react';
 import './sales-ai.css';
+import {isHandbookQuestion} from '../../cloud-functions/_lib/sales-intent.js';
 
 const quickCommands=[
   ['🎯','预算+品种挑猫','match','客户预算【 】元，想看【 】品种，要求【 】'],
   ['✨','夸单只猫骨相','script','猫咪编号【# 】，客户喜欢甜美圆脸，请介绍这只猫已知的骨相和品相优势'],
   ['⚖️','两只猫对比','script','客户在纠结编号【# 】和【# 】两只猫，请对比已知优缺点帮他做决定'],
+  ['📖','查合作与售后','match','合作流程和售后问题应该怎么处理？'],
   ['💰','嫌贵保价话术','script','客户看中编号【# 】，但觉得价格超预算了，请生成高情商保价和推荐话术'],
 ];
 const normalizeId=value=>String(value||'').replace(/^#+\s*/,'').trim().toUpperCase();
@@ -50,7 +52,7 @@ export default function SalesAI({cats=[],onDetail,command,active=true}){
   useEffect(()=>{if(!cooldown)return;const timer=setTimeout(()=>setCooldown(c=>Math.max(0,c-1)),1000);return()=>clearTimeout(timer);},[cooldown]);
   useEffect(()=>{if(!activateOpen)return;const old=document.activeElement;keyInput.current?.focus();const close=e=>{if(e.key==='Escape'&&!activationBusy.current){setActivateOpen(false);pendingSend.current=false;}};window.addEventListener('keydown',close);return()=>{window.removeEventListener('keydown',close);old?.focus();};},[activateOpen]);
   async function send(activated=false){
-    if(sending.current||cooldown||!prompt.trim()||checking)return;
+    if(sending.current||(!isHandbookQuestion(prompt)&&cooldown)||!prompt.trim()||checking)return;
     if(!user&&!activated){pendingSend.current=true;setActivationError('');setActivateOpen(true);return;}
     sending.current=true;setBusy(true);setError('');setCopied(false);setResult(null);
     try{
@@ -85,13 +87,13 @@ export default function SalesAI({cats=[],onDetail,command,active=true}){
       <label htmlFor="sales-ai-prompt" className="sr-only">客户需求或猫咪编号</label>
       <textarea id="sales-ai-prompt" ref={input} maxLength={200} value={prompt} onChange={e=>setPrompt(e.target.value.slice(0,200))} disabled={busy} placeholder="描述客户需求或点击下方胶囊，AI 帮你快速从在售库挑猫并生成微信推荐话术"/>
       <div className="sales-ai-toolbar"><div className="sales-ai-modes" role="group" aria-label="导购模式">{[['match','⚡ 秒配猫'],['script','💬 写话术']].map(([id,label])=><button type="button" key={id} aria-pressed={mode===id} className={mode===id?'active':''} onClick={()=>setMode(id)} disabled={busy}>{label}</button>)}</div>
-        <div className="sales-ai-controls"><span className="sales-ai-count">{prompt.length}/200</span><button type="button" onClick={()=>{pendingSend.current=false;setActivationError('');setActivateOpen(true);}} className="sales-ai-account" disabled={busy}>{checking?'检查授权中…':user?`工号: ${user.sales_name} / 剩余: ${user.remaining} 次`:'工号: 未激活 / 剩余: -- 次'}</button>{user&&<button type="button" title="退出销售账号" aria-label="退出销售账号" onClick={logout} disabled={busy} className="sales-ai-logout"><LogOut size={14}/></button>}<button type="button" className="sales-ai-send" aria-label={cooldown?`请等待${cooldown}秒`:'发送客户需求'} disabled={busy||checking||cooldown>0||!prompt.trim()||(user?.remaining===0)} onClick={()=>send()}>{busy?<span className="sales-ai-spinner"/>:cooldown?<span>{cooldown}s</span>:<ArrowUp size={21}/>}</button></div>
+        <div className="sales-ai-controls"><span className="sales-ai-count">{prompt.length}/200</span><button type="button" onClick={()=>{pendingSend.current=false;setActivationError('');setActivateOpen(true);}} className="sales-ai-account" disabled={busy}>{checking?'检查授权中…':user?`工号: ${user.sales_name} / 剩余: ${user.remaining} 次`:'工号: 未激活 / 剩余: -- 次'}</button>{user&&<button type="button" title="退出销售账号" aria-label="退出销售账号" onClick={logout} disabled={busy} className="sales-ai-logout"><LogOut size={14}/></button>}<button type="button" className="sales-ai-send" aria-label={cooldown&&!isHandbookQuestion(prompt)?`请等待${cooldown}秒`:'发送客户需求'} disabled={busy||checking||(!isHandbookQuestion(prompt)&&cooldown>0)||!prompt.trim()||(!isHandbookQuestion(prompt)&&user?.remaining===0)} onClick={()=>send()}>{busy?<span className="sales-ai-spinner"/>:cooldown&&!isHandbookQuestion(prompt)?<span>{cooldown}s</span>:<ArrowUp size={21}/>}</button></div>
       </div>
     </div></div>
     <div className="sales-ai-quick">{quickCommands.map(([emoji,label,nextMode,text])=><button type="button" key={label} disabled={busy} onClick={()=>{setMode(nextMode);setPrompt(text);input.current?.focus();}}><span>{emoji}</span>{label}</button>)}</div>
-    <p className="sales-ai-tip"><ShieldCheck size={13}/> 激活后使用 · 每次独立生成 · 无匹配不扣次数 · 销售输入会记录供运营审核</p>
+    <p className="sales-ai-tip"><ShieldCheck size={13}/> 激活后使用 · 每次独立生成 · 手册查询不扣次数 · 无匹配不扣次数 · 销售输入会记录供运营审核</p>
     {error&&<p role="alert" className="sales-ai-error">{error}</p>}
-    {result&&<div ref={resultRef} className="sales-ai-result" aria-live="polite"><div className="sales-ai-result-title"><b><Sparkles size={16}/>{result.used_ai?'微信推荐话术':'选猫提示'}</b>{result.used_ai&&result.reply_text!=='指令无效'&&<button type="button" onClick={copy}>{copied?<Check size={15}/>:<Copy size={15}/>} {copied?'已复制':'一键复制微信话术'}</button>}</div><p className="sales-ai-reply">{result.reply_text}</p>
+    {result&&<div ref={resultRef} className="sales-ai-result" aria-live="polite"><div className="sales-ai-result-title"><b><Sparkles size={16}/>{result.kind==='handbook'?'手册答疑':result.used_ai?'微信推荐话术':'选猫提示'}</b>{(result.used_ai||result.kind==='handbook')&&result.reply_text!=='指令无效'&&<button type="button" onClick={copy}>{copied?<Check size={15}/>:<Copy size={15}/>} {copied?'已复制':result.kind==='handbook'?'复制答复':'一键复制微信话术'}</button>}</div><p className="sales-ai-reply">{result.reply_text}</p>{result.kind==='handbook'&&<div className="sales-ai-sources"><b>手册出处</b>{result.sources?.map(source=><a key={source.href+source.title} href={source.href}>{source.manual} · {source.title} ›</a>)}<small>手册原文查询，不消耗 AI 次数；具体订单约定请向负责人确认。</small></div>}
       {matched.length>0&&<div className="sales-ai-cats">{matched.map(cat=><button type="button" key={cat.id} onClick={()=>onDetail?.(cat)} className="sales-ai-cat">{cat.images?.[0]||cat.image?<img src={cat.images?.[0]||cat.image} alt={`${cat.breed} ${cat.id}`} loading="lazy"/>:<span className="sales-ai-noimage"><ImageOff size={22}/></span>}<span><b>#{normalizeId(cat.id)} · {cat.breed||'在售猫咪'}</b><small>{cat.gender||'性别待确认'} · {cat.color||'花色待确认'}</small><strong>{cat.price==null?'价格待确认':`¥${Number(cat.price).toLocaleString('zh-CN')}`}</strong></span><small className="sales-ai-detail">查看资料 ›</small></button>)}</div>}
       {result.matched_ids?.length>matched.length&&<p className="sales-ai-tip">部分猫咪未在当前列表中，请刷新猫源后核对编号。</p>}
       {result.used_ai&&<p className="sales-ai-tip">依据最近同步库生成，成交前请确认价格、库存及猫咪情况。</p>}

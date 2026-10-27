@@ -1,12 +1,13 @@
-// Local, reversible frontend update. Does not execute deploy or remote APIs.
+// Local, reversible source update. Does not execute deploy or remote APIs.
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const base=__dirname,targetArg=process.argv[2];
 if(!targetArg){console.error('Usage: node apply-update.cjs "PATH_TO_YOUR_CAT_MAIN"');process.exit(1);}
 const target=path.resolve(targetArg),manifest=JSON.parse(fs.readFileSync(path.join(base,'manifest.json'),'utf8'));
+const approvedBackend=new Set(["cloud-functions/_lib/sales-api.js", "cloud-functions/_lib/sales-engine.js", "cloud-functions/_lib/sales-handbook-data.js", "cloud-functions/_lib/sales-handbook.js", "cloud-functions/_lib/sales-intent.js"]);
 const forbidden=['wrangler.jsonc','cloudflare-worker.js','.env','.dev.vars'];
 function destination(rel){
- if(typeof rel!=='string'||path.isAbsolute(rel)||rel.split(/[\\/]/).includes('..')||forbidden.includes(rel)||/^(cloud-functions|migrations)(\/|$)/.test(rel))throw new Error('Unsafe update path: '+rel);
+ if(typeof rel!=='string'||path.isAbsolute(rel)||rel.split(/[\\/]/).includes('..')||forbidden.includes(rel)||/^migrations(\/|$)/.test(rel)||(/^cloud-functions(\/|$)/.test(rel)&&!approvedBackend.has(rel)))throw new Error('Unsafe update path: '+rel);
  const result=path.resolve(target,rel);if(!result.startsWith(target+path.sep))throw new Error('Path escaped target');return result;
 }
 let pkg;
@@ -34,8 +35,8 @@ try{
  }
  for(const rel of manifest.deleted){const output=remember(rel);if(fs.existsSync(output))fs.unlinkSync(output);}
  fs.writeFileSync(path.join(backup,'restore-manifest.json'),JSON.stringify(records,null,2));
- console.log('Updated local frontend source successfully.');console.log('Backup: '+backup);
- console.log('Database, Worker backend, credentials and wrangler.jsonc were preserved.');
+ console.log('Updated local source successfully.');console.log('Backup: '+backup);
+ console.log('Only approved handbook backend modules changed. Database, other backend modules, credentials and wrangler.jsonc were preserved.');
  console.log('Next, in your project folder: npm ci, npm test, npm run test:components, npm run build.');
  console.log('No deployment or remote database operation was performed.');
 }catch(error){

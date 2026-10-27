@@ -1,0 +1,7 @@
+// Shared, lightweight routing only; handbook content stays on the server.
+const strong=/手册|教程|售后|健康保障|健康保证|包退|包换|赔付|退款|退货|赔偿|定金|订金|包活|保障期|保证健康|绝对健康|合作|兼职|加盟|押金|培训费|入职|底薪|差价|佣金|分账|结算|下单流程|收款流程|有效客户|未成年|介绍奖励/;
+export function isHandbookQuestion(input){
+ if(typeof input!=='string')return false;
+ const text=input.normalize('NFKC');
+ return strong.test(text)||/(?:海南|内蒙古|新疆|西藏).{0,8}(?:能|可以|支持|发货|运输|客户)|(?:保证|保障).{0,8}(?:健康|猫瘟|猫癣|生病)/.test(text)||/(?:运费|运输|发货|付款|收款|下单).{0,12}(?:多少|怎么|如何|谁|规则|流程|确认|安全|安排)|(?:怎么|如何|谁).{0,12}(?:运输|付款|收款|下单|赚钱|获客|找客户)|(?:小红书|抖音|快手|闲鱼|朋友圈|群聊|转介绍).{0,10}(?:怎么|如何|发布|找客|获客|规则)/.test(text);
+}

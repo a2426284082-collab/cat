@@ -13,6 +13,12 @@ try{
  const doc=dom.window.document;
  await until(()=>doc.body.textContent.includes('DEMO01')&&doc.body.textContent.includes('演示销售'));
  assert.equal(doc.querySelectorAll('.workspace-sidebar nav a').length,4);
+ [...doc.querySelectorAll('.sales-ai-quick button')].find(x=>x.textContent.includes('查合作与售后')).click();
+ await until(()=>doc.querySelector('#sales-ai-prompt').value.includes('合作')&&!doc.querySelector('.sales-ai-send').disabled);
+ doc.querySelector('.sales-ai-send').click();
+ await until(()=>doc.querySelector('.sales-ai-sources a'));
+ assert.match(doc.querySelector('.sales-ai-reply').textContent,/售后|兼职/);
+ assert.match(doc.querySelector('.sales-ai-account').textContent,/剩余: 20/);
  doc.querySelector('.workspace-sidebar a[href="/manuals/"]').click();
  await until(()=>[...doc.querySelectorAll('.workspace-pane:not([hidden]) h1')].some(el=>el.textContent.includes('每一次接待')));
  doc.querySelector('.workspace-tool[href="/guide/"]').click();

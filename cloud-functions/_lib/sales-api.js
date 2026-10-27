@@ -3,6 +3,7 @@ import { getCatalog } from './feishu.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
   nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay } from './sales-store.js';
 import { generateReply, selectCandidates, validatePrompt } from './sales-engine.js';
+import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
 
 const isWrite = request => !['GET','HEAD'].includes(request.method);
 function originCheck(request) {
@@ -47,12 +48,18 @@ async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
   // Reject paid requests before fetching stock, then recheck atomically in reserve.
-  await preflight(db,key.id);
+  const handbook=isHandbookQuestion(body.prompt);
+  if(!handbook)await preflight(db,key.id);
   let prompt;
   try {prompt=validatePrompt(body.prompt);}
   catch(error){
     await auditLocal(db,key,body.mode,String(body.prompt || '').slice(0,200),error.audit || 'blocked',error.message);
     throw error;
+  }
+  if(handbook){
+    const data=answerHandbook(prompt);
+    await auditLocal(db,key,body.mode,prompt,'handbook',data.reply_text);
+    return json({success:true,data,user:accountView(key)});
   }
   let catalog;try{catalog=await getCatalog(env);}catch{throw fail('库存暂时读取失败，本次未扣次数，请稍后重试',503);}
   const selected=selectCandidates(catalog.cats,prompt,body.mode);

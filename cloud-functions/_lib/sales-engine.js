@@ -1,5 +1,6 @@
 import { parseDemandLocally } from './smart-search.js';
 import { fail } from './sales-store.js';
+import {isHandbookQuestion} from './sales-intent.js';
 
 export const normalizeId = value => String(value || '').trim().replace(/^#+\s*/, '').toUpperCase();
 const clean = (value, max=100) => String(value ?? '').normalize('NFKC').replace(/[\r\n|\[\]]/g,' ').trim().slice(0,max);
@@ -10,7 +11,7 @@ export function validatePrompt(input) {
   // Reject instead of silently truncating: prevents changing a budget or ID.
   const text = input.normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').trim();
   if (text.length < 2 || text.length > 200) throw fail('请输入2至200字的客户需求');
-  if (forbidden.test(text) || forbidden.test(text.replace(/\s+/g,'')) || !business.test(text)) throw fail('⚠️ 仅支持选猫、猫咪对比和销售话术，本次操作已记录',400,{audit:'blocked'});
+  if (forbidden.test(text) || forbidden.test(text.replace(/\s+/g,'')) || (!business.test(text)&&!isHandbookQuestion(text))) throw fail('⚠️ 仅支持选猫、猫咪对比和销售话术，本次操作已记录',400,{audit:'blocked'});
   if (/【\s*(?:#\s*)?】/.test(text)) throw fail('请先填写模板中的编号、预算或品种',400,{audit:'needs_details'});
   return text;
 }

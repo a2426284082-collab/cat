@@ -4,6 +4,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {MemoryRouter,useNavigate} from 'react-router-dom';
 import {WorkspaceContent} from '../SalesWorkspace.jsx';
+import {answerHandbook} from '../../cloud-functions/_lib/sales-handbook.js';
 import {parseDemandLocally} from '../../cloud-functions/_lib/smart-search.js';
 const image=globalThis.WORKSPACE_PREVIEW_IMAGE;
 const cats=[
@@ -33,6 +34,7 @@ window.fetch=async(input,options={})=>{
   if(!signedIn)return response({success:false,message:'请先激活'},401);
   const body=JSON.parse(options.body||'{}'),prompt=String(body.prompt||'');
   if(/【\s*(#\s*)?】/.test(prompt))return response({success:false,message:'请先填写模板中的预算、品种或编号'},400);
+  const handbook=answerHandbook(prompt);if(handbook)return response({success:true,user:user(),data:handbook});
   const ids=[...new Set([...prompt.matchAll(/#\s*([a-z0-9_-]+)/ig)].map(x=>x[1].toUpperCase()))];
   let selected=ids.length?cats.filter(c=>ids.includes(c.id)):cats;
   if(!ids.length){const f=parseDemandLocally(prompt,{breeds:[...new Set(cats.map(c=>c.breed))],colors:cats.map(c=>c.color)}).filters;selected=selected.filter(c=>(!f.breed||c.breed===f.breed)&&(!f.gender||c.gender===f.gender)&&(!f.max||c.price<=+f.max));}

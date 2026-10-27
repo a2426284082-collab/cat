@@ -140,3 +140,16 @@ test('embedded handbooks and practice preserve interactions and progress without
     assert.equal(screen.getAllByRole('navigation',{name:'销售工作台主导航'}).length,1);assert.equal(mock.paidCalls(),0);
   }finally{cleanup();mock.restore();}
 });
+
+test('handbook entry works during AI cooldown and at zero quota, with copy and source links',async()=>{
+ const original=globalThis.fetch,user=userEvent.setup({delay:null});let calls=0,copied='';
+ const account={sales_name:'手册测试',remaining:0,daily_limit:1,used_today:1,retry_after:15};
+ globalThis.fetch=async(path,options={})=>{
+  if(path==='/api/ai/session')return Response.json({success:true,user:account});
+  if(path==='/api/ai/ask'){calls++;const body=JSON.parse(options.body);assert.match(body.prompt,/合作.*售后/);return Response.json({success:true,user:account,data:{kind:'handbook',used_ai:false,matched_ids:[],reply_text:'按手册：请登记猫咪编号、收猫时间和问题资料后提交负责人。',sources:[{title:'客户反馈售后问题',manual:'基础与成交手册',href:'/guide/#tools'}]}});}
+  throw new Error('Unexpected handbook call '+path);
+ };
+ Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{copied=value;}},configurable:true});
+ try{render(<SalesAI/>);await screen.findByRole('button',{name:/工号: 手册测试/});await user.click(screen.getByRole('button',{name:/查合作与售后/}));const send=screen.getByRole('button',{name:'发送客户需求'});assert.equal(send.disabled,false);await user.click(send);await screen.findByText('手册答疑');assert.equal(calls,1);await user.click(screen.getByRole('button',{name:'复制答复'}));assert.match(copied,/猫咪编号/);assert.equal(screen.getByRole('link',{name:/客户反馈售后问题/}).getAttribute('href'),'/guide/#tools');assert.match(screen.getByRole('button',{name:/工号: 手册测试/}).textContent,/剩余: 0/);}
+ finally{cleanup();globalThis.fetch=original;}
+});

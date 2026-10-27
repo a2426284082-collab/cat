@@ -1,12 +1,13 @@
 {
   "name": "cat-sales-workspace",
   "private": true,
-  "version": "3.4.2",
+  "version": "3.4.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/local-api.js",
     "build": "vite build",
+    "prebuild": "node scripts/build-sales-handbook.mjs",
     "preview": "vite preview",
     "admin:secrets": "node scripts/generate-admin-secrets.mjs",
     "assistant:secrets": "node scripts/generate-assistant-secrets.mjs",
