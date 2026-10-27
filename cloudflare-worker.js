@@ -1,3 +1,5 @@
+import { housekeeping } from './cloud-functions/_lib/sales-store.js';
+import { handleSales } from './cloud-functions/_lib/sales-api.js';
 // Cloudflare entry point. Existing EdgeOne handlers remain the business source.
 import * as publicCats from './cloud-functions/api/public-cats.js';
 import * as publicImages from './cloud-functions/api/public-images/[token].js';
@@ -75,6 +77,9 @@ function platformRequest(request) {
 }
 
 export default {
+  async scheduled(event, env, ctx) {
+    if(env.SALES_DB)ctx.waitUntil(housekeeping(env.SALES_DB,5000).catch(()=>console.error('sales_cleanup_failed')));
+  },
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
     // Serve this exact verification URL before Assets normalizes away .html.
@@ -86,6 +91,9 @@ export default {
       return new Response(request.method === 'HEAD' ? null : '94b18aaa2a0235ab7528ca9a05093e7f', {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
       });
+    }
+    if (pathname.startsWith('/api/ai/') || pathname.startsWith('/api/sales-admin/')) {
+      return handleSales({request:platformRequest(request), env});
     }
     if (pathname !== '/api' && !pathname.startsWith('/api/')) {
       return env.ASSETS.fetch(request);

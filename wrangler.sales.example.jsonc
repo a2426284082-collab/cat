@@ -1,0 +1,9 @@
+{
+  // Copy the d1_databases entry to wrangler.jsonc after creating the database.
+  "d1_databases": [{
+    "binding": "SALES_DB",
+    "database_name": "cat-sales-auth",
+    "database_id": "REPLACE_WITH_YOUR_REAL_D1_DATABASE_ID",
+    "migrations_dir": "migrations"
+  }]
+}

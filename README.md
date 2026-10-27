@@ -1,3 +1,7 @@
+> **当前版本：3.3.0 · 销售 AI 导购与 D1 风控**
+>
+> 新功能与上线步骤请先阅读 [SALES_AI_DEPLOY.md](./SALES_AI_DEPLOY.md)。销售入口为 `/cats/` 与 `/assistant/`，管理入口为 `/admin-sales`。需要新增 Cloudflare D1 的 `SALES_DB` 绑定并应用迁移。新助手不再使用飞书销售账号、月额度或旧 `deepseek-chat` 模型。下文及其他旧说明保留作为历史参考，冲突时以新部署说明为准。
+
 # 猫咪合作平台（销售端）
 
 品牌招募首页 + 猫源销售工作台 + 独立猫源管理台。首页是独立静态 HTML；猫源工作台采用 React + EdgeOne Makers Node Functions，飞书多维表格仍是猫源唯一数据源。

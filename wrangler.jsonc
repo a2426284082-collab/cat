@@ -1,12 +1,33 @@
 {
-  "name": "cat",
-  "main": "cloudflare-worker.js",
-  "keep_vars": true,
-  "compatibility_date": "2026-10-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api", "/api/*", "/baidu_verify_codeva-5BMeKqCfaF.html"]
+	"name": "cat",
+	"main": "cloudflare-worker.js",
+	"keep_vars": true,
+	"compatibility_date": "2026-10-15",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/api",
+			"/api/*",
+			"/baidu_verify_codeva-5BMeKqCfaF.html",
+			"/admin-sales",
+			"/admin-sales/*"
+		]
+	},
+	"triggers": {
+		"crons": [
+			"17 * * * *"
+		]
+	},
+	"d1_databases": [
+  {
+    "binding": "SALES_DB",
+    "database_name": "cat-sales-auth",
+    "database_id": "7f255cd6-0c08-4b58-8fd4-c640b3fe3ed2",
+    "migrations_dir": "migrations"
   }
+]
 }

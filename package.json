@@ -1,7 +1,7 @@
 {
-  "name": "cat-sales-workspace-v1-preview",
+  "name": "cat-sales-workspace",
   "private": true,
-  "version": "3.2.0-preview.1",
+  "version": "3.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,18 +10,29 @@
     "preview": "vite preview",
     "admin:secrets": "node scripts/generate-admin-secrets.mjs",
     "assistant:secrets": "node scripts/generate-assistant-secrets.mjs",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "dev:worker": "npm run build && wrangler dev --port 8787",
+    "test:d1": "node test/sales-d1-smoke.mjs",
+    "test:ui": "playwright test",
+    "sales:configure": "node scripts/configure-sales-d1.mjs",
+    "test:components": "node scripts/test-sales-components.mjs"
   },
   "dependencies": {
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "lucide-react": "^0.263.1"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
     "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.27",
+    "jsdom": "26.1.0",
+    "miniflare": "5.20261012.0-beta",
     "postcss": "^8.4.27",
     "tailwindcss": "^3.3.3",
-    "vite": "^4.4.5"
+    "vite": "^4.4.5",
+    "wrangler": "4.151.0"
   }
 }
