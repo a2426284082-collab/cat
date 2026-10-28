@@ -1,3 +1,4 @@
+// ADMIN_CONTROL_PATCH_V1
 const FEISHU = 'https://open.feishu.cn/open-apis';
 const CACHE_MS = 5 * 60 * 1000;
 
@@ -5,6 +6,7 @@ const CACHE_MS = 5 * 60 * 1000;
 // optimization; correctness never depends on a shared process or a timer.
 let tokenCache = { key: '', value: '', until: 0 };
 let catalogCache = { key: '', value: null, until: 0, pending: null };
+let adminCatalogCache={key:'',value:null,until:0,pending:null,revision:0};
 
 function config(env) {
   const keys = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_APP_TOKEN', 'FEISHU_TABLE_ID'];
@@ -191,9 +193,9 @@ function adminCat(record) {
   };
 }
 
-export async function getAdminCats(envInput) {
-  const env = config(envInput);
-  return (await loadRecords(env)).map(adminCat).filter(cat => cat.recordId && cat.id);
+export async function getAdminCats(envInput,{fresh=false}={}) {
+  const env=config(envInput),key=JSON.stringify([env.FEISHU_APP_ID,env.FEISHU_APP_SECRET,env.FEISHU_APP_TOKEN,env.FEISHU_TABLE_ID]);if(adminCatalogCache.key!==key)adminCatalogCache={key,value:null,until:0,pending:null,revision:0};
+  const current=adminCatalogCache;if(!fresh&&current.value&&current.until>Date.now())return current.value;if(current.pending)return current.pending;const revision=current.revision;const job=loadRecords(env).then(rows=>{const data=rows.map(adminCat).filter(cat=>cat.recordId&&cat.id);if(adminCatalogCache===current&&current.revision===revision){current.value=data;current.until=Date.now()+15000;}return data;}).finally(()=>{if(current.pending===job)current.pending=null;});current.pending=job;return job;
 }
 
 const textField = (value, maximum) => typeof value === 'string' && value.length <= maximum ? value.trim() : undefined;
@@ -225,6 +227,8 @@ export async function updateAdminCat(envInput, recordId, input) {
   const url = `${FEISHU}/bitable/v1/apps/${encodeURIComponent(env.FEISHU_APP_TOKEN)}/tables/${encodeURIComponent(env.FEISHU_TABLE_ID)}/records/${encodeURIComponent(recordId)}`;
   const data = await feishuJson(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
   catalogCache = { key: '', value: null, until: 0, pending: null };
+  const changed=Object.fromEntries([...mappings.map(([k])=>k),'age','price','costPrice'].filter(k=>Object.hasOwn(input||{},k)).map(k=>[k,input[k]]));
+  const cacheKey=JSON.stringify([env.FEISHU_APP_ID,env.FEISHU_APP_SECRET,env.FEISHU_APP_TOKEN,env.FEISHU_TABLE_ID]);if(adminCatalogCache.key===cacheKey){adminCatalogCache.revision++;adminCatalogCache.pending=null;if(adminCatalogCache.value){adminCatalogCache.value=adminCatalogCache.value.map(row=>row.recordId===recordId?{...row,...changed}:row);adminCatalogCache.until=Date.now()+15000;}}
   return adminCat(data.record ?? { record_id: recordId, fields: { ...fields, '猫咪ID': input?.id || '' } });
 }
 

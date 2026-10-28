@@ -1,3 +1,4 @@
+import {readWorkbench} from './workbench-control.js';
 // One conversational task: understand once, dispatch at most one generation, charge one task.
 import {getCatalog} from './feishu.js';
 import {planningInput,generateAgentPlan} from './sales-agent.js';
@@ -17,7 +18,7 @@ export async function runAgentTask(db,env,request,body,key){
  try{
   await allowed();dispatched=true;
   const understood=await generateAgentPlan(env,input.prompt,c,new Set(known));usage={input_tokens:understood.input_tokens,output_tokens:understood.output_tokens};
-  const plan=understood.plan;let result=null;
+  const plan=understood.plan;let result=null;const controls=await readWorkbench(db,{fresh:true});if(plan.tool==='poster'&&!controls.posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
   const ids=plan.cat_ids.length?plan.cat_ids:c.reference_ids.length?c.reference_ids:c.focus_id?[c.focus_id]:c.cat_ids;
   if(paid.has(plan.tool)){
    let chosen;

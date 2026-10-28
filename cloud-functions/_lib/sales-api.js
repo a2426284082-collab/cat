@@ -1,3 +1,6 @@
+// ADMIN_CONTROL_PATCH_V1
+import {readWorkbench,ensureControlTables,decorateKeys,encryptSalesCode,vaultStatement,adminEventStatement,checkKeyExpiry} from './workbench-control.js';
+import {handleWorkbenchAdmin} from './workbench-admin.js';
 import {runAgentTask} from './sales-agent-run.js';
 import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
@@ -56,6 +59,7 @@ async function ask(db,env,request,body) {
   if(action!=null&&!structured&&!planning&&action!=='handbook')throw fail('操作类型无效');
   if(structured&&body.mode!=='script')throw fail('卡片话术操作类型无效');
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
+  if(action==='marketing'&&!(await readWorkbench(db)).posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
   const presets={praise:'请根据已录入资料，夸这只猫已知的骨相甜美与性格优势，生成微信推荐话术',price:'客户觉得这只猫价格偏高，请根据真实资料生成保价话术，不擅自降价',compare:'客户纠结这两只猫，请对比已知优缺点，生成自然的微信推荐话术',marketing:'请根据在售猫咪资料生成营销推荐文案'};
   let selectedIds=[];
   if(structured){
@@ -104,6 +108,7 @@ async function ask(db,env,request,body) {
       AND k.auth_version=? AND a.id=1 AND a.enabled=1 AND EXISTS(SELECT 1 FROM sales_devices d WHERE d.key_id=k.id AND d.device_hash=?)`)
       .bind(key.id,key.auth_version,key.device_hash).first();
     if(!stillAllowed)throw fail('授权已变更或 AI 服务已暂停',403);
+    await checkKeyExpiry(db,key.id);
     dispatched=true; // Never auto-retry a potentially billed upstream request.
     const output=planning?await generateAgentPlan(env,prompt,agentContext,new Set(catalog.cats.map(cat=>String(cat.id).replace(/^#+/,'').trim().toUpperCase()))):await generateReply(env,selected.cats,prompt,body.mode,{marketing:marketingConfig,hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
     await finish(db,reservation,output);
@@ -120,6 +125,7 @@ async function ask(db,env,request,body) {
 async function admin(db,env,request,path,body) {
   if(!requireAdmin(request,env))throw fail('请先登录管理员账号',401);
   const now=nowSeconds(),day=salesDay(now);
+  if(path==='/api/sales-admin/control')return handleWorkbenchAdmin(db,env,request,path,body);
   if(path==='/api/sales-admin/settings') {
     methodCheck(request,['GET','PATCH']);
     if(request.method==='PATCH'){
@@ -135,20 +141,20 @@ async function admin(db,env,request,path,body) {
     if(request.method==='POST'){
       const name=typeof body.sales_name==='string'?body.sales_name.trim():'';
       if(!name||name.length>60)throw fail('销售姓名或备注须为1至60字');
-      return json({success:true,data:await newKey(db,name,limitValue(body.daily_limit??20))},201);
+      return json({success:true,data:await newKey(db,name,limitValue(body.daily_limit??(await readWorkbench(db)).defaultDailyLimit),env)},201);
     }
-    await housekeeping(db);
     const rows=await db.prepare(`SELECT k.id,k.sales_name,k.key_hint,k.status,k.daily_limit,
       CASE WHEN k.last_call_date=? THEN k.used_today ELSE 0 END AS used_today,
       (SELECT COUNT(*) FROM sales_devices d WHERE d.key_id=k.id) AS device_count
       FROM sales_keys k ORDER BY k.id DESC LIMIT 1000`).bind(day).all();
-    return json({success:true,data:rows.results});
+    return json({success:true,data:await decorateKeys(db,rows.results)});
   }
-  const match=path.match(/^\/api\/sales-admin\/keys\/(\d+)(\/logs)?$/);
+  const match=path.match(/^\/api\/sales-admin\/keys\/(\d+)(\/logs|\/reveal)?$/);
   if(!match)throw fail('接口不存在',404);
   const id=Number(match[1]);
   const key=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(id).first();
   if(!key)throw fail('销售账号不存在',404);
+  if(match[2]==='/reveal')return handleWorkbenchAdmin(db,env,request,path,body,key);
   if(match[2]) {
     methodCheck(request,['GET']);
     const rows=await db.prepare(`SELECT id,mode,user_input,ai_output,status,charged,matched_ids,created_at,input_tokens,output_tokens
@@ -156,6 +162,7 @@ async function admin(db,env,request,path,body) {
     return json({success:true,data:rows.results});
   }
   methodCheck(request,['PATCH']);
+  if(['name','expiry','profile'].includes(body.action))return handleWorkbenchAdmin(db,env,request,path,body,key);
   if(body.action==='status') {
     if(![0,1].includes(body.status))throw fail('账号状态无效');
     await db.batch([
@@ -173,8 +180,10 @@ async function admin(db,env,request,path,body) {
   } else if(body.action==='rotate') {
     // Same account and quotas; revoke all old sessions and browser bindings.
     const code=crypto.randomUUID().replace(/-/g,'').slice(0,16).toUpperCase();
+    await ensureControlTables(db);const encrypted=await encryptSalesCode(env,code.match(/.{4}/g).join('-'));
     await db.batch([
       db.prepare('UPDATE sales_keys SET key_hash=?,key_hint=?,auth_version=auth_version+1 WHERE id=?').bind(digest(cleanCode(code)),`••••-${code.slice(-4)}`,id),
+      vaultStatement(db,id,encrypted),adminEventStatement(db,'admin','rotate_code',id),
       db.prepare('DELETE FROM sales_sessions WHERE key_id=?').bind(id),
       db.prepare('DELETE FROM sales_devices WHERE key_id=?').bind(id),
     ]);

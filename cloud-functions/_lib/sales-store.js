@@ -1,3 +1,5 @@
+// ADMIN_CONTROL_PATCH_V1
+import {readWorkbench,checkKeyExpiry,createManagedKey} from './workbench-control.js';
 // All security decisions persist in D1, never in an isolate-local Map or KV.
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -32,37 +34,40 @@ export async function resolveSession(db, request, suppliedDevice) {
     WHERE s.token_hash=? AND s.expires_at>? AND s.auth_version=k.auth_version`).bind(digest(token), nowSeconds()).first();
   if (!row || row.status !== 1) throw fail('登录已失效或账号已封禁，请重新激活', 401);
   if (suppliedDevice && row.device_hash !== deviceHash(suppliedDevice)) throw fail('设备登录已失效，请重新激活', 401);
+  await checkKeyExpiry(db,row.id);row._cooldownSeconds=(await readWorkbench(db,{fresh:true})).cooldownSeconds;
   return row;
 }
 export function accountView(row, now = nowSeconds()) {
   const used = row.last_call_date === salesDay(now) ? row.used_today : 0;
   return { id: row.id, sales_name: row.sales_name, daily_limit: row.daily_limit, used_today: used,
-    remaining: Math.max(0, row.daily_limit - used), retry_after: Math.max(0, 15 - (now - row.last_call_timestamp)) };
+    remaining: Math.max(0, row.daily_limit - used), retry_after: Math.max(0, (row._cooldownSeconds??15) - (now - row.last_call_timestamp)) };
 }
 export async function activate(db, code, device) {
   const normalized = cleanCode(code), hashedDevice = deviceHash(device), now = nowSeconds();
   if (!/^[A-Z0-9]{16}$/.test(normalized)) throw fail('激活码无效或已被管理员封禁', 403);
   const key = await db.prepare('SELECT * FROM sales_keys WHERE key_hash=? AND status=1').bind(digest(normalized)).first();
   if (!key) throw fail('激活码无效或已被管理员封禁', 403);
+  await checkKeyExpiry(db,key.id);const policy=await readWorkbench(db,{fresh:true});key._cooldownSeconds=policy.cooldownSeconds;
   const token = secretToken();
   // The count check and insertion share one write transaction: simultaneous
   // activations cannot turn a two-browser limit into three devices.
   const results = await db.batch([
     db.prepare(`INSERT OR IGNORE INTO sales_devices(key_id,device_hash,created_at)
       SELECT id,?,? FROM sales_keys WHERE id=? AND status=1 AND auth_version=?
-      AND (SELECT COUNT(*) FROM sales_devices WHERE key_id=?) < 2`).bind(hashedDevice, now, key.id, key.auth_version, key.id),
+      AND (SELECT COUNT(*) FROM sales_devices WHERE key_id=?) < ?`).bind(hashedDevice, now, key.id, key.auth_version, key.id,policy.maxDevices),
     db.prepare('DELETE FROM sales_sessions WHERE key_id=? AND device_hash=?').bind(key.id, hashedDevice),
     db.prepare(`INSERT INTO sales_sessions(token_hash,key_id,device_hash,auth_version,expires_at)
       SELECT ?,k.id,?,k.auth_version,? FROM sales_keys k WHERE k.id=? AND k.status=1 AND k.auth_version=?
       AND EXISTS(SELECT 1 FROM sales_devices d WHERE d.key_id=k.id AND d.device_hash=?) RETURNING token_hash`)
       .bind(digest(token), hashedDevice, now + 30 * 86400, key.id, key.auth_version, hashedDevice),
   ]);
-  if (!results[2].results?.length) throw fail('该激活码绑定设备已达上限（最多2台），或授权已变更，请联系管理员', 403);
+  if (!results[2].results?.length) throw fail(`该激活码绑定设备已达上限（最多${policy.maxDevices}台），或授权已变更，请联系管理员`, 403);
   return { token, user: accountView(key) };
 }
 export async function preflight(db, keyId) {
   const key = await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(keyId).first();
   if (!key || key.status !== 1) throw fail('账号已被管理员封禁', 403);
+  await checkKeyExpiry(db,key.id);key._cooldownSeconds=(await readWorkbench(db,{fresh:true})).cooldownSeconds;
   const now = nowSeconds(), view = accountView(key, now);
   if (!view.remaining) throw fail(`今日 AI 配额已用完（${view.used_today}/${view.daily_limit}），请明日再试`, 429, { user: view });
   if (view.retry_after || key.in_flight_until > now) throw fail('操作太频繁，请稍后再试', 429, { retry_after: Math.max(view.retry_after, Math.min(15, key.in_flight_until - now)), user: view });
@@ -87,7 +92,7 @@ export async function reserve(db, key, mode, prompt) {
       AND (CASE WHEN k.last_call_date=? THEN k.used_today ELSE 0 END)<k.daily_limit
       AND k.last_call_timestamp<=? AND k.in_flight_until<=?
       AND (SELECT used FROM ai_daily_usage WHERE call_date=?)<a.daily_limit RETURNING request_id`)
-      .bind(id,key.device_hash,mode,prompt,day,now,key.id,key.auth_version,key.device_hash,day,now-15,now,day),
+      .bind(id,key.device_hash,mode,prompt,day,now,key.id,key.auth_version,key.device_hash,day,now-(key._cooldownSeconds??15),now,day),
     db.prepare(`UPDATE sales_keys SET used_today=(CASE WHEN last_call_date=? THEN used_today ELSE 0 END)+1,
       last_call_date=?,last_call_timestamp=?,in_flight_token=?,in_flight_until=?
       WHERE id=? AND EXISTS(SELECT 1 FROM ai_call_logs WHERE request_id=?)`).bind(day,day,now,id,now+90,key.id,id),
@@ -114,7 +119,8 @@ export async function finish(db, reservation, result, { refund = false } = {}) {
         refund?0:1,nowSeconds(),result.input_tokens || 0,result.output_tokens || 0,reservation.id),
   ]);
 }
-export async function newKey(db, name, limit) {
+export async function newKey(db, name, limit, env) {
+  if(env)return createManagedKey(db,env,name,limit);
   const plain = randomBytes(10).toString('hex').toUpperCase().slice(0,16);
   const shown = plain.match(/.{4}/g).join('-');
   const row = await db.prepare(`INSERT INTO sales_keys(key_hash,key_hint,sales_name,daily_limit,created_at)
