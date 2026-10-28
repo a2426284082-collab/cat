@@ -14,7 +14,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  const {config:workbenchConfig}=useWorkbenchConfig();
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
- const [bannerEnabled,setBannerEnabled]=useState(initialSettings.bannerEnabled??initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(initialSettings.bannerText??null),[mirrorEnabled,setMirrorEnabled]=useState(initialSettings.mirrorEnabled??true);
+ const [borderless,setBorderless]=useState(initialSettings.borderless===true),[bannerEnabled,setBannerEnabled]=useState(initialSettings.bannerEnabled??initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(initialSettings.bannerText??null),[mirrorEnabled,setMirrorEnabled]=useState(initialSettings.mirrorEnabled??true);
  const [height,setHeight]=useState(initialSettings.height||workbenchConfig.defaultPosterHeight),[markup,setMarkup]=useState(initialSettings.markup??800),[overrides,setOverrides]=useState(initialSettings.overrides||{}),[shop,setShop]=useState(initialSettings.shop||'同城靠谱猫舍'),[city,setCity]=useState(initialSettings.city||''),[platform,setPlatform]=useState(initialSettings.platform||'xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
@@ -25,7 +25,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  const exportController=useRef(null),exportLock=useRef(false),visible=useRef(null),readyCanvas=useRef(null),alive=useRef(true),timer=useRef(null),revision=useRef('');
  const labels=useMemo(()=>shortIdMap(allCats),[allCats]);
  const prices=useMemo(()=>Object.fromEntries(cats.map(c=>[c.id,Object.hasOwn(overrides,c.id)?(validPrice(overrides[c.id])?Math.round(Number(overrides[c.id])):null):retailPrice(c,markup)])),[cats,overrides,markup]);
- const options=useMemo(()=>({template,includePrices,design,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform}),[template,includePrices,design,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform]);
+ const options=useMemo(()=>({template,includePrices,design,borderless,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform}),[template,includePrices,design,borderless,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform]);
  const fingerprint=JSON.stringify([cats.map(c=>[c.id,c.image,c.price,c.description]),options]);revision.current=fingerprint;
  const captionKey=JSON.stringify([cats.map(c=>c.id),template,prices,shop,city,platform,bannerEnabled,bannerEnabled?bannerText:'']);
  const captionRevision=useRef(captionKey);captionRevision.current=captionKey;
@@ -52,11 +52,11 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  function changeDesign(){let next=generateDesign();for(let i=0;i<5&&next.background===design.background&&next.gap===design.gap&&next.radius===design.radius&&next.tagShape===design.tagShape;i++)next=generateDesign();setDesign(next);}
  function shufflePhotos(){setCats(shufflePhotoOrder(cats));setNote('猫咪格子顺序已打乱，单只售价保持不变。');}
  const report=useRef(onStateChange);report.current=onStateChange;
- useEffect(()=>{report.current?.({task:'poster',cat_ids:cats.map(c=>normalizeId(c.id)),params:{count:cats.length,includePrices,bannerEnabled,mirrorEnabled,height,markup:Number(markup)||0,...(shop?{shop}:{}),...(city?{city}:{}),platform},quotes:prices,designSeed:design.seed,bannerText,caption:currentCaption});},[fingerprint,currentCaption]);
+ useEffect(()=>{report.current?.({task:'poster',cat_ids:cats.map(c=>normalizeId(c.id)),params:{count:cats.length,includePrices,borderless,bannerEnabled,mirrorEnabled,height,markup:Number(markup)||0,...(shop?{shop}:{}),...(city?{city}:{}),platform},quotes:prices,designSeed:design.seed,bannerText,caption:currentCaption});},[fingerprint,currentCaption]);
  useEffect(()=>{if(initialSettings.caption)setCaption({key:captionKey,text:String(initialSettings.caption).slice(0,1600)});},[]);
  useEffect(()=>{if(!control?.id)return;const p=control.params||{};
   if(control.cats)setCats(control.cats);
-  if(p.includePrices!=null)setIncludePrices(p.includePrices);if(p.bannerEnabled!=null)setBannerEnabled(p.bannerEnabled);if(p.mirrorEnabled!=null)setMirrorEnabled(p.mirrorEnabled);
+  if(p.includePrices!=null)setIncludePrices(p.includePrices);if(p.borderless!=null)setBorderless(p.borderless);if(p.bannerEnabled!=null)setBannerEnabled(p.bannerEnabled);if(p.mirrorEnabled!=null)setMirrorEnabled(p.mirrorEnabled);
   if(p.height)setHeight(p.height);if(p.markup!=null&&Number(p.markup)!==Number(markup)){setMarkup(p.markup);setOverrides({});}if(p.platform)setPlatform(p.platform);if(p.city!=null&&p.city!==city){setCity(p.city);setCustomBanner(null);}if(p.shop!=null&&p.shop!==shop){setShop(p.shop);setCustomBanner(null);}
   if(p.quoteTarget&&p.quote!=null)setOverrides(old=>({...old,[p.quoteTarget]:p.quote}));
   if(control.caption)setAgentOperation({id:control.id,operation:'caption',caption:control.caption});
@@ -105,6 +105,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
      <label>导出尺寸<select value={height} onChange={e=>setHeight(Number(e.target.value))}><option value={1080}>1080 × 1080 方图</option><option value={1440}>1080 × 1440 竖图</option></select></label>
      <label>统一加价（元）<input type="number" min="0" max="100000" step="1" value={markup} onChange={e=>{setMarkup(e.target.value);setOverrides({});}}/></label>
      <label className="marketing-check"><input type="checkbox" checked={includePrices} onChange={e=>setIncludePrices(e.target.checked)}/>显示售价标签</label>
+     <label className="marketing-check"><input type="checkbox" checked={borderless} onChange={e=>setBorderless(e.target.checked)}/>无黑框、无间隙（白底直角）</label>
      <label className="marketing-check"><input type="checkbox" checked={mirrorEnabled} onChange={e=>setMirrorEnabled(e.target.checked)}/>允许照片随机镜像</label>
     </fieldset>
     <label className="marketing-banner-toggle marketing-check"><input type="checkbox" checked={bannerEnabled} onChange={e=>setBannerEnabled(e.target.checked)}/>叠加猫舍招牌贴纸</label>

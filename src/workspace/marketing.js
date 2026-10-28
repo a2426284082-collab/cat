@@ -100,7 +100,7 @@ function drawBanner(ctx,width,height,options,design){
 }
 export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImage=loadCanvasImage,onProgress}={}){
  if(!validPhotoCount(cats.length))throw new Error('请选择2至9只有照片的猫咪');
- const width=1080,height=options.height===1440?1440:1080,design=options.design||generateDesign(options.seed??randomSeed()),variation=createVariation(cats.length,options.seed??randomSeed()),cells=gridCells(cats.length,width,height,design.gap,design.gap);
+ const width=1080,height=options.height===1440?1440:1080,originalDesign=options.design||generateDesign(options.seed??randomSeed()),design=options.borderless===true?{...originalDesign,background:'#FFFFFF',gap:0,radius:0,bannerStroke:'transparent',bannerDashed:false}:originalDesign,variation=createVariation(cats.length,options.seed??randomSeed()),cells=gridCells(cats.length,width,height,design.gap,design.gap);
  if(cats.some(c=>!c.image))throw new Error('所选猫咪缺少照片，请换一只后再生成');
  const includePrices=options.includePrices??options.template!=='sign';
  if(includePrices&&cats.some(c=>!validPrice(options.prices?.[c.id])))throw new Error('请为每只猫填写有效售价');

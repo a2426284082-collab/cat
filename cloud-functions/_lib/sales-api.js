@@ -119,9 +119,10 @@ async function ask(db,env,request,body) {
   } catch(error) {
     // finish is idempotent for reservations, including a successful call whose
     // session was revoked before the result was delivered.
-    await finish(db,reservation,{status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?'模型请求未取得可用结果；可能已产生费用，已计入次数':'请求在调用模型前取消'}, {refund:!dispatched});
+    const refund=!dispatched||Boolean(planning&&error.reason_code)||error.refund_user_quota===true;
+    await finish(db,reservation,{status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?`模型任务规划失败（${error.reason_code||'UNKNOWN'}）`:'请求在调用模型前取消'}, {refund});
     const current=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();
-    throw fail(dispatched?'未取得可用 AI 结果。此次已请求模型，计入1次，请稍后再试':error.message,error.status||502,{user:current?accountView(current):undefined});
+    throw fail(dispatched?`未取得可执行的 AI 任务计划（${error.reason_code||'SERVICE_ERROR'}）。${refund?'本次未扣销售配额。':'本次已计入1次。'}`:error.message,error.status||502,{user:current?accountView(current):undefined});
   }
 }
 async function admin(db,env,request,path,body) {

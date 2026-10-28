@@ -19,7 +19,7 @@ export function filterSalesCats(cats,need=''){
  return cats.filter(c=>{
   if(c.status&&c.status!=='在售')return false;
   if(explicitIds.length&&!explicitIds.includes(normalizeId(c.id)))return false;
-  if(excludedBreeds.includes(c.breed)||excludedColors.includes(c.color)||negativeGender===c.gender)return false;
+  if(excludedBreeds.includes(c.breed)||excludedColors.includes(c.color)||(negativeGender&&negativeGender===c.gender))return false;
   if(f.breed&&c.breed!==f.breed||f.color&&c.color!==f.color||f.gender&&c.gender!==f.gender)return false;
   if(f.max&&(c.price==null||!Number.isFinite(Number(c.price))||Number(c.price)>Number(f.max)))return false;
   if(f.min&&(c.price==null||!Number.isFinite(Number(c.price))||Number(c.price)<Number(f.min)))return false;

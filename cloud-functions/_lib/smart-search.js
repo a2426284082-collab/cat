@@ -72,7 +72,10 @@ export function parseDemandLocally(text, { breeds = [], colors = [] } = {}) {
   const thousands = source.match(/(?:预算|价格|价位|不超过|以内|以下|左右|大概)?\s*(\d+(?:\.\d+)?)\s*[千kK](?:元)?(?:以内|以下|左右|上下)?/);
   const budget = source.match(/(?:预算|价格|价位|不超过|最高|控制在)\s*(?:是|在|大概|约)?\s*[¥￥]?\s*(\d{3,6})/);
   const ceiling = source.match(/[¥￥]?\s*(\d{3,6})\s*(?:元)?\s*(?:以内|以下|封顶|左右|上下)/);
-  const price = thousands ? Math.round(Number(thousands[1]) * 1000) : Number((budget || ceiling)?.[1]);
+  // Sales commonly say '2000块的猫' rather than '预算2000元以内'.
+  // Treat a standalone price in a selection request as the customer's maximum.
+  const colloquial = source.match(/(?:^|[^0-9])(?:[¥￥]\s*)?(\d{3,6})\s*(?:块(?:钱)?|元)\s*(?:的猫|左右|以内|以下|封顶|上下|的(?:小猫|猫咪)|[，。,.]|$)/);
+  const price = thousands ? Math.round(Number(thousands[1]) * 1000) : Number((budget || ceiling || colloquial)?.[1]);
   if (Number.isFinite(price) && price > 0) result.max = String(price);
 
   const city = source.match(/(?:能|可以)?(?:发|寄|送|运)(?:到|往)?[：: ]*([\u4e00-\u9fa5]{2,6}?)(?:市|地区)?(?:吗|呢|可以|能不能|能否|就行|[，。,. ]|$)/);

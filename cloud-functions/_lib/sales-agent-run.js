@@ -1,4 +1,5 @@
 import {inventoryResult} from './sales-engine.js';
+import {parseDemandLocally} from './smart-search.js';
 import {chooseSalesCats,filterSalesCats,selectionSummary} from './sales-workflow.js';
 import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
@@ -14,6 +15,15 @@ const toolResult=text=>({kind:'tool',used_ai:false,matched_ids:[],reply_text:tex
 // A blocked step stops the workflow; no fallback quietly widens a client's filters.
 export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices=false,allowed,controls}){
  const stock=new Map(catalog.map(c=>[normalizeId(c.id),c]));
+ // '2000块的猫' describes the buyer's budget, not an internal wholesale
+ // price. Exclude candidates whose default customer quote exceeds it.
+ const customerAffordable=(list,need,markup)=>{
+  if(/(?:合作底价|成本价|拿货价|进价)/.test(need))return list;
+  const {filters}=parseDemandLocally(need);const budget=Number(filters.max);
+  if(!Number.isFinite(budget)||budget<=0)return list;
+  return list.filter(cat=>Number.isFinite(Number(cat.price))&&Number(cat.price)+Number(markup)<=budget);
+ };
+
  let ids=context.reference_ids.length?context.reference_ids:context.cat_ids;
  const prepared=[],usage={input_tokens:0,output_tokens:0};
  let currentNeed=context.need||'',posterSettings={...context.params},quotes={...context.quotes};
@@ -27,10 +37,10 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
    else{
     const amount=plan.params.count||2;
     const needsPoster=steps.slice(index+1).some(step=>step.tool==='poster');
-    const selected=chooseSalesCats(catalog,need,amount,{requireImage:needsPoster});
+    const selected=chooseSalesCats(customerAffordable(catalog,need,posterSettings.markup??800),need,amount,{requireImage:needsPoster});
     ids=selected.map(cat=>normalizeId(cat.id));currentNeed=need;
     result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:selectionSummary(selected,amount,need,{hidePrices})};
-    if(selected.length<amount){status='blocked';reason=`符合条件的猫只有${selected.length}/${amount}只。原条件未放宽，请调整要求后继续。`;}
+    if(selected.length<amount){status='blocked';reason=`按客户预算和当前销售加价，可用的猫只有${selected.length}/${amount}只。原条件未放宽，请调整要求后继续。`;}
    }
   }else if(plan.tool==='poster'){
    if(!controls.posterEnabled){status='blocked';reason='管理员暂时关闭了拼图工具。';}
@@ -55,7 +65,7 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     }
    }else{
     const need=plan.query||currentNeed||'';
-    const pool=filterSalesCats(catalog,need).filter(c=>c.image);
+    const pool=filterSalesCats(customerAffordable(catalog,need,posterSettings.markup??800),need).filter(c=>c.image);
     const allowedPool=new Set(pool.map(cat=>normalizeId(cat.id)));
     let selected=fallbackIds.filter(id=>allowedPool.has(id));
     const followingMatch=prepared.some(step=>step.plan.tool==='match');
@@ -104,13 +114,13 @@ export async function runAgentTask(db,env,request,body,key){
  try{
   await allowed();dispatched=true;
   const understood=await generateAgentPlan(env,input.prompt,c,new Set(known));usage={input_tokens:understood.input_tokens,output_tokens:understood.output_tokens};
-  const plan=understood.plan;let result=null;const controls=await readWorkbench(db,{fresh:true});
+  const plan=understood.plan;let result=null;stage='tool_setup';const controls=await readWorkbench(db,{fresh:true});
   if(understood.steps.length>1){
    stage='workflow';const workflow=await prepareWorkflowSteps({steps:understood.steps,catalog:[...stock.values()],context:c,env,hidePrices:body.hide_prices===true,allowed,controls});
    usage.input_tokens+=workflow.usage.input_tokens;usage.output_tokens+=workflow.usage.output_tokens;
    await finish(db,reservation,{...usage,status:'success',matched_ids:[],reply_text:`工作流准备了${workflow.prepared.length}步${workflow.complete?'':'，存在待处理的条件'}`});
    const current=await resolveSession(db,request,body.device_id);
-   return {data:{kind:'agent_run',plan,steps:workflow.prepared,preparation_complete:workflow.complete,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
+   return {data:{kind:'agent_run',plan,steps:workflow.prepared,preparation_complete:workflow.complete,planner_source:understood.source,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
   }if(plan.tool==='poster'&&!controls.posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
   const ids=plan.cat_ids.length?plan.cat_ids:c.reference_ids.length?c.reference_ids:c.focus_id?[c.focus_id]:c.cat_ids;
   if(paid.has(plan.tool)){
@@ -130,6 +140,17 @@ export async function runAgentTask(db,env,request,body,key){
   }
   const output={...usage,status:'success',matched_ids:result?.matched_ids||[],reply_text:result?.reply_text||`[${plan.tool}] ${plan.message||''}`};await finish(db,reservation,output);
   const current=await resolveSession(db,request,body.device_id);
-  return {data:{kind:'agent_run',plan,result,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
- }catch(error){await finish(db,reservation,{...usage,status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?'任务请求未取得可用结果，已计入1次；未自动重试':'模型调用前取消'},{refund:!dispatched});const row=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();throw fail(dispatched?(stage==='understand'?'未能理解任务，已计入1次。可以直接说“找2000元以内的猫”，走库存查询；或稍后重试。':stage==='workflow'?'工作流准备期间发生错误，已计入1次；未自动重试，也未开始浏览器操作。':'话术生成失败，已计入1次；库存工具仍可直接使用。'):error.message,error.status||502,{user:row?accountView(row):undefined});}
+  return {data:{kind:'agent_run',plan,result,planner_source:understood.source,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
+ }catch(error){
+  // Do not bill a salesperson when the model never returned an executable plan.
+  // Provider API cost and the salesperson's daily allowance are distinct.
+  const malformed=stage==='understand'&&error.reason_code&&error.reason_code!=='MODEL_HTTP';
+  const refund=!dispatched||stage==='understand'||stage==='tool_setup'||malformed||error.refund_user_quota===true;
+  const failure=stage==='understand'?'AI规划未能生成可用步骤':stage==='tool_setup'?'工具配置校验失败':stage==='workflow'?'工作流准备未完成':'话术服务处理失败';
+  const code=error.reason_code|| (stage==='tool_setup'?'TOOL_SETUP':stage==='workflow'?'WORKFLOW_PREPARE':'GENERATION_FAILED');
+  await finish(db,reservation,{...usage,status:dispatched?'upstream_error':'cancelled',reply_text:`${failure} (${code})`},{refund});
+  const row=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();
+  const notice=dispatched?`${failure}（错误码 ${code}）。${refund?'本次未扣销售配额。':'本次模型调用已计入1次。'}可以直接重试完整需求，无需拆成简单指令。`:error.message;
+  throw fail(notice,error.status||502,{user:row?accountView(row):undefined});
+ }
 }

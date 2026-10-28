@@ -114,7 +114,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
    else{
     const c=state.current.context,refs=resolveCatReferences(text,cats,c);
     {
-     const fingerprint=JSON.stringify(c),agent_context={task:c.task||'help',cat_ids:c.cat_ids||[],reference_ids:refs.ids,focus_id:c.focus_id||null,quotes:c.quotes||{},need:c.need||'',params:c.params||{},recent_users:state.current.messages.filter(r=>r.role==='user').slice(-2).map(r=>r.text.slice(0,80))};
+     const fingerprint=JSON.stringify(c),agent_context={task:c.task||'help',cat_ids:c.cat_ids||[],reference_ids:refs.ids,focus_id:c.focus_id||null,quotes:c.quotes||{},need:c.need||'',params:{markup:session.markup??800,...(c.params||{})},recent_users:state.current.messages.filter(r=>r.role==='user').slice(-2).map(r=>r.text.slice(0,80))};
      const response=await ask({mode:'match',action:'agent_run',prompt:text,agent_context,hide_prices:session.hidePrices});if(version!==generation.current||!alive.current)return;
      if(JSON.stringify(state.current.context)!==fingerprint){const output=message('操作期间任务已变化，原指令未覆盖当前内容。请按现在的预览继续；本次计次以工号显示为准。');setResult(output);append('assistant',output.reply_text);return;}
      if(response.kind!=='agent_run')throw new Error('助手接口版本不一致，请确认前后端已一起更新。');

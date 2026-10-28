@@ -5,7 +5,7 @@ const fail=()=>{throw new Error('工具指令格式无效');};
 export function agentParams(value={}){
  if(!object(value))fail();const out={};
  for(const [key,v] of Object.entries(value)){
-  if(['includePrices','bannerEnabled','mirrorEnabled','enabled','clear','refresh','shuffle'].includes(key)){if(typeof v!=='boolean')fail();out[key]=v;}
+  if(['includePrices','bannerEnabled','mirrorEnabled','enabled','clear','refresh','shuffle','borderless'].includes(key)){if(typeof v!=='boolean')fail();out[key]=v;}
   else if(['count','height','markup','quote','freight','advance','other'].includes(key)){if(typeof v!=='number'||!Number.isFinite(v)||v<0||v>1000000)fail();if(key==='count'&&(!Number.isInteger(v)||v<2||v>9))fail();if(key==='height'&&![1080,1440].includes(v))fail();if(key==='markup'&&(!Number.isInteger(v)||v>100000))fail();out[key]=v;}
   else if(key==='replaceIndex'){if(!Number.isInteger(v)||v<0||v>8)fail();out[key]=v;}
   else if(key==='platform'){if(!['xhs','moments'].includes(v))fail();out[key]=v;}
