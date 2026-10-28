@@ -4,12 +4,16 @@ import {ArrowLeft,ArrowRight,BookOpen,Cat,Check,ChevronRight,GraduationCap,Layou
 import SalesAI,{AIResult} from './components/SalesAI.jsx';
 import {SalesSessionProvider,SalesAccount,useSalesSession} from './workspace/SalesSession.jsx';
 import Dialog from './workspace/Dialog.jsx';
-import {displayText,money,normalizeId,shortIdMap} from './workspace/presentation.js';
+import {displayText,money,normalizeId,shortIdMap,priceSettings,displayedPrice} from './workspace/presentation.js';
 import {CatalogProvider,useCatalog} from './workspace/catalog.jsx';
 import {canonicalPath,eligibleClick,workspaceDestination} from './workspace/navigation.js';
 import './workspace/workspace.css';
 import './workspace/workflow.css';
 import './workspace/theme.css';
+import MarketingStudio from './workspace/MarketingStudio.jsx';
+import CustomerDisplay from './workspace/CustomerDisplay.jsx';
+import {pickMarketingCats} from './workspace/marketing.js';
+import './workspace/marketing.css';
 
 const loaders={
   '/cats/':()=>import('./App.jsx'),'/manuals/':()=>import('./workspace/SupportPage.jsx'),
@@ -33,13 +37,20 @@ function Workspace(){
   const {ask,busy,cooldown,user,epoch}=useSalesSession(),labels=shortIdMap(cats);
   const visited=useRef(new Set());visited.current.add(path);
   const [compare,setCompare]=useState([]),[notice,setNotice]=useState(''),[detail,setDetail]=useState(null),[job,setJob]=useState(null);
-  const [hidePrices,setHidePrices]=useState(()=>{try{return localStorage.getItem('sales-hide-prices')==='1';}catch{return false;}});
-  const [guide,setGuide]=useState(()=>{try{return localStorage.getItem('sales-onboarding-dismissed-v1')!=='1';}catch{return true;}});
+  const [customerDisplay,setCustomerDisplay]=useState(()=>{try{const saved=localStorage.getItem('sales-customer-display');return saved?priceSettings(JSON.parse(saved)):priceSettings({enabled:localStorage.getItem('sales-hide-prices')==='1',markup:localStorage.getItem('sales-hide-prices')==='1'?0:800});}catch{return priceSettings({});}});
+  const [displayDialog,setDisplayDialog]=useState(false),[marketing,setMarketing]=useState(null);
+  const hidePrices=customerDisplay.enabled;
   const panel=useRef(null),positions=useRef({}),active=useRef(path),restorePending=useRef(false);
   useEffect(()=>{if(rawPath==='/assistant/')navigate('/cats/'+location.search+location.hash,{replace:true});},[rawPath]);
-  useEffect(()=>{setJob(null);setDetail(null);setCompare([]);},[epoch]);
-  function privacy(value){setHidePrices(value);try{localStorage.setItem('sales-hide-prices',value?'1':'0');}catch{}}
-  function dismissGuide(){setGuide(false);try{localStorage.setItem('sales-onboarding-dismissed-v1','1');}catch{}}
+  useEffect(()=>{setJob(null);setDetail(null);setCompare([]);setMarketing(null);},[epoch]);
+  function privacy(value){const next=priceSettings(value);setCustomerDisplay(next);setDisplayDialog(false);if(next.enabled){setCompare([]);setJob(null);}try{localStorage.setItem('sales-customer-display',JSON.stringify(next));localStorage.removeItem('sales-hide-prices');}catch{}}
+  function openMarketing(template='price',ids){
+    const selected=ids?ids.map(id=>cats.find(c=>c.id===id)).filter(Boolean):pickMarketingCats(cats);
+    if(ids&&selected.length!==ids.length){setNotice('已选猫咪库存有变化，请刷新并重新选择');return;}
+    if(![4,9].includes(selected.length)){setNotice('拼图需要4只或9只有照片的在售猫咪，请继续选猫');return;}
+    if(selected.some(c=>!c.image)){setNotice('所选猫咪有缺少照片的，请替换后再生成');return;}
+    setMarketing({cats:selected,template,key:crypto.randomUUID()});
+  }
   const routeOrigin=window.location.origin==='null'?'https://workspace-preview.local':window.location.origin;
   const routeBase=routeOrigin+location.pathname+location.search+location.hash;
   function remember(){positions.current[active.current]=window.scrollY||0;}
@@ -85,21 +96,22 @@ function Workspace(){
     try{const result=await ask({mode:'script',action,cat_ids:ids.map(normalizeId),hide_prices:hidePrices});setJob(current=>current?.id===id?{...current,loading:false,result}:current);}
     catch(e){setJob(current=>current?.id===id?(e.cancelled?null:{...current,loading:false,error:e.message}):current);}
   }
-  function toggleCompare(cat){setCompare(items=>{if(items.includes(cat.id))return items.filter(id=>id!==cat.id);if(items.length>=2){setNotice('一次最多对比两只，请先移除一只');return items;}return [...items,cat.id];});}
-  return <div className="sales-workspace workflow-workspace" onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>
+  function toggleCompare(cat){setCompare(items=>{if(items.includes(cat.id))return items.filter(id=>id!==cat.id);if(items.length>=9){setNotice('最多选择9只，请先移除一只');return items;}return [...items,cat.id];});}
+  return <div className={`sales-workspace workflow-workspace${hidePrices?' customer-view':''}`} onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>
     <header className="workspace-header"><Link className="workspace-brand" to="/cats/"><span><Cat size={24}/></span><div><b>猫咪合作平台</b><small>合作销售工作台</small></div></Link><div className="workspace-breadcrumb"><span>销售工作台</span><ChevronRight size={14}/><b>{titles[path]||'工作区'}</b></div></header>
-    {guide&&<div className="workspace-onboarding" role="note"><span>💡 <b>销售接单3步曲：</b>① 顶部输入客户要求用AI挑猫 <i>➜</i> ② 发猫咪照片/视频给微信客户 <i>➜</i> ③ 点卡片「写话术」复制回复。<small>首次使用，先去<Link to="/training/">新手带练</Link>花3分钟走一遍流程。</small></span><button aria-label="关闭新手指引" onClick={dismissGuide}><X size={17}/></button></div>}
     <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}</nav><SalesAccount/></aside>
     <main className="workspace-content" ref={panel}>
-      {visited.current.has('/cats/')&&<div className="workspace-ai-pane" hidden={path!=='/cats/'}><SalesAI cats={cats} onDetail={setDetail} hidePrices={hidePrices}/></div>}
-      {pages.map(([route,Component])=>visited.current.has(route)&&<section key={route} className="workspace-pane" data-route={route} data-active={path===route?'true':undefined} hidden={path!==route} aria-label={titles[route]}><PageBoundary><Suspense fallback={<PageSkeleton/>}><Component embedded onAsk={(cat,action)=>runScript([cat.id],action)} onCompare={toggleCompare} compareIds={compare} onDetail={setDetail} hidePrices={hidePrices} onHidePrices={privacy}/></Suspense></PageBoundary></section>)}
+      {visited.current.has('/cats/')&&<div className="workspace-ai-pane" hidden={path!=='/cats/'}><SalesAI cats={cats} onDetail={setDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onMarketing={openMarketing}/></div>}
+      {pages.map(([route,Component])=>visited.current.has(route)&&<section key={route} className="workspace-pane" data-route={route} data-active={path===route?'true':undefined} hidden={path!==route} aria-label={titles[route]}><PageBoundary><Suspense fallback={<PageSkeleton/>}><Component embedded onAsk={(cat,action)=>runScript([cat.id],action)} onCompare={toggleCompare} compareIds={compare} onDetail={setDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onDisplaySettings={()=>setDisplayDialog(true)}/></Suspense></PageBoundary></section>)}
       {!titles[path]&&<div className="workspace-empty"><h1>这个工作区暂时不存在</h1><Link to="/cats/">返回猫源库</Link></div>}
       <footer className="workspace-footer"><span>合作销售专用 · 成交前请确认库存与最终费用</span></footer>
     </main></div>
-    {compare.length===2&&path==='/cats/'&&<div className="workspace-compare" aria-label="猫咪对比栏"><span className="workspace-compare-label">已选 {compare.map(id=>labels.get(normalizeId(id))).join(' 与 ')}</span><div className="workspace-compare-items">{compare.map(id=><button key={id} aria-label={`移除${labels.get(normalizeId(id))}`} onClick={()=>setCompare(items=>items.filter(x=>x!==id))}><X size={13}/>{labels.get(normalizeId(id))}</button>)}</div>{compare.length===2?<button disabled={busy} onClick={()=>runScript(compare,'compare')}>✨ AI一键生成双猫对比逼单话术</button>:<span className="compare-hint">再选一只即可对比</span>}</div>}
+    {compare.length>=1&&path==='/cats/'&&!hidePrices&&<div className="workspace-compare" aria-label="选猫操作台"><span className="workspace-compare-label">已选{compare.length}只 · {compare.map(id=>labels.get(normalizeId(id))).join(' 与 ')}</span><div className="workspace-compare-items">{compare.map(id=><button key={id} aria-label={`移除${labels.get(normalizeId(id))}`} onClick={()=>setCompare(items=>items.filter(x=>x!==id))}><X size={13}/>{labels.get(normalizeId(id))}</button>)}</div>{compare.length===2&&<button disabled={busy} onClick={()=>runScript(compare,'compare')}>⚖️ AI生成双猫对比逼单话术</button>}{[4,9].includes(compare.length)?<button onClick={()=>openMarketing('price',compare)}>🖼️ 一键合成为报价拼图/小红书海报</button>:<span className="compare-hint">选2只可对比，4只或9只可拼图</span>}<button className="basket-clear" onClick={()=>setCompare([])}>清空</button></div>}
+    {displayDialog&&<CustomerDisplay settings={customerDisplay} onSave={privacy} close={()=>setDisplayDialog(false)}/>}
+    {marketing&&<MarketingStudio key={marketing.key} initialCats={marketing.cats} initialTemplate={marketing.template} allCats={cats} close={()=>setMarketing(null)}/>}
     {notice&&<div className="workspace-notice" role="status"><Check size={16}/>{notice}</div>}
-    {detail&&<Dialog title="猫咪销售资料" close={()=>setDetail(null)}><div className="workflow-cat-detail">{detail.image&&<img src={detail.image} alt={detail.breed||'在售猫咪'}/>}<b className="workflow-detail-id">{labels.get(normalizeId(detail.id))}</b><h2>{detail.breed} · {detail.color}</h2><p>{detail.gender} · 月龄{detail.age||'待确认'} · 疫苗{detail.vaccine||'待确认'}</p><p>{displayText(detail.description,cats,hidePrices)}</p><strong>{hidePrices?'底价已隐藏':'合作底价 '+money(detail.price)}</strong><div><button disabled={busy} onClick={()=>runScript([detail.id],'praise')}>夸这只猫骨相甜美</button><button disabled={busy} onClick={()=>runScript([detail.id],'price')}>客户嫌贵保价逼单</button></div><small>库存实时变化，成交前请再次核对。</small></div></Dialog>}
-    {job&&<Dialog title={job.action==='compare'?'双猫对比话术':'猫咪推荐话术'} close={()=>setJob(null)}><div className="workflow-script-result"><p className="workflow-script-ids">{job.ids.map(id=>labels.get(normalizeId(id))).join(' · ')}</p>{job.loading?<p role="status">{busy?'正在生成微信话术…':'请先完成销售激活…'}</p>:job.error?<><p role="alert" className="sales-ai-error">{job.error}</p><button className="workspace-primary" disabled={busy||cooldown>0||user?.remaining===0} onClick={()=>runScript(job.ids,job.action)}>{cooldown?`请等待${cooldown}秒`:'重新生成'}</button></>:<AIResult result={job.result} cats={cats} hidePrices={hidePrices} onDetail={cat=>{setJob(null);setDetail(cat);}}/>}</div></Dialog>}
+    {detail&&<Dialog title={hidePrices?'猫咪资料':'猫咪销售资料'} close={()=>setDetail(null)}><div className="workflow-cat-detail">{detail.image&&<img src={detail.image} alt={detail.breed||'在售猫咪'}/>}<b className="workflow-detail-id">{labels.get(normalizeId(detail.id))}</b><h2>{detail.breed} · {detail.color}</h2><p>{detail.gender} · 月龄{detail.age||'待确认'} · 疫苗{detail.vaccine||'待确认'}</p><p>{displayText(detail.description,cats,hidePrices)}</p>{displayedPrice(detail,customerDisplay)!=null&&<strong>{hidePrices?'售价 ':'合作底价 '}{money(displayedPrice(detail,customerDisplay))}</strong>}{!hidePrices&&<div><button disabled={busy} onClick={()=>runScript([detail.id],'praise')}>夸这只猫骨相甜美</button><button disabled={busy} onClick={()=>runScript([detail.id],'price')}>客户嫌贵保价逼单</button></div>}<small>库存实时变化，成交前请再次核对。</small></div></Dialog>}
+    {job&&<Dialog title={job.action==='compare'?'双猫对比话术':'猫咪推荐话术'} close={()=>setJob(null)}><div className="workflow-script-result"><p className="workflow-script-ids">{job.ids.map(id=>labels.get(normalizeId(id))).join(' · ')}</p>{job.loading?<p role="status">{busy?'正在生成微信话术…':'请先完成销售激活…'}</p>:job.error?<><p role="alert" className="sales-ai-error">{job.error}</p><button className="workspace-primary" disabled={busy||cooldown>0||user?.remaining===0} onClick={()=>runScript(job.ids,job.action)}>{cooldown?`请等待${cooldown}秒`:'重新生成'}</button></>:<AIResult result={job.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={cat=>{setJob(null);setDetail(cat);}}/>}</div></Dialog>}
   </div>;
 }
 export function WorkspaceContent(){return <SalesSessionProvider><CatalogProvider><Workspace/></CatalogProvider></SalesSessionProvider>;}

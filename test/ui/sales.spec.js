@@ -5,7 +5,7 @@ test('desktop compact first screen, activation, shared quota and screenshot reda
  await expect(page.locator('.workspace-stock-card').first()).toBeVisible();await expect(page.getByRole('navigation',{name:'销售工作台主导航'}).getByRole('link')).toHaveCount(3);await expect(page.locator('#sales-ai-prompt')).toHaveAttribute('maxlength','200');
  const first=await page.locator('.workspace-stock-card').first().boundingBox();expect(first.y).toBeLessThan(720);
  await page.locator('#sales-ai-prompt').fill('客户预算3000元，布偶妹妹，三个月');await page.getByRole('button',{name:'发送客户需求'}).click();await page.getByLabel('销售激活码').fill('A1B2-C3D4-E5F6-0718');await page.getByRole('button',{name:'激活并继续'}).click();await expect(page.locator('.sales-ai-reply')).toContainText('#A01');await expect(page.locator('.workspace-account')).toContainText('19/20');
- await page.getByRole('button',{name:'隐藏底价(截图模式)'}).click();await expect(page.locator('.sales-ai-reply')).not.toContainText('2600');await page.getByRole('button',{name:'一键复制微信话术'}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).not.toContain('2600');
+ await page.getByRole('button',{name:/对客展示模式/}).click();await page.getByRole('button',{name:'+0 · 纯隐藏'}).click();await page.getByRole('button',{name:'应用对客展示'}).click();await expect(page.locator('.sales-ai-reply')).not.toContainText('2600');await page.getByRole('button',{name:'一键复制微信话术'}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).not.toContain('2600');
 });
 test('mobile keeps three clear destinations, two-line demand entry and direct card options',async({page})=>{
  await page.setViewportSize({width:390,height:844});await page.goto('/cats/');await expect(page.locator('.workspace-stock-card').first()).toBeVisible();const first=await page.locator('.workspace-stock-card').first().boundingBox();expect(first.y).toBeLessThan(750);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -42,4 +42,13 @@ test('admin reuses existing login and manages D1 accounts, audit and emergency s
   await expect(page.getByText('AI 服务已暂停',{exact:true})).toBeVisible();
   await page.screenshot({path:'test-results/admin.png',fullPage:true});
   expect(errors).toEqual([]);
+});
+
+test('Canvas marketing exports real PNGs at both sizes without invoking AI',async({page})=>{
+ const stock=Array.from({length:9},(_,i)=>({id:'CAT-2026-'+String(17+i).padStart(6,'0'),breed:['布偶','英短','德文'][i%3],price:600+i*100,image:'/api/public-images/marketing-'+i,description:'在售猫咪',videos:[]}));let aiCalls=0;
+ await page.route('**/api/public-cats',route=>route.fulfill({json:{success:true,data:stock}}));await page.route('**/api/ai/session',route=>route.fulfill({json:{success:true,user:{sales_name:'拼图测试',daily_limit:20,remaining:20,retry_after:0}}}));
+ await page.route('**/api/public-images/*',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="#d6b790"/><circle cx="400" cy="600" r="230" fill="#fff0d8"/></svg>'}));await page.route('**/api/ai/ask',route=>{aiCalls++;return route.fulfill({status:500,json:{success:false}});});
+ await page.goto('/cats/');await expect(page.locator('.workspace-onboarding')).toHaveCount(0);await page.getByRole('button',{name:/生成小红书报价九宫格/}).click();const studio=page.getByRole('dialog',{name:'营销拼图与文案'});await expect(studio.getByRole('button',{name:'下载高清PNG'})).toBeEnabled();
+ for(const height of [1080,1440]){await studio.getByLabel('导出尺寸').selectOption(String(height));await expect(studio.getByRole('button',{name:'下载高清PNG'})).toBeEnabled();const downloaded=page.waitForEvent('download');await studio.getByRole('button',{name:'下载高清PNG'}).click();const download=await downloaded,stream=await download.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);const png=Buffer.concat(chunks);expect(png.subarray(0,8).toString('hex')).toBe('89504e470d0a1a0a');expect(png.readUInt32BE(16)).toBe(1080);expect(png.readUInt32BE(20)).toBe(height);}
+ await studio.getByRole('button',{name:'B · 猫舍招牌'}).click();await studio.getByLabel('猫舍 / 店铺名').fill('杭州猫舍');await expect(studio.getByRole('button',{name:'下载高清PNG'})).toBeEnabled();expect(aiCalls).toBe(0);
 });

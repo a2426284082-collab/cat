@@ -12,7 +12,7 @@ function destination(rel){
 }
 let pkg;
 try{pkg=JSON.parse(fs.readFileSync(path.join(target,'package.json'),'utf8'));}catch{console.error('Target is not an existing cat project.');process.exit(1);}
-if(!/^3\.[3456]\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x/3.5.x/3.6.x cat project. No files changed.');process.exit(1);}
+if(!/^3\.[34567]\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x/3.5.x/3.6.x/3.7.x cat project. No files changed.');process.exit(1);}
 for(const entry of manifest.files){
  destination(entry.path);
  const source=path.join(base,'payload',entry.path),actual=crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
