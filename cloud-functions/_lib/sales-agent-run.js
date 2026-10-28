@@ -1,12 +1,97 @@
 import {inventoryResult} from './sales-engine.js';
+import {chooseSalesCats,filterSalesCats,selectionSummary} from './sales-workflow.js';
+import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
-// One conversational task: understand once, dispatch at most one generation, charge one task.
+// One bounded conversational task: prepare data steps, dispatch UI steps, charge one sales quota.
 import {getCatalog} from './feishu.js';
 import {planningInput,generateAgentPlan} from './sales-agent.js';
 import {selectCandidates,generateReply,marketingOptions,normalizeId} from './sales-engine.js';
 import {accountView,preflight,reserve,finish,resolveSession,fail,auditLocal} from './sales-store.js';
 const paid=new Set(['match','praise','price','compare']);
 const toolResult=text=>({kind:'tool',used_ai:false,matched_ids:[],reply_text:text});
+// Execute safe data tools before handing browser-only operations to the UI. A later
+// step may depend on real IDs returned by an earlier step, never IDs invented by AI.
+// A blocked step stops the workflow; no fallback quietly widens a client's filters.
+export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices=false,allowed,controls}){
+ const stock=new Map(catalog.map(c=>[normalizeId(c.id),c]));
+ let ids=context.reference_ids.length?context.reference_ids:context.cat_ids;
+ const prepared=[],usage={input_tokens:0,output_tokens:0};
+ let currentNeed=context.need||'',posterSettings={...context.params},quotes={...context.quotes};
+ for(let index=0;index<steps.length;index++){
+  const original=steps[index],plan={...original,params:{...original.params},cat_ids:[...original.cat_ids]};
+  let result=null,status='ready',reason='';
+  const fallbackIds=plan.cat_ids.length?plan.cat_ids:ids;
+  if(plan.tool==='match'){
+   const need=plan.query||currentNeed;
+   if(!need){status='blocked';reason='没有可用于找猫的客户要求，请补充预算、品种或性别。';}
+   else{
+    const amount=plan.params.count||2;
+    const needsPoster=steps.slice(index+1).some(step=>step.tool==='poster');
+    const selected=chooseSalesCats(catalog,need,amount,{requireImage:needsPoster});
+    ids=selected.map(cat=>normalizeId(cat.id));currentNeed=need;
+    result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:selectionSummary(selected,amount,need,{hidePrices})};
+    if(selected.length<amount){status='blocked';reason=`符合条件的猫只有${selected.length}/${amount}只。原条件未放宽，请调整要求后继续。`;}
+   }
+  }else if(plan.tool==='poster'){
+   if(!controls.posterEnabled){status='blocked';reason='管理员暂时关闭了拼图工具。';}
+   else if(plan.params.operation==='replace'){status='blocked';reason='多步骤任务暂不自动替换某个位置的猫，以免后续文案引用替换前的猫。请先完成替换，再单独生成文案。';}
+   else if(plan.params.operation==='generate'){
+    const selected=fallbackIds.map(id=>stock.get(id)).filter(Boolean);
+    if(selected.length<2){status='blocked';reason='文案生成需要至少2只已经确认的猫，尚未找到足够猫咪。';}
+    else{
+     const setting={...posterSettings,...plan.params},prices=selected.map(cat=>{
+       const floor=Number(cat.price);
+       const quoted=quotes[normalizeId(cat.id)];
+       return Number.isFinite(quoted)&&quoted>=floor?quoted:Math.max(0,Math.round(floor+(setting.markup??800)));
+     });
+     const options=marketingOptions({marketing:{template:setting.includePrices===false?'sign':'price',platform:setting.platform||'xhs',city:setting.city||'',shop:setting.shop||'同城靠谱猫舍',prices}},selected);
+     await allowed();
+     try{
+      const out=await generateReply(env,selected,'根据当前选猫和宣传图设置生成对客文案','script',{marketing:options});
+      usage.input_tokens+=out.input_tokens;usage.output_tokens+=out.output_tokens;
+      result={kind:'marketing_copy',reply_text:out.reply_text,matched_ids:out.matched_ids,used_ai:true};
+      plan.cat_ids=selected.map(cat=>normalizeId(cat.id));
+     }catch{status='blocked';reason='文案服务未能返回合格内容，前面的选猫和拼图步骤仍可执行；本次不会自动重试生成。';}
+    }
+   }else{
+    const need=plan.query||currentNeed||'';
+    const pool=filterSalesCats(catalog,need).filter(c=>c.image);
+    const allowedPool=new Set(pool.map(cat=>normalizeId(cat.id)));
+    let selected=fallbackIds.filter(id=>allowedPool.has(id));
+    const followingMatch=prepared.some(step=>step.plan.tool==='match');
+    const expected=plan.params.count||selected.length||Math.min(4,pool.length);
+    selected=selected.slice(0,expected);
+    if(!followingMatch)for(const cat of pool)if(selected.length<expected&&!selected.includes(normalizeId(cat.id)))selected.push(normalizeId(cat.id));
+    if(selected.length<2||plan.params.count&&selected.length<plan.params.count){status='blocked';reason=`符合条件且有照片的在售猫只有${selected.length}只，无法满足本次拼图要求（需要${expected}只）。`;}
+    else{
+     ids=selected;currentNeed=need;posterSettings={...posterSettings,...plan.params,count:selected.length};
+     plan.cat_ids=[...ids];plan.query=need;
+     result={kind:'tool',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:`已核实${ids.length}只在售猫及图片，准备创建拼图。`};
+    }
+   }
+  }else if(paid.has(plan.tool)){
+   const required=plan.tool==='compare'?2:1;
+   if(fallbackIds.length!==required||fallbackIds.some(id=>!stock.has(id))){status='blocked';reason=required===2?'请明确需要对比的两只猫。':'请明确需要写话术的那一只猫。';}
+   else{
+    plan.cat_ids=[...fallbackIds];
+    await allowed();
+    try{
+     const out=await generateReply(env,fallbackIds.map(id=>stock.get(id)),plan.query||'根据已录入的真实资料生成销售话术','script',{hidePrices,expectedCount:required===2?2:undefined});
+     usage.input_tokens+=out.input_tokens;usage.output_tokens+=out.output_tokens;
+     result={...out,used_ai:true};
+    }catch{status='blocked';reason='话术服务未能返回合格内容，前面的步骤已保留，本次不自动重复请求模型。';}
+   }
+  }else if(plan.tool==='handbook'){
+   result=answerHandbook(plan.query||'合作售后政策')||toolResult('没有找到对应条款，请在手册中核实。');
+  }else if(['details','downloads','single_poster','calculator','order'].includes(plan.tool)){
+   if(fallbackIds.length!==1){status='blocked';reason='请指明要处理的猫咪编号，不能猜是哪一只。';}
+   else plan.cat_ids=[...fallbackIds];
+  }
+  prepared.push({plan,result,status,...(reason?{reason}:{})});
+  if(status==='blocked')break;
+ }
+ return {prepared,usage,complete:prepared.length===steps.length&&prepared.every(s=>s.status==='ready')};
+}
 export async function runAgentTask(db,env,request,body,key){
  let input;try{input=planningInput(body.prompt,body.agent_context);}catch(error){await auditLocal(db,key,'match',String(body.prompt||'').slice(0,200),error.audit||'blocked',error.message);throw error;}
  await preflight(db,key.id);
@@ -19,7 +104,14 @@ export async function runAgentTask(db,env,request,body,key){
  try{
   await allowed();dispatched=true;
   const understood=await generateAgentPlan(env,input.prompt,c,new Set(known));usage={input_tokens:understood.input_tokens,output_tokens:understood.output_tokens};
-  const plan=understood.plan;let result=null;const controls=await readWorkbench(db,{fresh:true});if(plan.tool==='poster'&&!controls.posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
+  const plan=understood.plan;let result=null;const controls=await readWorkbench(db,{fresh:true});
+  if(understood.steps.length>1){
+   stage='workflow';const workflow=await prepareWorkflowSteps({steps:understood.steps,catalog:[...stock.values()],context:c,env,hidePrices:body.hide_prices===true,allowed,controls});
+   usage.input_tokens+=workflow.usage.input_tokens;usage.output_tokens+=workflow.usage.output_tokens;
+   await finish(db,reservation,{...usage,status:'success',matched_ids:[],reply_text:`工作流准备了${workflow.prepared.length}步${workflow.complete?'':'，存在待处理的条件'}`});
+   const current=await resolveSession(db,request,body.device_id);
+   return {data:{kind:'agent_run',plan,steps:workflow.prepared,preparation_complete:workflow.complete,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
+  }if(plan.tool==='poster'&&!controls.posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
   const ids=plan.cat_ids.length?plan.cat_ids:c.reference_ids.length?c.reference_ids:c.focus_id?[c.focus_id]:c.cat_ids;
   if(paid.has(plan.tool)){
    let chosen;
@@ -39,5 +131,5 @@ export async function runAgentTask(db,env,request,body,key){
   const output={...usage,status:'success',matched_ids:result?.matched_ids||[],reply_text:result?.reply_text||`[${plan.tool}] ${plan.message||''}`};await finish(db,reservation,output);
   const current=await resolveSession(db,request,body.device_id);
   return {data:{kind:'agent_run',plan,result,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt};
- }catch(error){await finish(db,reservation,{...usage,status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?'任务请求未取得可用结果，已计入1次；未自动重试':'模型调用前取消'},{refund:!dispatched});const row=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();throw fail(dispatched?(stage==='understand'?'未能理解任务，已计入1次。可以直接说“找2000元以内的猫”，走库存查询；或稍后重试。':'话术生成失败，已计入1次；库存工具仍可直接使用。'):error.message,error.status||502,{user:row?accountView(row):undefined});}
+ }catch(error){await finish(db,reservation,{...usage,status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?'任务请求未取得可用结果，已计入1次；未自动重试':'模型调用前取消'},{refund:!dispatched});const row=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();throw fail(dispatched?(stage==='understand'?'未能理解任务，已计入1次。可以直接说“找2000元以内的猫”，走库存查询；或稍后重试。':stage==='workflow'?'工作流准备期间发生错误，已计入1次；未自动重试，也未开始浏览器操作。':'话术生成失败，已计入1次；库存工具仍可直接使用。'):error.message,error.status||502,{user:row?accountView(row):undefined});}
 }

@@ -4,6 +4,7 @@ import {provinces} from './sales-tools.js';
 import {parseDemandLocally} from '../../cloud-functions/_lib/smart-search.js';
 import {isHandbookQuestion} from '../../cloud-functions/_lib/sales-intent.js';
 import {agentParams,validateAgentPlan} from '../../cloud-functions/_lib/agent-schema.js';
+import {filterSalesCats} from '../../cloud-functions/_lib/sales-workflow.js';
 export const AGENT_TTL=30*60*1000,AGENT_STORAGE='sales-agent-session-v1:';
 const num=text=>/^\d+$/.test(text)?Number(text):({'一':1,'两':2,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'十一':11,'十二':12}[text]??null);
 export function requestedCount(text){text=text.replace(/第\s*(?:\d{1,2}|[一二两三四五六七八九十]+)\s*只/g,'');if(/九宫格/.test(text))return 9;if(/四宫格/.test(text))return 4;if(/双拼/.test(text))return 2;const matches=[...text.matchAll(/(\d{1,2}|十一|十二|[一两二三四五六七八九十])\s*(只|张|幅)/g)];const m=matches.find(row=>row[2]==='只')||matches.find(row=>num(row[1])>1);return m?num(m[1]):null;}
@@ -65,21 +66,22 @@ export function localAgentPlan(raw,cats,context={}){
  return clarify('我能挑猫、做拼图、写话术、看资料、准备下载、算报价和查手册。请说具体任务，不支持闲聊。');
 }
 export function mergeMatchNeed(previous,text,cats,currentIds=[]){
+ // Pure design edits must never drop earlier hard cat constraints.
+ if(previous&&(!String(text||'').trim()||/^(不要价格|隐藏价格|不显示价格|显示价格|换一批|换个排版|换个样式|换个风格|改竖版|改方图|继续做图|复制文案|生成文案)$/.test(String(text).trim())))return previous.slice(0,200);
  const dictionaries={breeds:[...new Set(cats.map(c=>c.breed).filter(Boolean))],colors:[...new Set(cats.map(c=>c.color).filter(Boolean))]},prior=parseDemandLocally(previous||'',dictionaries).filters,next=parseDemandLocally(text,dictionaries).filters,filters={...prior};
  for(const [k,v] of Object.entries(next))if(v!==''&&v!=null)filters[k]=v;
  const budget=text.match(/(?:预算|改成|换成)(?:到|为|约|是|\s)*[¥￥]?\s*(\d{2,7})\s*元?/);if(budget)filters.max=budget[1];
  if(/更便宜|再便宜|便宜一点|便宜点/.test(text)){const prices=cats.filter(c=>currentIds.includes(normalizeId(c.id))&&c.price!=null).map(c=>Number(c.price));if(prices.length)filters.max=String(Math.max(1,Math.min(...prices)-1));}
  if(/性别不限|公母都行|公母都可以/.test(text))filters.gender='';
  const features=['甜美','圆脸','粘人','温顺','亲人','安静','活泼','大眼'],recent=features.filter(x=>text.includes(x)),known=recent.length?recent:features.filter(x=>previous?.includes(x));
- const chunks=[filters.max?`预算${filters.max}元以内`:'',filters.min?`最低${filters.min}元`:'',filters.breed,filters.color,filters.gender==='母'?'妹妹':filters.gender==='公'?'弟弟':'',...known,/性价比|捡漏/.test(text)?'性价比高':''].filter(Boolean);
+ const negativeRules=(previous||'').match(/(?:不要|排除|别要|不想要|不考虑|避开|不选)[^，。；,;]{1,12}/g)||[];
+ const chunks=[...negativeRules,filters.max?`预算${filters.max}元以内`:'',filters.min?`最低${filters.min}元`:'',filters.breed,filters.color,filters.gender==='母'?'妹妹':filters.gender==='公'?'弟弟':'',filters.minAge&&filters.maxAge?filters.minAge===filters.maxAge?`${filters.maxAge}个月`: `${filters.minAge}到${filters.maxAge}个月`:filters.maxAge?`${filters.maxAge}个月以内`:filters.minAge?`至少${filters.minAge}个月`:'',...known,/性价比|捡漏/.test(text)?'性价比高':''].filter(Boolean);
  // Full stock identifiers are resolved before this merge and passed unchanged.
  if(!chunks.length||/#|编号/.test(text))return text.slice(0,200);
  return chunks.join('，').slice(0,200);
 }
-export function filterAgentCats(cats,query=''){
- const {filters:f}=parseDemandLocally(query,{breeds:[...new Set(cats.map(c=>c.breed).filter(Boolean))],colors:[...new Set(cats.map(c=>c.color).filter(Boolean))]});
- return cats.filter(c=>(!c.status||c.status==='在售')&&(!f.breed||c.breed===f.breed)&&(!f.color||c.color===f.color)&&(!f.gender||c.gender===f.gender)&&(!f.max||c.price!=null&&c.price<=Number(f.max))&&(!f.min||c.price!=null&&c.price>=Number(f.min)));
-}
+export function filterAgentCats(cats,query=''){return filterSalesCats(cats,query);}
+
 function cleanTask(value={}){
  const task=value.task||'help',params=agentParams(value.params||{}),ids=(value.cat_ids||[]).map(normalizeId);validateAgentPlan({tool:task,cat_ids:ids,params});
  const context={task,cat_ids:ids,params,need:String(value.need||'').slice(0,200)};
@@ -90,10 +92,27 @@ function cleanTask(value={}){
  if(value.quotes&&typeof value.quotes==='object'){context.quotes={};for(const id of ids){const n=value.quotes[id];if(typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=1000000)context.quotes[id]=n;}}
  return context;
 }
-export function readAgentSession(storage,key,now=Date.now()){
- try{const value=JSON.parse(storage.getItem(AGENT_STORAGE+key)||'null');if(!value||typeof value.at!=='number'||now-value.at>AGENT_TTL||value.at>now+60000)return null;return {context:cleanTask(value.context),messages:Array.isArray(value.messages)?value.messages.slice(-16).map(cleanMessage).filter(Boolean):[]};}catch{return null;}
+// A resumable checklist can contain only previously validated, side-effect-free UI tools.
+function cleanPendingWorkflow(value){
+ if(!Array.isArray(value)||value.length>5)return null;
+ const steps=[];
+ for(const item of value){
+  if(!item||item.status!=='ready')return null;
+  let plan;try{plan=validateAgentPlan(item.plan);}catch{return null;}
+  if(!['poster','match','praise','price','compare','handbook','details','downloads','single_poster','calculator','order'].includes(plan.tool))return null;
+  const result=item.result;
+  steps.push({plan,status:'ready',reason:'',result:result&&typeof result==='object'?{
+   kind:['inventory','marketing_copy','tool','copy','handbook','chat'].includes(result.kind)?result.kind:'tool',
+   used_ai:result.used_ai===true,reply_text:String(result.reply_text||'').slice(0,1600),
+   matched_ids:Array.isArray(result.matched_ids)?result.matched_ids.filter(id=>typeof id==='string'&&/^#?[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)).slice(0,9):[]
+  }:null});
+ }
+ return steps.length?steps:null;
 }
-export function writeAgentSession(storage,key,state){try{storage.setItem(AGENT_STORAGE+key,JSON.stringify({at:Date.now(),context:cleanTask(state.context),messages:state.messages.slice(-16).map(cleanMessage).filter(Boolean)}));return true;}catch{return false;}}
+export function readAgentSession(storage,key,now=Date.now()){
+ try{const value=JSON.parse(storage.getItem(AGENT_STORAGE+key)||'null');if(!value||typeof value.at!=='number'||now-value.at>AGENT_TTL||value.at>now+60000)return null;return {context:cleanTask(value.context),messages:Array.isArray(value.messages)?value.messages.slice(-16).map(cleanMessage).filter(Boolean):[],pendingWorkflow:cleanPendingWorkflow(value.pendingWorkflow)};}catch{return null;}
+}
+export function writeAgentSession(storage,key,state){try{storage.setItem(AGENT_STORAGE+key,JSON.stringify({at:Date.now(),context:cleanTask(state.context),messages:state.messages.slice(-16).map(cleanMessage).filter(Boolean),pendingWorkflow:cleanPendingWorkflow(state.pendingWorkflow)}));return true;}catch{return false;}}
 export {agentParams,validateAgentPlan};
 
 // Exact, reversible edits to an existing preview are free. All other free-form input goes to semantics.

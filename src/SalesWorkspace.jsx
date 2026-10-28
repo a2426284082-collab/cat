@@ -122,14 +122,14 @@ function Workspace(){
   }
   async function executeAgent(plan,current,{caption,restore=false}={}){
     if(plan.tool==='show_matches'){setMarketing(null);setDetail(null);navigate('/cats/');return {text:'已返回库存结果。'};}
-    const switches={poster:'posterEnabled',downloads:'downloadsEnabled',single_poster:'singlePosterEnabled',calculator:'calculatorEnabled'};if(switches[plan.tool]&&!workbenchConfig[switches[plan.tool]])return {text:'这项功能已被管理员暂停。'};
+    const switches={poster:'posterEnabled',downloads:'downloadsEnabled',single_poster:'singlePosterEnabled',calculator:'calculatorEnabled'};if(switches[plan.tool]&&!workbenchConfig[switches[plan.tool]])return {ok:false,text:'这项功能已被管理员暂停。'};
     const params=agentParams(plan.params||{}),requested=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids||[];
     const find=id=>cats.find(c=>normalizeId(c.id)===id&&(!c.status||c.status==='在售'));
     const tools=['details','downloads','single_poster','calculator','order'];
     if(tools.includes(plan.tool)){
-      if(requested.length!==1||!find(requested[0]))return {text:'请明确是哪一只在售猫，例如“下载 #017 的视频”，或“看第一只的资料”。'};
-      if(hidePrices&&['calculator','order'].includes(plan.tool))return {text:'对客模式不显示内部底价和收益，请先关闭对客模式。'};
-      const cat=find(requested[0]);if(plan.tool==='calculator'&&params.province&&!provinces.includes(params.province))return {text:'请选择速算器支持的省份，并填写核实后的运费。'};
+      if(requested.length!==1||!find(requested[0]))return {ok:false,text:'请明确是哪一只在售猫，例如“下载 #017 的视频”，或“看第一只的资料”。'};
+      if(hidePrices&&['calculator','order'].includes(plan.tool))return {ok:false,text:'对客模式不显示内部底价和收益，请先关闭对客模式。'};
+      const cat=find(requested[0]);if(plan.tool==='calculator'&&params.province&&!provinces.includes(params.province))return {ok:false,text:'请选择速算器支持的省份，并填写核实后的运费。'};
       if(plan.tool==='order')return {result:{kind:'copy',used_ai:false,matched_ids:[],reply_text:orderCommand(cat,labels.get(normalizeId(cat.id)))+'\n\n复制后发给负责人核实；此操作没有自动锁定库存。'}};
       showDetail(cat,{downloads:'download',single_poster:'poster',calculator:'freight'}[plan.tool]||'',params);
       return {text:plan.tool==='downloads'?'已打开原素材下载面板，请点击文件链接保存。':plan.tool==='single_poster'?'已打开单猫详情海报，可核对零售价后下载。':plan.tool==='calculator'?'已打开速算器；运费需填写核实后的估算。':'已打开猫咪资料。'};
@@ -144,21 +144,21 @@ function Workspace(){
       const continuing=current.task==='poster',base=continuing?current.params:{markup:customerDisplay.markup,includePrices:true,bannerEnabled:false,platform:'xhs',height:1080,mirrorEnabled:true};
       const settings={...base,...params};if(caption)delete settings.operation;const query=continuing?mergeMatchNeed(current.need,plan.query||'',cats):plan.query||'',pool=filterAgentCats(cats,query).filter(c=>c.image),poolIds=new Set(pool.map(c=>normalizeId(c.id)));
       let ids=plan.cat_ids?.length>=2?plan.cat_ids:continuing?current.cat_ids:[];
-      if(params.quote!=null){const target=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids;if(target?.length!==1||!find(target[0]))return {text:'单只改价请带编号，例如“#017 的价格改成1400”。'};if(Number(find(target[0]).price)>params.quote)return {text:'海报报价不能低于当前合作底价，请重新核对。'};settings.quoteTarget=target[0];}
+      if(params.quote!=null){const target=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids;if(target?.length!==1||!find(target[0]))return {ok:false,text:'单只改价请带编号，例如“#017 的价格改成1400”。'};if(Number(find(target[0]).price)>params.quote)return {ok:false,text:'海报报价不能低于当前合作底价，请重新核对。'};settings.quoteTarget=target[0];}
       const count=settings.count||((plan.cat_ids?.length>=2)?plan.cat_ids.length:ids.length||9);
       if(params.operation==='batch')ids=[];
-      const replacing=params.operation==='replace';if(replacing&&(!continuing||!Number.isInteger(params.replaceIndex)||params.replaceIndex>=ids.length))return {text:'要替换哪一只？请先生成拼图，再说“换掉第二只”。'};
-      if(replacing){const alternatives=pool.filter(c=>!ids.includes(normalizeId(c.id)));if(!alternatives.length)return {text:'当前没有其他符合条件且有照片的猫，原拼图已保留。'};ids=[...ids];ids[params.replaceIndex]=normalizeId(alternatives[Math.floor(Math.random()*alternatives.length)].id);}
+      const replacing=params.operation==='replace';if(replacing&&(!continuing||!Number.isInteger(params.replaceIndex)||params.replaceIndex>=ids.length))return {ok:false,text:'要替换哪一只？请先生成拼图，再说“换掉第二只”。'};
+      if(replacing){const alternatives=pool.filter(c=>!ids.includes(normalizeId(c.id)));if(!alternatives.length)return {ok:false,text:'当前没有其他符合条件且有照片的猫，原拼图已保留。'};ids=[...ids];ids[params.replaceIndex]=normalizeId(alternatives[Math.floor(Math.random()*alternatives.length)].id);}
       let chosen=ids.map(find).filter(c=>c?.image&&poolIds.has(normalizeId(c.id))).slice(0,count);
       if(chosen.length<count){const used=new Set(chosen.map(c=>normalizeId(c.id)));chosen=[...chosen,...pickMarketingCats(pool).filter(c=>!used.has(normalizeId(c.id))).slice(0,count-chosen.length)];}
-      if(chosen.length<2)return {text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
+      if(chosen.length<2)return {ok:false,text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
       settings.count=chosen.length;const control={id:crypto.randomUUID(),params:settings,cats:chosen,caption};
       const quotes=continuing?{...(current.quotes||{})}:{};if(settings.quoteTarget)quotes[settings.quoteTarget]=params.quote;
       setMarketing(old=>old&&continuing&&!restore?{...old,control}:{cats:chosen,template:settings.includePrices===false?'sign':'price',key:crypto.randomUUID(),settings:{...settings,overrides:quotes,designSeed:continuing?current.designSeed:undefined,caption:caption??(continuing?current.caption:undefined),bannerText:continuing?current.bannerText:undefined},control:params.operation&&!caption?control:null});
       const cleanSettings={...settings};delete cleanSettings.operation;delete cleanSettings.quoteTarget;delete cleanSettings.quote;delete cleanSettings.replaceIndex;
       return {text:params.operation==='download'?'已请求下载当前预览；若画面还在更新，请等待后点击下载。':caption?'文案已生成并放进当前拼图，无需再次执行。':`已准备${chosen.length}只在售猫的拼图${settings.includePrices===false?'，不显示价格':''}，可在弹窗继续调整。`,context:{task:'poster',cat_ids:chosen.map(c=>normalizeId(c.id)),params:cleanSettings,need:query,quotes,focus_id:null}};
     }
-    return {text:'当前没有可执行的对应操作，请说具体的选猫或素材任务。'};
+    return {ok:false,text:'当前没有可执行的对应操作，请说具体的选猫或素材任务。'};
   }
   const agent=useWorkspaceAgent({cats,session:{...salesSession,hidePrices},execute:executeAgent,onReset:()=>{setMarketing(null);setDetail(null);setJob(null);setCompare([]);}});
   return <AgentContext.Provider value={agent}><div className={`sales-workspace workflow-workspace${hidePrices?' customer-view':''}`} onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>

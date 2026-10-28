@@ -34,3 +34,16 @@ export function cleanAgentContext(value={}){
  const quotes={};if(value.quotes!=null){if(!object(value.quotes)||Object.keys(value.quotes).length>9)fail();for(const [id,n] of Object.entries(value.quotes)){if(!plan.cat_ids.includes(id)||typeof n!=='number'||!Number.isFinite(n)||n<0||n>1000000)fail();quotes[id]=n;}}
  return {...plan,task,need,recent_users:recent,reference_ids:references,focus_id:focus,quotes};
 }
+
+// A bounded sales workflow, not a free-form program. Legacy one-tool plans remain valid.
+export const AGENT_MAX_STEPS=5;
+export function validateAgentWorkflow(value,allowedIds){
+ if(!object(value))fail();
+ if(!own(value,'steps'))return [validateAgentPlan(value,allowedIds)];
+ if(Object.keys(value).some(k=>k!=='steps')||!Array.isArray(value.steps)||value.steps.length<1||value.steps.length>AGENT_MAX_STEPS)fail();
+ const steps=value.steps.map(step=>validateAgentPlan(step,allowedIds));
+ if(steps.some(step=>['reset','chat','help','clarify'].includes(step.tool))&&steps.length!==1)fail();
+ // Never silently change access mode or mutate a customer's work in multi-step runs.
+ if(steps.some(step=>step.tool==='client_view'||step.tool==='catalog'&&step.params.clear))fail();
+ return steps;
+}
