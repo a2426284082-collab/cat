@@ -12,7 +12,7 @@ const cats=[
  {id:'CAT-2026-000018',breed:'英短',color:'金渐层',gender:'母',age:'3',price:1800,vaccine:'1针',description:'圆脸甜美大眼，性格温顺安静。资料与价格均为交互预览示例。',image,images:[image],videos:[]},
  {id:'CAT-2026-000019',breed:'布偶',color:'海双',gender:'公',age:'4',price:2200,vaccine:'2针',description:'毛量蓬松，亲人活泼。资料与价格均为交互预览示例。',image,images:[image],videos:[]},
  {id:'CAT-2026-000020',breed:'德文卷毛猫',color:'乳白',gender:'公',age:'3',price:3800,vaccine:'2针',description:'活泼，喜欢互动。资料与价格均为交互预览示例。',image,images:[image],videos:[]},
-].concat(Array.from({length:5},(_,i)=>({id:'CAT-2026-'+String(21+i).padStart(6,'0'),breed:['美短','缅因','拿破仑','英短','布偶'][i],color:['银虎斑','棕虎斑','乳白','蓝白','重点色'][i],gender:i%2?'母':'公',age:'3',price:1200+i*300,vaccine:'1针',description:'猫咪库存与照片均为交互演示示例。',videos:[]}))).map((cat,index)=>({...cat,image:globalThis.WORKSPACE_PREVIEW_IMAGES?.[index%4]||image,images:[globalThis.WORKSPACE_PREVIEW_IMAGES?.[index%4]||image]}));
+].concat(Array.from({length:14},(_,i)=>({id:'CAT-2026-'+String(21+i).padStart(6,'0'),breed:['美短','缅因','拿破仑','英短','布偶'][i%5],color:['银虎斑','棕虎斑','乳白','蓝白','重点色'][i%5],gender:i%2?'母':'公',age:'3',price:1200+i*300,vaccine:'1针',description:'猫咪库存与照片均为交互演示示例。',videos:[]}))).map((cat,index)=>({...cat,image:globalThis.WORKSPACE_PREVIEW_IMAGES?.[index%4]||image,images:[globalThis.WORKSPACE_PREVIEW_IMAGES?.[index%4]||image]}));
 let signedIn=true,used=0,last=0;
 const user=()=>({id:0,sales_name:'演示销售',daily_limit:20,used_today:used,remaining:20-used,retry_after:Math.max(0,15-Math.floor((Date.now()-last)/1000))});
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});

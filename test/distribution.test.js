@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {catalogOrder,salesDate,seededShuffle,readShuffleRound,saveShuffleRound,ORDER_STORAGE_KEY} from '../src/workspace/distribution.js';
+const cats=Array.from({length:500},(_,i)=>({id:'CAT-'+String(i).padStart(5,'0'),price:i%11===0?null:600+i*5})),ids=rows=>rows.map(c=>c.id);
+test('daily catalogue distribution is reproducible, identity-specific and independent of upstream ordering',()=>{
+ const old=JSON.stringify(cats),seed='sales:28',day='2026-10-28',a=ids(catalogOrder(cats,seed,day));assert.deepEqual(a,ids(catalogOrder([...cats].reverse(),seed,day)));assert.equal(new Set(a).size,500);assert.notDeepEqual(a.slice(0,8),ids(catalogOrder(cats,'sales:29',day)).slice(0,8));assert.notDeepEqual(a,ids(catalogOrder(cats,seed,'2026-10-29')));assert.notDeepEqual(a,ids(catalogOrder(cats,seed,day,1)));assert.equal(JSON.stringify(cats),old);
+ const removed=new Set(cats.slice(12,23).map(c=>c.id));assert.deepEqual(ids(catalogOrder(cats.filter(c=>!removed.has(c.id)),seed,day)),a.filter(id=>!removed.has(id)));const added={id:'NEW-CAT',price:2000};assert.deepEqual(ids(catalogOrder([...cats,added],seed,day)).filter(id=>id!==added.id),a);
+});
+test('price sorts remain explicit and unknown prices are last, while date follows Shanghai midnight',()=>{
+ const asc=catalogOrder(cats,'sales:1','2026-10-28',0,'price-asc'),desc=catalogOrder(cats,'sales:1','2026-10-28',0,'price-desc'),known=asc.filter(c=>c.price!=null);assert.deepEqual(known.map(c=>c.price),[...known.map(c=>c.price)].sort((a,b)=>a-b));assert.equal(asc.at(-1).price,null);assert.equal(desc.at(-1).price,null);assert.ok(desc[0].price>desc[1].price);assert.equal(salesDate(new Date('2026-10-28T15:59:59Z')),'2026-10-28');assert.equal(salesDate(new Date('2026-10-28T16:00:00Z')),'2026-10-29');
+});
+test('500 salesperson identities distribute first-row exposure across the complete catalogue without a prefix bias',()=>{
+ const exposure=new Map(cats.map(c=>[c.id,0])),prefixes=new Set();for(let account=0;account<500;account++){const first=catalogOrder(cats,'sales:'+account,'2026-10-28').slice(0,8);prefixes.add(ids(first).join('|'));for(const cat of first)exposure.set(cat.id,exposure.get(cat.id)+1);}assert.equal(prefixes.size,500);assert.ok([...exposure.values()].filter(n=>n>0).length>=490);assert.ok(Math.max(...exposure.values())<35);
+});
+test('manual shuffle rounds persist by identity/date, prune older days and tolerate denied storage',()=>{
+ const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)};assert.equal(readShuffleRound('sales:1','2026-10-28',storage),0);saveShuffleRound('sales:1','2026-10-28',4,storage);assert.equal(readShuffleRound('sales:1','2026-10-28',storage),4);assert.equal(readShuffleRound('sales:2','2026-10-28',storage),0);saveShuffleRound('sales:2','2026-10-29',1,storage);assert.ok(!data.get(ORDER_STORAGE_KEY).includes('2026-10-28'));const denied={getItem(){throw new Error('denied');},setItem(){throw new Error('denied');}};assert.equal(readShuffleRound('device:1','2026-10-28',denied),0);assert.doesNotThrow(()=>saveShuffleRound('device:1','2026-10-28',2,denied));const a=[1,2,3,4];assert.deepEqual(seededShuffle(a,'seed'),seededShuffle(a,'seed'));assert.deepEqual(a,[1,2,3,4]);
+});

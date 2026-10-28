@@ -1,6 +1,6 @@
 {
-  "from_version": "3.3.x, 3.4.x, 3.5.x, 3.6.x, 3.7.x or 3.8.x",
-  "to_version": "3.8.0",
+  "from_version": "3.3.x, 3.4.x, 3.5.x, 3.6.x, 3.7.x, 3.8.x or 3.9.x",
+  "to_version": "3.9.0",
   "files": [
     {
       "path": ".gitignore",
@@ -8,11 +8,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "1d69059db87310778cd4044f52d8543f56ea3a7fa28efeece93ee0a041679adf"
+      "sha256": "064eb0d5c59bd5623d84d4fc6f8fc163e326ffc7929a07a1305752183f50e259"
     },
     {
       "path": "WORKSPACE_UPDATE.md",
-      "sha256": "b92bb1594fa478a9a5ce3ca2aee44acb6975adcc14637e73df28d3b867e19205"
+      "sha256": "de6ddef62a54e175e5245f3a39af4de44a399d057cdea582c33e110aaa417cf5"
     },
     {
       "path": "cloud-functions/_lib/sales-api.js",
@@ -48,11 +48,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "690361fb0be8dfa2f26697dc676c50aeeb606441776936fd9390d6217bd46f5c"
+      "sha256": "177ec9c769d0ae4e45732eafb9304a7a08fbdeeb33241ba9be7675d981ee2719"
     },
     {
       "path": "package.json",
-      "sha256": "84ab8afc846b98ad4d92ef0a2da2e74c4052ff18bd209e1bd0436ba5876e180a"
+      "sha256": "ee6c4fc09cb58cd213cf35df2b85ed389325919dfd0388700d221b30ceb48af1"
     },
     {
       "path": "public/ui-assets/manual-5fc4a5c43f4999cf.webp",
@@ -92,7 +92,7 @@
     },
     {
       "path": "scripts/build-workspace-preview.mjs",
-      "sha256": "4f290f24cf276a38c282c94a9193cbadde7348c80c38008c6250535671f0f38a"
+      "sha256": "b018fd2c6f7a75e46fc9ce84eb9600f683add5b104e5138b7051107ee691152c"
     },
     {
       "path": "scripts/test-sales-components.mjs",
@@ -100,7 +100,7 @@
     },
     {
       "path": "src/App.jsx",
-      "sha256": "3ecb14c950303738d31b47f03f1dcb429bdd948073d10a03824ef13403e4b41a"
+      "sha256": "07f54006d605ce4df868d210ce4245387bb16acbbbca16c46a5db56aab156bc8"
     },
     {
       "path": "src/AssistantApp.jsx",
@@ -204,11 +204,11 @@
     },
     {
       "path": "src/workspace/MarketingStudio.jsx",
-      "sha256": "2b88e60d836c06e7f866a493286e84a086c2fa2a0094253d308e3a027fc8751c"
+      "sha256": "37a088b7e4f8e87b52f6b47e1bc94552ad8f210de8fb4e292031dad6f0f4883d"
     },
     {
       "path": "src/workspace/SalesSession.jsx",
-      "sha256": "0509ec5b26a55f064e74bd2f4fb4b1904c126471e7f7e599bbbb32e5fde79203"
+      "sha256": "aee690f58c10904c434906bf431a3a4868b471cde62b6cd2a0c5655d16d7feb8"
     },
     {
       "path": "src/workspace/SupportPage.jsx",
@@ -219,12 +219,16 @@
       "sha256": "f5d3ca70dc98f367e459e12c13896468b2178f809aee6d6d10b2bd2daf5519c5"
     },
     {
+      "path": "src/workspace/distribution.js",
+      "sha256": "0dfa94d3c7dad8f5301e05dc5b078acbdbd2df9264751a1d75df11f631317df2"
+    },
+    {
       "path": "src/workspace/marketing.css",
-      "sha256": "0928a173d3072fcc6b15733be5b3c1de62077bda0e52a64a9ff02ad1d652d0c8"
+      "sha256": "6ea7f5fbe62872853621f09f7b3216811eea1687d08d26da29c0cdd224c61df6"
     },
     {
       "path": "src/workspace/marketing.js",
-      "sha256": "25dc2f90287200752b250f94a81737c5d7064eeff2050beb461a357c2259190c"
+      "sha256": "6db53ec053db31cf68e1612683196fa417ecb9fa1680cfe88f4359a64b73a055"
     },
     {
       "path": "src/workspace/navigation.js",
@@ -236,7 +240,7 @@
     },
     {
       "path": "src/workspace/preview.jsx",
-      "sha256": "c8926b060e1da8ac25a2a5c748bf9c4a6d045e0efde19f89ca5c64a3b0634973"
+      "sha256": "86a78d5e7b2a295dbea415229169049144dde5b25f917c193866e43b419518e3"
     },
     {
       "path": "src/workspace/sales-faq-data.js",
@@ -255,6 +259,10 @@
       "sha256": "e5d6b80bdd10b0ecee5be75e4bc27286e3f21cc5697c30215d4e5deaec590223"
     },
     {
+      "path": "test/distribution.test.js",
+      "sha256": "11c5ae5b05aaa3a21c9ada1b299b497fd8f59cd164e52a09ff3bd1b9801937fe"
+    },
+    {
       "path": "test/dom-setup.mjs",
       "sha256": "4d6b34bebf06bb5970f5a647c80aa9f5ea5d175e73fbcdc3d83cdc6014f95fcc"
     },
@@ -264,11 +272,11 @@
     },
     {
       "path": "test/marketing.test.js",
-      "sha256": "9933644b82898fe311da1e035eca65f45543107db95fb280e8b0d3ee19859610"
+      "sha256": "aea18598a85e0234049133131d1583d3b8344e170437eedbba447660237db6ce"
     },
     {
       "path": "test/preview-smoke.mjs",
-      "sha256": "2409a8fb28d81adf51b4aeb8dff10a86fbd4c19f712d4039a7e6fc1b65d80b7c"
+      "sha256": "a4992f5cbc03fdfd6d7df33fc5a8c4d7285dc1bd7aefd78eb003146248e47d70"
     },
     {
       "path": "test/sales-ai.test.js",
@@ -276,7 +284,7 @@
     },
     {
       "path": "test/sales-components.test.jsx",
-      "sha256": "e3328a2bf823eafffa51bdc59b02e9bbd720cbbcab5beb92cd18d9a083c86f2a"
+      "sha256": "f9fe7107116c07671d57fb3a3b50299904dbb5d2ec32091b2f4fc2f854cb9d20"
     },
     {
       "path": "test/sales-faq.test.js",
@@ -288,7 +296,7 @@
     },
     {
       "path": "test/ui/sales.spec.js",
-      "sha256": "66d492ce9b2b4ec6618337a1d537c88b213fa3af37867d12e5212df7496d26b7"
+      "sha256": "63f7d89fef21e308e5d108d353ff3d537fc380b9c05930697f6657f179bad173"
     },
     {
       "path": "test/workflow.test.js",
