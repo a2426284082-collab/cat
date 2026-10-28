@@ -1,5 +1,4 @@
 import React,{useState} from 'react';
-import {Image,MapPin} from 'lucide-react';
 import {useCatalog} from './catalog.jsx';
 import {clearPreviewCache} from './media.js';
 import CustomerDisplay from './CustomerDisplay.jsx';
@@ -14,8 +13,7 @@ export default function SidebarUtilities({customerDisplay,onCustomerDisplay,onMa
  }
  return <>
   <section className="sidebar-art-tools" aria-label="引流做图工具"><h2>🛠️ 引流做图工具</h2>
-   <button aria-label="生成小红书报价九宫格" onClick={()=>onMarketing('price')}><Image size={19}/><span><b>小红书报价九宫格</b><small>选猫配价，一键出图</small></span></button>
-   <button aria-label="生成同城猫舍招牌海报" onClick={()=>onMarketing('sign')}><MapPin size={19}/><span><b>同城猫舍招牌海报</b><small>加上你的城市与店名</small></span></button>
+   <button aria-label="一键生成引流拼图 & 文案" onClick={()=>onMarketing('price')}><span className="sidebar-art-icon" aria-hidden="true">🎨</span><span><b>一键生成引流拼图 &amp; 文案</b><small>多图无框拼贴 / 朋友圈报价单</small></span></button>
   </section>
   <section className="sidebar-quote-settings" aria-label="对客报价设置"><h2>⚙️ 对客报价设置</h2><CustomerDisplay settings={customerDisplay} onChange={onCustomerDisplay}/><small>加价设为0，对客模式只展示资料、不显示价格。</small></section>
   <SalesAccount/>
