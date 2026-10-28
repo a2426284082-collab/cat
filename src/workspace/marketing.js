@@ -117,7 +117,7 @@ export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImag
  }
  onProgress?.(cats.length,cats.length);
  if(options.bannerEnabled)drawBanner(ctx,width,height,options,design);
- if(height>width){const dark=['#18181B','#271C19'].includes(design.background);ctx.fillStyle=dark?'#F5EBE1':'#7C4A2D';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`600 31px ${FONT}`;ctx.fillText(options.shop||'今日心动猫咪 · 私信看更多照片与视频',540,74);ctx.fillStyle=dark?'#C4B99B':'#78716C';ctx.font=`400 24px ${FONT}`;ctx.fillText('猫咪库存与最终费用，下单前请再次确认',540,height-78);}
+ if(height>width){const dark=['#18181B','#271C19'].includes(design.background);ctx.fillStyle=dark?'#F5EBE1':'#7C4A2D';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`600 31px ${FONT}`;ctx.fillText(options.bannerEnabled?(options.shop||'今日心动猫咪 · 私信看更多照片与视频'):'今日心动猫咪 · 私信看更多照片与视频',540,74);ctx.fillStyle=dark?'#C4B99B':'#78716C';ctx.font=`400 24px ${FONT}`;ctx.fillText('猫咪库存与最终费用，下单前请再次确认',540,height-78);}
  return canvas;
 }
 export function canvasBlob(canvas){return new Promise((resolve,reject)=>{try{canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('图片导出失败，请重新生成')),'image/png');}catch{reject(new Error('这张照片不允许合成下载，请换用猫源库照片后重试'));}});}

@@ -5,20 +5,18 @@ import {useSalesSession} from './SalesSession.jsx';
 import {canvasBlob,generateDesign,marketingDraft,pickMarketingCats,PRICE_TAG_NAMES,randomSeed,renderMarketingCanvas,retailPrice,shufflePhotoOrder,validPrice} from './marketing.js';
 import {money,normalizeId,shortIdMap} from './presentation.js';
 import {releaseCanvas} from './media.js';
-import {useFollowups} from './followups.jsx';
 import CommentTips from './CommentTips.jsx';
-import {WORKSPACE_FEATURES} from './features.js';
 
 export default function MarketingStudio({initialCats,initialTemplate='price',allCats,close}){
- const {ask,busy,cooldown,user,epoch}=useSalesSession(),followups=useFollowups();
+ const {ask,busy,cooldown,user,epoch}=useSalesSession();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign()),[includePrices,setIncludePrices]=useState(initialTemplate!=='sign');
  const [bannerEnabled,setBannerEnabled]=useState(initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(null),[mirrorEnabled,setMirrorEnabled]=useState(true);
  const [height,setHeight]=useState(1080),[markup,setMarkup]=useState(800),[overrides,setOverrides]=useState({}),[shop,setShop]=useState('同城靠谱猫舍'),[city,setCity]=useState(''),[platform,setPlatform]=useState('xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
  const [exportError,setExportError]=useState(''),[download,setDownload]=useState(null),[note,setNote]=useState(''),[exporting,setExporting]=useState(false);
- const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false),[remember,setRemember]=useState(WORKSPACE_FEATURES.followups);
- const batch=useRef(crypto.randomUUID()),renderTail=useRef(Promise.resolve());
+ const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false);
+ const renderTail=useRef(Promise.resolve());
  const template=includePrices?'price':'sign',bannerText=customBanner??`${city}${shop} · 真实在售 · 支持看视频`;
  const exportController=useRef(null),exportLock=useRef(false),visible=useRef(null),readyCanvas=useRef(null),alive=useRef(true),timer=useRef(null),revision=useRef('');
  const labels=useMemo(()=>shortIdMap(allCats),[allCats]);
@@ -63,46 +61,44 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
    const blob=await canvasBlob(stage);if(!alive.current||controller.signal.aborted||revision.current!==key){if(owned)releaseCanvas(stage);return;}
    if(owned){const canvas=visible.current;canvas.width=stage.width;canvas.height=stage.height;canvas.getContext('2d').drawImage(stage,0,0);releaseCanvas(ready.canvas);readyCanvas.current={canvas:stage,key,seed};}
    const url=URL.createObjectURL(blob),name=`petcloud-collage-${cats.length}-${height}-${seed.toString(36)}.png`;setDownload({url,name});const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();
-   if(WORKSPACE_FEATURES.followups&&remember&&includePrices)followups?.recordPoster(cats,prices,batch.current);
   }catch(e){if(owned)releaseCanvas(stage);if(alive.current&&!controller.signal.aborted)setExportError(e.message);}finally{exportLock.current=false;if(alive.current)setExporting(false);}
  }
  async function copy(){try{await navigator.clipboard.writeText(currentCaption);setCopied(true);clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}catch{setAiError('复制失败，请在文案框内长按全选复制。');}}
  return <Dialog title="营销拼图与文案" close={close} explicitCloseOnly className="marketing-dialog">
-  <div className="marketing-studio"><section className="marketing-visual" aria-label="海报预览与设置">
-   <div className="marketing-preview" style={{aspectRatio:`1080 / ${height}`}}>
+  <div className="marketing-studio"><section className="marketing-visual" aria-label="海报预览与下载">
+   <div className="marketing-preview" style={{aspectRatio:`1080 / ${height}`,'--poster-ratio':1080/height}}>
     <canvas ref={visible} aria-label={`${cats.length}图营销海报`} role="img" hidden={!hasPreview}/>
     {renderState!=='ready'&&<div className="marketing-preview-state" role={renderError?'alert':'status'}>{renderError||'正在更新海报…'}{progress&&<small className="poster-progress">{progress}</small>}{renderError&&<button onClick={()=>setRenderRetry(v=>v+1)}>重新加载照片</button>}</div>}
    </div>
-   <div className="marketing-export"><button className="workspace-primary" disabled={renderState!=='ready'||exporting} onClick={exportPNG}><Download size={16}/>{exporting?'正在导出…':'下载高清PNG'}</button><span>1080 × {height} · 本地合成不扣AI次数</span></div>
-   <div className="marketing-save-options"><label><input type="checkbox" checked={freshExport} onChange={e=>setFreshExport(e.target.checked)}/>下载时重新微调构图（稍慢）</label>{WORKSPACE_FEATURES.followups&&<label><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/>下载报价图后记入跟进备忘录</label>}<small>默认直接保存已预览图片，避免重复合成。</small></div>
+   <div className="marketing-export"><button className="workspace-primary" disabled={renderState!=='ready'||exporting} onClick={exportPNG}><Download size={16}/>{exporting?'正在导出…':'下载高清PNG'}</button></div>
+   <div className="marketing-procedural-tools" role="group" aria-label="调整排版与选猫"><button aria-label="随机换排版" onClick={changeDesign}>🎲 随机换排版</button><button aria-label="打乱顺序" onClick={shufflePhotos}>🔀 打乱顺序</button><button aria-label="换一批猫" onClick={changeBatch}>🔄 换一批猫</button></div>
+   <div className="marketing-design-summary"><i style={{background:design.background}}/>{PRICE_TAG_NAMES[design.tagShape]} · {design.gap===0?'无缝拼接':'留白画框'} · {design.radius===0?'利落直角':'柔和圆角'}</div>
+   <small className="marketing-export-meta">1080 × {height} · 本地合成不扣AI次数</small>
    {download&&<a className="marketing-save-link" href={download.url} download={download.name} target="_blank" rel="noreferrer">未自动保存？打开图片后长按保存</a>}
    {exportError&&<p role="alert" className="sales-ai-error">{exportError}</p>}
-   <div className="marketing-settings">
-    <div className="marketing-procedural-tools"><button className="workspace-primary" onClick={changeDesign}>🎲 随机换个排版样式</button><button onClick={shufflePhotos}><Shuffle size={14}/>打乱猫咪格子顺序</button><button onClick={changeBatch}><RefreshCw size={14}/>换一批猫</button></div>
-    <div className="marketing-design-summary"><i style={{background:design.background}}/>{PRICE_TAG_NAMES[design.tagShape]} · {design.gap===0?'无缝拼接':'留白画框'} · {design.radius===0?'利落直角':'柔和圆角'}</div>
-    <div className="marketing-fields">
+  </section><section className="marketing-controls" aria-label="海报设置与文案" tabIndex={0}>
+   <div className="marketing-settings"><h2>排版与报价</h2>
+    <fieldset className="marketing-basics"><legend className="sr-only">海报基础设置</legend>
      <label>导出尺寸<select value={height} onChange={e=>setHeight(Number(e.target.value))}><option value={1080}>1080 × 1080 方图</option><option value={1440}>1080 × 1440 竖图</option></select></label>
      <label>统一加价（元）<input type="number" min="0" max="100000" step="1" value={markup} onChange={e=>{setMarkup(e.target.value);setOverrides({});}}/></label>
-     <label>所在城市<input maxLength={12} value={city} placeholder="例如：杭州" onChange={e=>setCity(e.target.value)}/></label>
-     <label>猫舍 / 店铺名<input maxLength={20} value={shop} onChange={e=>setShop(e.target.value)}/></label>
-    </div>
-    <fieldset className="marketing-options"><legend className="sr-only">画面内容</legend>
-     <label><input type="checkbox" checked={includePrices} onChange={e=>setIncludePrices(e.target.checked)}/>显示售价标签</label>
-     <label><input type="checkbox" checked={mirrorEnabled} onChange={e=>setMirrorEnabled(e.target.checked)}/>允许照片随机镜像</label><small>原图有文字或水印时，可关闭镜像。售价标签始终正向显示。</small>
-     <label><input type="checkbox" checked={bannerEnabled} onChange={e=>setBannerEnabled(e.target.checked)}/>叠加猫舍招牌贴纸</label>
-     {bannerEnabled&&<label className="marketing-banner-input">招牌文字<textarea maxLength={60} rows={2} value={bannerText} onChange={e=>setCustomBanner(e.target.value)}/><small>仅填写本店已确认的信息，最多60字。</small></label>}
+     <label className="marketing-check"><input type="checkbox" checked={includePrices} onChange={e=>setIncludePrices(e.target.checked)}/>显示售价标签</label>
+     <label className="marketing-check"><input type="checkbox" checked={mirrorEnabled} onChange={e=>setMirrorEnabled(e.target.checked)}/>允许照片随机镜像</label>
     </fieldset>
+    <label className="marketing-banner-toggle marketing-check"><input type="checkbox" checked={bannerEnabled} onChange={e=>setBannerEnabled(e.target.checked)}/>叠加猫舍招牌贴纸</label>
+    {bannerEnabled&&<div className="marketing-banner-fields"><div className="marketing-fields"><label>所在城市<input maxLength={12} value={city} placeholder="例如：杭州" onChange={e=>setCity(e.target.value)}/></label><label>猫舍 / 店铺名<input maxLength={20} value={shop} onChange={e=>setShop(e.target.value)}/></label></div><label className="marketing-banner-input">招牌文字<textarea maxLength={60} rows={2} value={bannerText} onChange={e=>setCustomBanner(e.target.value)}/></label></div>}
     <details className="marketing-cat-prices" open={includePrices}><summary>已选{cats.length}只 · 单只售价可微调</summary>{cats.map((cat,i)=><label key={cat.id}><span>{i+1}. {labels.get(normalizeId(cat.id))} · {cat.breed}<small>合作底价 {money(cat.price)}</small></span><input aria-label={`${labels.get(normalizeId(cat.id))}海报售价`} type="number" min="0" max="1000000" value={Object.hasOwn(overrides,cat.id)?overrides[cat.id]:prices[cat.id]??''} onChange={e=>setOverrides(old=>({...old,[cat.id]:e.target.value}))}/><span>元</span></label>)}</details>
-    {note&&<p className="marketing-note" role="status">{note}</p>}<p className="marketing-note">发图前请核对库存、售价和原图文字。</p>
+    {note&&<p className="marketing-note" role="status">{note}</p>}
+    <details className="marketing-advanced"><summary>更多出图选项与说明</summary><label className="marketing-check"><input type="checkbox" checked={freshExport} onChange={e=>setFreshExport(e.target.checked)}/>下载时重新微调构图（稍慢）</label><p>默认直接保存预览成品。原图有文字或水印时，可关闭镜像；发图前请核对库存、价格和原图文字。</p></details>
    </div>
-  </section><section className="marketing-copy" aria-label="营销文案">
-   <span className="marketing-eyebrow">PHOTO → POST</span><h2>图已排好，配一句好文案</h2><p>基础文案可直接改；AI润色沿用工号配额，每次1次。</p>
-   <div className="marketing-platform" role="group" aria-label="发布平台"><button aria-pressed={platform==='xhs'} onClick={()=>setPlatform('xhs')}>小红书 · Emoji与标签</button><button aria-pressed={platform==='moments'} onClick={()=>setPlatform('moments')}>朋友圈 · 自然推荐</button></div>
-   <label className="marketing-caption-label" htmlFor="marketing-caption">{caption?.key===captionKey&&caption.ai?'AI种草文案':'基础文案 · 可编辑'}</label>
-   <textarea id="marketing-caption" value={currentCaption} onChange={e=>{setCaption({key:captionKey,text:e.target.value,ai:caption?.ai});setCopied(false);}} rows={14} maxLength={1600}/>
-   <div className="marketing-copy-actions"><button className="workspace-primary" disabled={busy||generating||cooldown>0||!valid||user?.remaining===0} onClick={generate}><Sparkles size={15}/>{generating?'正在生成…':cooldown?`等待${cooldown}秒`:'AI生成文案（1次）'}</button><button onClick={copy}><Copy size={15}/>{copied?'已复制文案':'复制文案'}</button></div>
-   {aiError&&<p role="alert" className="sales-ai-error">{aiError}</p>}<small>改猫咪、改价或改店名后，文案会同步回到基础版；AI生成需再次点击。图片与文案均可先预览，再自行发布。</small>
-   <CommentTips/>
+   <section className="marketing-copy" aria-label="营销文案">
+    <span className="marketing-eyebrow">PHOTO → POST</span><h2>图已排好，配一句好文案</h2><p>基础文案可直接改；AI润色沿用工号配额，每次1次。</p>
+    <div className="marketing-platform" role="group" aria-label="发布平台"><button aria-pressed={platform==='xhs'} onClick={()=>setPlatform('xhs')}>小红书 · Emoji与标签</button><button aria-pressed={platform==='moments'} onClick={()=>setPlatform('moments')}>朋友圈 · 自然推荐</button></div>
+    <label className="marketing-caption-label" htmlFor="marketing-caption">{caption?.key===captionKey&&caption.ai?'AI种草文案':'基础文案 · 可编辑'}</label>
+    <textarea id="marketing-caption" value={currentCaption} onChange={e=>{setCaption({key:captionKey,text:e.target.value,ai:caption?.ai});setCopied(false);}} rows={10} maxLength={1600}/>
+    <div className="marketing-copy-actions"><button className="workspace-primary" disabled={busy||generating||cooldown>0||!valid||user?.remaining===0} onClick={generate}><Sparkles size={15}/>{generating?'正在生成…':cooldown?`等待${cooldown}秒`:'AI生成文案（1次）'}</button><button onClick={copy}><Copy size={15}/>{copied?'已复制文案':'复制文案'}</button></div>
+    {aiError&&<p role="alert" className="sales-ai-error">{aiError}</p>}<small>改猫咪、改价或改店名后，文案会同步回到基础版；AI生成需再次点击。图片与文案均可先预览，再自行发布。</small>
+    <CommentTips/>
+   </section>
   </section></div>
  </Dialog>;
 }

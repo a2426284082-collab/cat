@@ -2,7 +2,7 @@ import React,{lazy,Suspense,useEffect,useLayoutEffect,useRef,useState} from 'rea
 import {BrowserRouter,Link,useLocation,useNavigate} from 'react-router-dom';
 import {ArrowLeft,ArrowRight,BookOpen,Cat,Check,ChevronRight,GraduationCap,LayoutGrid,MessageSquare,RefreshCw,ShieldCheck,Sparkles,X} from 'lucide-react';
 import SalesAI,{AIResult} from './components/SalesAI.jsx';
-import {SalesSessionProvider,SalesAccount,useSalesSession} from './workspace/SalesSession.jsx';
+import {SalesSessionProvider,useSalesSession} from './workspace/SalesSession.jsx';
 import Dialog from './workspace/Dialog.jsx';
 import {displayText,money,normalizeId,shortIdMap,priceSettings,displayedPrice} from './workspace/presentation.js';
 import {CatalogProvider,useCatalog} from './workspace/catalog.jsx';
@@ -16,8 +16,10 @@ import './workspace/marketing.css';
 import {FollowupProvider,FollowupDrawer,useFollowups} from './workspace/followups.jsx';
 import CatTools from './workspace/CatTools.jsx';
 import SmartImage from './workspace/SmartImage.jsx';
-import {WORKSPACE_FEATURES} from './workspace/features.js';
 import './workspace/practical.css';
+import SidebarUtilities from './workspace/SidebarUtilities.jsx';
+import {WORKSPACE_FEATURES} from './workspace/features.js';
+import './workspace/layout.css';
 
 const loaders={
   '/cats/':()=>import('./App.jsx'),'/manuals/':()=>import('./workspace/SupportPage.jsx'),
@@ -42,7 +44,7 @@ function Workspace(){
   const visited=useRef(new Set());visited.current.add(path);
   const [compare,setCompare]=useState([]),[notice,setNotice]=useState(''),[detail,setDetail]=useState(null),[job,setJob]=useState(null);
   const [customerDisplay,setCustomerDisplay]=useState(()=>{try{const saved=localStorage.getItem('sales-customer-display');return saved?priceSettings(JSON.parse(saved)):priceSettings({enabled:localStorage.getItem('sales-hide-prices')==='1',markup:localStorage.getItem('sales-hide-prices')==='1'?0:800});}catch{return priceSettings({});}});
-  const [marketing,setMarketing]=useState(null);
+  const [marketing,setMarketing]=useState(null),[utilitiesOpen,setUtilitiesOpen]=useState(false);
   const hidePrices=customerDisplay.enabled;
   const panel=useRef(null),positions=useRef({}),active=useRef(path),restorePending=useRef(false);
   useEffect(()=>{if(rawPath==='/assistant/'||(!WORKSPACE_FEATURES.training&&rawPath==='/training/'))navigate('/cats/'+location.search+location.hash,{replace:true});},[rawPath]);
@@ -53,7 +55,7 @@ function Workspace(){
     if(ids&&selected.length!==ids.length){setNotice('已选猫咪库存有变化，请刷新并重新选择');return;}
     if(selected.length<2||selected.length>9){setNotice('拼图需要2至9只有照片的在售猫咪，请继续选猫');return;}
     if(selected.some(c=>!c.image)){setNotice('所选猫咪有缺少照片的，请替换后再生成');return;}
-    setMarketing({cats:selected,template,key:crypto.randomUUID()});
+    setMarketing({cats:selected,template,key:crypto.randomUUID()});setUtilitiesOpen(false);
   }
   const routeOrigin=window.location.origin==='null'?'https://workspace-preview.local':window.location.origin;
   const routeBase=routeOrigin+location.pathname+location.search+location.hash;
@@ -103,9 +105,9 @@ function Workspace(){
   function toggleCompare(cat){setCompare(items=>{if(items.includes(cat.id))return items.filter(id=>id!==cat.id);if(items.length>=9){setNotice('最多选择9只，请先移除一只');return items;}return [...items,cat.id];});}
   return <div className={`sales-workspace workflow-workspace${hidePrices?' customer-view':''}`} onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>
     <header className="workspace-header"><Link className="workspace-brand" to="/cats/"><span><Cat size={24}/></span><div><b>猫咪合作平台</b><small>合作销售工作台</small></div></Link><div className="workspace-breadcrumb"><span>销售工作台</span><ChevronRight size={14}/><b>{titles[path]||'工作区'}</b></div></header>
-    <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}</nav><SalesAccount/></aside>
+    <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}<button className="workspace-utilities-toggle" aria-expanded={utilitiesOpen} aria-controls="workspace-sidebar-utilities" onClick={()=>setUtilitiesOpen(v=>!v)}><Sparkles size={19}/><b>做图与设置</b></button></nav><div id="workspace-sidebar-utilities" className={`workspace-sidebar-utilities${utilitiesOpen?' is-open':''}`}><SidebarUtilities customerDisplay={customerDisplay} onCustomerDisplay={privacy} onMarketing={openMarketing}/></div></aside>
     <main className="workspace-content" ref={panel}>
-      {visited.current.has('/cats/')&&<div className="workspace-ai-pane" hidden={path!=='/cats/'}><SalesAI cats={cats} onDetail={setDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onMarketing={openMarketing}/></div>}
+      {visited.current.has('/cats/')&&<div className="workspace-ai-pane" hidden={path!=='/cats/'}><SalesAI cats={cats} onDetail={setDetail} hidePrices={hidePrices} customerDisplay={customerDisplay}/></div>}
       {pages.map(([route,Component])=>visited.current.has(route)&&<section key={route} className="workspace-pane" data-route={route} data-active={path===route?'true':undefined} hidden={path!==route} aria-label={titles[route]}><PageBoundary><Suspense fallback={<PageSkeleton/>}><Component embedded onAsk={(cat,action)=>runScript([cat.id],action)} onCompare={toggleCompare} compareIds={compare} onDetail={setDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onCustomerDisplay={privacy}/></Suspense></PageBoundary></section>)}
       {!titles[path]&&<div className="workspace-empty"><h1>这个工作区暂时不存在</h1><Link to="/cats/">返回猫源库</Link></div>}
       <footer className="workspace-footer"><span>合作销售专用 · 成交前请确认库存与最终费用</span></footer>
