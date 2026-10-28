@@ -55,11 +55,13 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
   if(p.includePrices!=null)setIncludePrices(p.includePrices);if(p.bannerEnabled!=null)setBannerEnabled(p.bannerEnabled);if(p.mirrorEnabled!=null)setMirrorEnabled(p.mirrorEnabled);
   if(p.height)setHeight(p.height);if(p.markup!=null&&Number(p.markup)!==Number(markup)){setMarkup(p.markup);setOverrides({});}if(p.platform)setPlatform(p.platform);if(p.city!=null&&p.city!==city){setCity(p.city);setCustomBanner(null);}if(p.shop!=null&&p.shop!==shop){setShop(p.shop);setCustomBanner(null);}
   if(p.quoteTarget&&p.quote!=null)setOverrides(old=>({...old,[p.quoteTarget]:p.quote}));
-  if(p.operation)setAgentOperation({id:control.id,operation:p.operation});
+  if(control.caption)setAgentOperation({id:control.id,operation:'caption',caption:control.caption});
+  else if(p.operation)setAgentOperation({id:control.id,operation:p.operation});
  },[control?.id]);
  useEffect(()=>{if(!agentOperation||handledOperation.current===agentOperation.id)return;
   const op=agentOperation.operation;if(op==='download'&&(renderState!=='ready'||readyCanvas.current?.key!==fingerprint))return;
   handledOperation.current=agentOperation.id;
+  if(op==='caption')setCaption({key:captionKey,text:agentOperation.caption,ai:true});
   if(op==='style')changeDesign();if(op==='shuffle')shufflePhotos();if(op==='batch')setNote('已换一批在售猫，当前图数保持不变。');
   if(op==='download')void exportPNG();if(op==='copy')void copy();if(op==='generate')void generate();
  },[agentOperation,renderState,fingerprint]);

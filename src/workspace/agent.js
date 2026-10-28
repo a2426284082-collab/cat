@@ -94,3 +94,13 @@ export function readAgentSession(storage,key,now=Date.now()){
 }
 export function writeAgentSession(storage,key,state){try{storage.setItem(AGENT_STORAGE+key,JSON.stringify({at:Date.now(),context:cleanTask(state.context),messages:state.messages.slice(-16).map(r=>({role:r.role,text:String(r.text).slice(0,600)}))}));return true;}catch{return false;}}
 export {agentParams,validateAgentPlan};
+
+// Exact, reversible edits to an existing preview are free. All other free-form input goes to semantics.
+export function previewControl(text,context={}){
+ if(context.task!=='poster')return null;
+ const normalized=String(text).normalize('NFKC').trim().replace(/[，。!！]+$/,'');
+ const edit=/^(?:不要价格|不显示价格|隐藏价格|恢复价格|显示价格|不要招牌|去掉招牌|关闭镜像|不要镜像|打开镜像|允许镜像|改成?竖版|换成竖版|改成?方图|换成方图|换个排版|换个样式|换个风格|随机排版|打乱顺序|换一批|下载这张图|保存这张图|复制文案|换成[二两三四五六七八九2-9]只|加上[^，。]{2,18}猫舍|店名改成[^，。]{2,20})$/;
+ const replace=normalized.match(/^(?:把)?第([一二两三四五六七八九1-9])只(?:换掉|换一只|替换掉)$/);
+ if(replace)return {tool:'poster',cat_ids:[],params:{operation:'replace',replaceIndex:num(replace[1])-1},query:''};
+ if(!edit.test(normalized))return null;const params=posterPatch(normalized);return Object.keys(params).length?{tool:'poster',cat_ids:[],params,query:''}:null;
+}
