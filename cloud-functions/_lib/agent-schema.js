@@ -1,5 +1,5 @@
 // Shared data-only tool contract. Models never return executable code, arbitrary URLs or administrator actions.
-export const AGENT_TOOLS=['poster','match','praise','price','compare','handbook','details','downloads','single_poster','calculator','order','client_view','catalog','help','clarify','reset'];
+export const AGENT_TOOLS=['poster','match','praise','price','compare','handbook','details','downloads','single_poster','calculator','order','client_view','catalog','help','chat','clarify','reset'];
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o&&typeof o==='object'&&!Array.isArray(o);
 const fail=()=>{throw new Error('工具指令格式无效');};
 export function agentParams(value={}){

@@ -1,3 +1,4 @@
+import AgentConversation from '../workspace/AgentConversation.jsx';
 // ADMIN_CONTROL_PATCH_V1
 import {useWorkbenchConfig} from '../workspace/WorkbenchConfig.jsx';
 import React,{useEffect,useRef,useState} from 'react';
@@ -20,13 +21,16 @@ export default function SalesAI({cats=[],onDetail,hidePrices=false,customerDispl
  const {user,checking,busy,cooldown,epoch}=useSalesSession(),agent=useAgentContext();const [prompt,setPrompt]=useState(''),[quickTask,setQuickTask]=useState(null);const input=useRef(null),hadConversation=useRef(false);
  useEffect(()=>{setPrompt('');setQuickTask(null);},[epoch]);
  useEffect(()=>{if(!agent.messages.length&&hadConversation.current)setPrompt('');hadConversation.current=agent.messages.length>0;},[agent.messages.length]);
- async function send(e){e.preventDefault();await agent.send(prompt,quickTask?{source:'quick',tool:'match'}:{});}
+ async function send(e){e.preventDefault();agent.openConversation();await agent.send(prompt,quickTask?{source:'quick',tool:'match'}:{});}
  const context=agent.context,taskLabel=context.task==='poster'?`${context.cat_ids.length}只猫的拼图`:context.cat_ids.length?`${context.cat_ids.length}只已选猫咪`:'销售任务';
  return <section className="sales-ai sales-ai-compact" aria-label="销售工具助手"><div className="sales-ai-heading"><h2>{workbenchConfig.heroTitle} <span>{workbenchConfig.heroHighlight} <Sparkles aria-hidden="true"/></span></h2></div><form className="sales-ai-glow" onSubmit={send}><div className="sales-ai-composer"><label className="sr-only" htmlFor="sales-ai-prompt">客户选猫需求</label><textarea id="sales-ai-prompt" ref={input} rows={2} maxLength={200} value={prompt} onChange={e=>{const value=e.target.value.slice(0,200);setPrompt(value);if(quickTask&&!/客户预算【.*】元，想看【.*】品种，要求【.*】|客户是第一次养猫的新手，预算【.*】元左右，推荐两只性格温顺好养的猫|客户想找性价比高、品相甜美的捡漏小猫，请从库里挑2只最好卖的/.test(value))setQuickTask(null);}} disabled={agent.pending||busy} placeholder={workbenchConfig.aiPlaceholder}/><div className="sales-ai-toolbar">{quickTask&&<button type="button" className="agent-input-mode" onClick={()=>setQuickTask(null)}>快捷挑猫 · 切换自由输入</button>}<span className="sales-ai-count">{prompt.length}/200</span><button type="submit" className="sales-ai-send" aria-label="发送客户需求" disabled={agent.pending||busy||checking||!prompt.trim()}>{agent.pending||busy?<span className="sales-ai-spinner"/>:<ArrowUp size={21}/>}</button></div></div></form><div className="sales-ai-quick">{commands.map(([emoji,label,text])=><button key={label} disabled={agent.pending||busy} onClick={()=>{setQuickTask(label);setPrompt(text);input.current?.focus();}}><span>{emoji}</span>{label}</button>)}</div>
   <div className="agent-task-bar"><span>{context.task!=='help'?`接着处理：${taskLabel}`:'可连续处理当前任务'} · 快捷工具直接执行，自由指令理解并执行计1次{cooldown?` · AI冷却${cooldown}秒`:''}</span><button onClick={agent.reset}>新任务</button></div>
-  <AIResult result={agent.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={onDetail}/>
+  {!agent.conversationOpen&&<AIResult result={agent.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={onDetail}/>}
 
-  {!hidePrices&&agent.messages.length>0&&<details className="agent-history"><summary>本次对话 · 最近{Math.ceil(agent.messages.length/2)}轮</summary><ol>{agent.messages.map((row,i)=><li key={i} className={row.role}><b>{row.role==='user'?'你':'助手'}</b><p>{displayText(row.text,cats,false)}</p></li>)}</ol><small>仅当前浏览器标签页保留，最多8轮，30分钟过期；新任务或退出账号会清空。发送模型时只带有限任务摘要。</small></details>}
+  {context.task==='poster'&&context.cat_ids.length>=2&&!agent.conversationOpen&&<button className="agent-open-conversation" disabled={agent.pending} onClick={()=>agent.send('打开当前拼图')}>打开拼图预览</button>}
+  {agent.messages.length>0&&!agent.conversationOpen&&<button className="agent-open-conversation" onClick={agent.openConversation}>打开对话继续处理</button>}
+  {agent.conversationOpen&&<AgentConversation cats={cats} hidePrices={hidePrices} agent={agent} renderResult={()=> <AIResult result={agent.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={cat=>{agent.closeConversation();onDetail?.(cat);}}/>}/>}
+  {!agent.conversationOpen&&!hidePrices&&agent.messages.length>0&&<details className="agent-history"><summary>本次对话 · 最近{Math.ceil(agent.messages.length/2)}轮</summary><ol>{agent.messages.map((row,i)=><li key={i} className={row.role}><b>{row.role==='user'?'你':'助手'}</b><p>{displayText(row.text,cats,false)}</p></li>)}</ol><small>仅当前浏览器标签页保留，最多8轮，30分钟过期；新任务或退出账号会清空。发送模型时只带有限任务摘要。</small></details>}
   {agent.storageFailed&&<small className="agent-storage-warning">当前浏览器未保存会话，刷新后需要重新描述任务。</small>}
  </section>;
 }

@@ -4,7 +4,8 @@ import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
 import {LogOut,ShieldCheck,X} from 'lucide-react';
 import {isHandbookQuestion} from '../../cloud-functions/_lib/sales-intent.js';
 const Context=createContext(null);
-export async function salesApi(path,options={}){const response=await fetch(path,{credentials:'same-origin',...options,headers:{'Content-Type':'application/json',...options.headers}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(data.message||'服务暂时不可用，请稍后重试'),{status:response.status,retry_after:data.retry_after,user:data.user});return data;}
+import {salesApi} from './sales-request.js';
+export {salesApi} from './sales-request.js';
 function deviceId(){try{let id=localStorage.getItem('sales-device-id');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id||'')){id=crypto.randomUUID();localStorage.setItem('sales-device-id',id);}return id;}catch{throw new Error('请允许网站保存设备标识后再激活');}}
 export function SalesSessionProvider({children}){
  const {config:workbenchConfig}=useWorkbenchConfig();
