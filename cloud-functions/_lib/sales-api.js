@@ -1,3 +1,4 @@
+import {runAgentTask} from './sales-agent-run.js';
 import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
@@ -48,6 +49,8 @@ async function userSession(db, request, body) {
 async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
+  if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
+  if(body.action==='agent_run')return json({success:true,...await runAgentTask(db,env,request,body,key)});
   const action=body.action,planning=action==='agent_plan';
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
   if(action!=null&&!structured&&!planning&&action!=='handbook')throw fail('操作类型无效');
