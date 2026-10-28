@@ -10,3 +10,6 @@
   background: #cbd5e1;
   border-radius: 9999px;
 }
+
+:root{--ui-font:-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Inter", sans-serif}
+body,body.font-sans{font-family:var(--ui-font)}

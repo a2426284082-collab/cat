@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 
 test('desktop compact first screen, activation, shared quota and screenshot redaction',async({page,context})=>{
  await context.grantPermissions(['clipboard-read','clipboard-write']);await page.setViewportSize({width:1366,height:900});await page.goto('/cats/');
- await expect(page.locator('.workspace-stock-card').first()).toBeVisible();await expect(page.getByRole('navigation',{name:'销售工作台主导航'}).getByRole('link')).toHaveCount(3);await expect(page.locator('#sales-ai-prompt')).toHaveAttribute('maxlength','60');
+ await expect(page.locator('.workspace-stock-card').first()).toBeVisible();await expect(page.getByRole('navigation',{name:'销售工作台主导航'}).getByRole('link')).toHaveCount(3);await expect(page.locator('#sales-ai-prompt')).toHaveAttribute('maxlength','200');
  const first=await page.locator('.workspace-stock-card').first().boundingBox();expect(first.y).toBeLessThan(720);
  await page.locator('#sales-ai-prompt').fill('客户预算3000元，布偶妹妹，三个月');await page.getByRole('button',{name:'发送客户需求'}).click();await page.getByLabel('销售激活码').fill('A1B2-C3D4-E5F6-0718');await page.getByRole('button',{name:'激活并继续'}).click();await expect(page.locator('.sales-ai-reply')).toContainText('#A01');await expect(page.locator('.workspace-account')).toContainText('19/20');
  await page.getByRole('button',{name:'隐藏底价(截图模式)'}).click();await expect(page.locator('.sales-ai-reply')).not.toContainText('2600');await page.getByRole('button',{name:'一键复制微信话术'}).click();expect(await page.evaluate(()=>navigator.clipboard.readText())).not.toContain('2600');

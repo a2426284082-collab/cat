@@ -9,7 +9,7 @@ test('short labels stay unique and screenshot text redacts old replies without c
  assert.match(displayText('#CAT-2026-000600',[{id:'CAT-2026-000600',price:600}],true),/#600/);
 });
 test('matching accepts the three compact scenes, while never inventing gentle personality facts',()=>{
- assert.equal(validatePrompt('猫'.repeat(60)).length,60);assert.throws(()=>validatePrompt('猫'.repeat(61)),/60/);
+ assert.equal(validatePrompt('猫'.repeat(200)).length,200);assert.equal(validatePrompt('猫'.repeat(250)).length,200);
  assert.deepEqual(selectCandidates(cats,'客户是第一次养猫的新手，预算3000元左右，推荐两只性格温顺好养的猫','match').cats.map(c=>c.id),[cats[1].id,cats[0].id]);
  assert.equal(selectCandidates(cats,'客户想找性价比高、品相甜美的捡漏小猫，请从库里挑2只最好卖的','match').cats[0].id,cats[0].id);
  assert.equal(selectCandidates([{...cats[0],description:''}],'新手预算3000元，找性格温顺的猫','match').cats.length,0);

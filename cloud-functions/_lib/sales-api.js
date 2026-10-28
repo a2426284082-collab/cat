@@ -2,7 +2,7 @@ import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
   nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay } from './sales-store.js';
-import { generateReply, selectCandidates, validatePrompt } from './sales-engine.js';
+import { generateReply, selectCandidates, validatePrompt, normalizePrompt } from './sales-engine.js';
 import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
 
 const isWrite = request => !['GET','HEAD'].includes(request.method);
@@ -59,10 +59,11 @@ async function ask(db,env,request,body) {
     selectedIds=body.cat_ids.map(id=>id.toUpperCase());if(new Set(selectedIds).size!==selectedIds.length)throw fail('请选择两只不同的猫');
   }
   // Paid checks remain before any inventory/model call. Local handbook answers are free.
-  const handbook=action==='handbook'||(!structured&&isHandbookQuestion(body.prompt));
+  const effectiveInput=typeof body.prompt==='string'?normalizePrompt(body.prompt):body.prompt;
+  const handbook=action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput));
   if(!handbook)await preflight(db,key.id);
   let prompt;
-  try {prompt=validatePrompt(structured?presets[action]:body.prompt);}
+  try {prompt=validatePrompt(structured?presets[action]:effectiveInput);}
   catch(error){
     await auditLocal(db,key,body.mode,String(body.prompt || '').slice(0,200),error.audit || 'blocked',error.message);
     throw error;

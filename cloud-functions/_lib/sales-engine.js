@@ -6,11 +6,13 @@ export const normalizeId = value => String(value || '').trim().replace(/^#+\s*/,
 const clean = (value, max=100) => String(value ?? '').normalize('NFKC').replace(/[\r\n|\[\]]/g,' ').trim().slice(0,max);
 const business = /猫|预算|品种|布偶|英短|美短|缅因|德文|渐层|拿破仑|金吉拉|骨相|圆脸|甜美|粘人|黏人|话术|客户|售价|保价|超预算|逼单|选购|对比|编号|#[a-z0-9]/i;
 const forbidden = /代码|python|javascript|周报|作文|翻译|小说|文章|写一篇|忽略|提示词|prompt|你是谁|系统指令|扮演|越狱|system\s*message|instructions?|ignore|<\/?(?:system|assistant)>/i;
-export function validatePrompt(input) {
+export function normalizePrompt(input) {
   if (typeof input !== 'string') throw fail('请输入客户需求');
-  // Reject instead of silently truncating: prevents changing a budget or ID.
-  const text = input.normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').trim();
-  if (text.length < 2 || text.length > 60) throw fail('请输入2至60字的客户需求');
+  return input.normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').trim().slice(0,200);
+}
+export function validatePrompt(input) {
+  const text=normalizePrompt(input);
+  if (text.length < 2) throw fail('请输入2至200字的客户需求');
   if (forbidden.test(text) || forbidden.test(text.replace(/\s+/g,'')) || (!business.test(text)&&!isHandbookQuestion(text))) throw fail('⚠️ 仅支持选猫、猫咪对比和销售话术，本次操作已记录',400,{audit:'blocked'});
   if (/【\s*(?:#\s*)?】/.test(text)) throw fail('请先填写模板中的编号、预算或品种',400,{audit:'needs_details'});
   return text;

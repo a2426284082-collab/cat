@@ -9,6 +9,7 @@ import {CatalogProvider,useCatalog} from './workspace/catalog.jsx';
 import {canonicalPath,eligibleClick,workspaceDestination} from './workspace/navigation.js';
 import './workspace/workspace.css';
 import './workspace/workflow.css';
+import './workspace/theme.css';
 
 const loaders={
   '/cats/':()=>import('./App.jsx'),'/manuals/':()=>import('./workspace/SupportPage.jsx'),
