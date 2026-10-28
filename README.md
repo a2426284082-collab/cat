@@ -1,10 +1,10 @@
-> **当前版本：3.4.3 · 统一销售工作台**
+> **当前版本：3.5.0 · 统一销售工作台**
 >
 > 猫源、AI导购、销售支持、手册和带练已整合为同一个工作台。参阅 [WORKSPACE_UPDATE.md](./WORKSPACE_UPDATE.md) 了解预览与更新步骤。后端D1授权、已有激活码和额度规则沿用3.3版；首次部署仍参阅 [SALES_AI_DEPLOY.md](./SALES_AI_DEPLOY.md)。
 
 # 猫咪合作平台（销售端）
 
-品牌招募首页 + 猫源销售工作台 + 独立猫源管理台。首页是独立静态 HTML；猫源工作台采用 React + EdgeOne Makers Node Functions，飞书多维表格仍是猫源唯一数据源。
+品牌招募首页 + 猫源销售工作台 + 独立猫源管理台。首页是独立静态 HTML；猫源工作台采用 React + Cloudflare Worker / D1，飞书多维表格仍是猫源唯一数据源。
 
 ## 首页与猫源入口
 

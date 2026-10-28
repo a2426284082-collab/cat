@@ -1,70 +1,19 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import React from 'react';
-import SalesAI from '../src/components/SalesAI.jsx';
-import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';
-import {WorkspaceContent} from '../src/SalesWorkspace.jsx';
-import {MemoryRouter} from 'react-router-dom';
-import worker from '../cloudflare-worker.js';
-import { createSessionCookie } from '../cloud-functions/_lib/admin-auth.js';
-import { makeDB } from './sales-db.mjs';
-import { newKey } from '../cloud-functions/_lib/sales-store.js';
-const {render,screen,waitFor,cleanup,configure,within}=await import('@testing-library/react');
-const {default:userEvent}=await import('@testing-library/user-event');
+import test from 'node:test';import assert from 'node:assert/strict';import React from 'react';
+import {render,screen,waitFor,cleanup,within,configure} from '@testing-library/react';import userEvent from '@testing-library/user-event';import {MemoryRouter} from 'react-router-dom';
+import {WorkspaceContent} from '../src/SalesWorkspace.jsx';import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';import worker from '../cloudflare-worker.js';import {createSessionCookie} from '../cloud-functions/_lib/admin-auth.js';import {newKey} from '../cloud-functions/_lib/sales-store.js';import {makeDB} from './sales-db.mjs';
 configure({asyncUtilTimeout:15000});
-function mockSalesAPI({initialUser=null,askFails=false}={}){
-  let activated=Boolean(initialUser),calls=0;
-  const user={id:1,sales_name:'组件测试销售',remaining:20,daily_limit:20,used_today:0,retry_after:0};
-  const original=globalThis.fetch;
-  globalThis.fetch=async(path,options={})=>{
-    if(path==='/api/ai/session')return activated?Response.json({success:true,user}):Response.json({success:false}, {status:401});
-    if(path==='/api/ai/activate'){
-      const body=JSON.parse(options.body);assert.match(body.device_id,/^[a-f0-9-]{36}$/);
-      if(body.key_code!=='ABCD-EF01-2345-6789')return Response.json({success:false,message:'激活码无效或已被管理员封禁'},{status:403});
-      activated=true;return Response.json({success:true,user});
-    }
-    if(path==='/api/ai/ask'){
-      calls++;assert.equal(activated,true);const body=JSON.parse(options.body);assert.ok(body.device_id);assert.equal(body.mode,'match');
-      if(askFails)return Response.json({success:false,message:'已请求模型，计入1次',user:{...user,remaining:19},retry_after:15},{status:502});
-      return Response.json({success:true,user:{...user,remaining:19,retry_after:15},data:{matched_ids:['#A01'],reply_text:'#A01 圆脸亲人，可以先看视频。',used_ai:true}});
-    }
-    throw new Error(`Unexpected path ${path}`);
-  };
-  return{restore(){globalThis.fetch=original;},count:()=>calls};
-}
-test('composer activation continues exactly once, shows quota/cooldown, copies and opens real card',async()=>{
-  localStorage.clear();const mock=mockSalesAPI(),user=userEvent.setup({delay:null});let detail=null,clipboard='';
-  Object.defineProperty(navigator,'clipboard',{value:{writeText:async x=>{clipboard=x;}},configurable:true});
-  try{
-    render(<SalesAI cats={[{id:'A01',breed:'布偶猫',price:2600,gender:'母'}]} onDetail={cat=>{detail=cat;}}/>);
-    await screen.findByRole('button',{name:'工号: 未激活 / 剩余: -- 次'});
-    await user.click(screen.getByRole('button',{name:/预算\+品种挑猫/}));
-    const input=screen.getByLabelText('客户需求或猫咪编号');assert.equal(input.maxLength,200);assert.match(input.value,/客户预算/);
-    await user.clear(input);await user.type(input,'客户预算3000元，布偶妹妹');
-    await user.click(screen.getByRole('button',{name:'发送客户需求'}));
-    await screen.findByRole('dialog',{name:'请输入内部销售激活码'});
-    await user.type(screen.getByLabelText('销售激活码'),'WRONG');await user.click(screen.getByRole('button',{name:'激活并继续'}));
-    await screen.findByText('激活码无效或已被管理员封禁');
-    await user.clear(screen.getByLabelText('销售激活码'));await user.type(screen.getByLabelText('销售激活码'),'ABCD-EF01-2345-6789');
-    await user.click(screen.getByRole('button',{name:'激活并继续'}));
-    await screen.findByText('#A01 圆脸亲人，可以先看视频。');assert.equal(mock.count(),1);
-    assert.match(screen.getByRole('button',{name:/工号: 组件测试销售/}).textContent,/19/);
-    assert.equal(screen.getByRole('button',{name:/请等待\d+秒/}).disabled,true);
-    await user.click(screen.getByRole('button',{name:/一键复制微信话术/}));await screen.findByRole('button',{name:/已复制/});assert.match(clipboard,/#A01/);
-    await user.click(screen.getByRole('button',{name:/A01 · 布偶猫/}));assert.equal(detail.id,'A01');
-    assert.ok(localStorage.getItem('sales-device-id'));assert.ok(!JSON.stringify({...localStorage}).includes('ABCD'));
-  }finally{cleanup();mock.restore();}
-});
-test('quick commands change mode, Escape closes activation, paid error updates quota',async()=>{
-  const mock=mockSalesAPI({initialUser:true,askFails:true}),user=userEvent.setup({delay:null});try{
-    render(<SalesAI/>);await screen.findByRole('button',{name:/工号: 组件测试销售/});
-    await user.click(screen.getByRole('button',{name:/两只猫对比/}));assert.equal(screen.getByRole('button',{name:'💬 写话术'}).getAttribute('aria-pressed'),'true');
-    await user.click(screen.getByRole('button',{name:/工号: 组件测试销售/}));await screen.findByRole('dialog');await user.keyboard('{Escape}');assert.equal(screen.queryByRole('dialog'),null);
-    await user.click(screen.getByRole('button',{name:'⚡ 秒配猫'}));const input=screen.getByLabelText('客户需求或猫咪编号');await user.clear(input);await user.type(input,'预算3000元，布偶猫');
-    await user.click(screen.getByRole('button',{name:'发送客户需求'}));await screen.findByRole('alert');
-    assert.match(screen.getByRole('alert').textContent,/计入1次/);assert.match(screen.getByRole('button',{name:/工号: 组件测试销售/}).textContent,/19/);
-  }finally{cleanup();mock.restore();}
-});
+const cats=[{id:'CAT-2026-000017',breed:'布偶猫',color:'蓝双',gender:'母',age:'3',price:2600,description:'甜美亲人，合作底价2600元'},{id:'CAT-2026-000018',breed:'英短',color:'金渐层',gender:'公',age:'4',price:1800,description:'温顺安静'}];
+function fixture({signed=true,remaining=20}={}){localStorage.clear();sessionStorage.clear();const original=globalThis.fetch;let activated=signed,stock=0;const calls=[];let account={sales_name:'测试销售',remaining,daily_limit:20,retry_after:0};globalThis.fetch=async(path,options={})=>{if(path==='/api/public-cats'){stock++;return Response.json({success:true,data:cats});}if(path==='/api/ai/session')return activated?Response.json({success:true,user:account}):Response.json({success:false},{status:401});if(path==='/api/ai/activate'){const b=JSON.parse(options.body);assert.match(b.device_id,/^[a-f0-9-]{36}$/);if(b.key_code!=='ABCD-EF01-2345-6789')return Response.json({success:false,message:'激活码无效'},{status:403});activated=true;return Response.json({success:true,user:account});}if(path==='/api/ai/ask'){const b=JSON.parse(options.body);calls.push(b);if(b.action==='handbook')return Response.json({success:true,user:account,data:{kind:'handbook',used_ai:false,matched_ids:[],reply_text:'按手册：登记猫咪编号、收猫时间和视频资料，提交负责人确认。',sources:[{title:'常用话术与售后',manual:'基础与成交手册',href:'/guide/#tools'}]}});account={...account,remaining:account.remaining-1,retry_after:15};const selected=b.cat_ids||[cats[0].id];return Response.json({success:true,user:account,data:{used_ai:true,matched_ids:selected.map(id=>'#'+id),reply_text:selected.map(id=>'#'+id).join(' 与 ')+'，资料甜美亲人，2600元，可以先看视频。'}});}if(path==='/api/ai/logout'){activated=false;return Response.json({success:true});}throw new Error('Unexpected request '+path);};return{calls,stock:()=>stock,restore(){globalThis.fetch=original;}};}
+function mount(path='/cats/'){return render(<MemoryRouter initialEntries={[path]}><WorkspaceContent/></MemoryRouter>);}
+function menu(name){return within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getByRole('link',{name:new RegExp(name)});}
+async function ready(){await screen.findByRole('article',{name:'#017 布偶猫'});await screen.findByText(/剩余算力:/);}
+test('three clear destinations, compact 60-character composer, three templates and dismissible onboarding',async()=>{const m=fixture(),u=userEvent.setup({delay:null});try{mount();await ready();assert.equal(within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getAllByRole('link').length,3);assert.equal(screen.queryByRole('link',{name:/AI 导购/}),null);assert.equal(document.querySelectorAll('.sales-ai-quick button').length,3);assert.equal(screen.getByLabelText('客户选猫需求').maxLength,60);assert.equal(screen.queryByRole('group',{name:'导购模式'}),null);assert.equal(screen.queryByText('有客户需求？'),null);assert.equal(document.querySelector('.catalog-filters'),null);await u.click(screen.getByRole('button',{name:/新手粘人猫推荐/}));assert.match(screen.getByLabelText('客户选猫需求').value,/第一次养猫/);await u.click(screen.getByRole('button',{name:'关闭新手指引'}));assert.equal(screen.queryByRole('note'),null);assert.equal(localStorage.getItem('sales-onboarding-dismissed-v1'),'1');assert.equal(m.calls.length,0);}finally{cleanup();m.restore();}});
+test('activation resumes one compact match request, quota is shared and copy uses a short identifier',async()=>{const m=fixture({signed:false}),u=userEvent.setup({delay:null});let copied='';Object.defineProperty(navigator,'clipboard',{value:{writeText:async v=>{copied=v;}},configurable:true});try{mount();await ready();assert.ok(screen.getByText('工号: 未激活'));await u.type(screen.getByLabelText('客户选猫需求'),'客户预算3000元，布偶妹妹');await u.click(screen.getByRole('button',{name:'发送客户需求'}));await screen.findByRole('dialog',{name:'请输入内部销售激活码'});await u.type(screen.getByLabelText('销售激活码'),'WRONG');await u.click(screen.getByRole('button',{name:'激活并继续'}));await screen.findByText('激活码无效');await u.clear(screen.getByLabelText('销售激活码'));await u.type(screen.getByLabelText('销售激活码'),'ABCD-EF01-2345-6789');await u.click(screen.getByRole('button',{name:'激活并继续'}));await screen.findByText(/剩余算力: 19\/20/);assert.equal(m.calls.length,1);assert.equal(m.calls[0].mode,'match');await u.click(screen.getByRole('button',{name:'一键复制微信话术'}));assert.match(copied,/#017/);assert.doesNotMatch(copied,/CAT-2026/);assert.equal(screen.getByRole('button',{name:/请等待\d+秒/}).disabled,true);assert.ok(!JSON.stringify({...localStorage}).includes('ABCD'));}finally{cleanup();m.restore();}});
+test('cat card offers two actions and sends the full ID directly without navigating or changing the top draft',async()=>{const m=fixture(),u=userEvent.setup({delay:null});try{mount();await ready();const input=screen.getByLabelText('客户选猫需求');await u.type(input,'预算3000元');const card=screen.getByRole('article',{name:'#017 布偶猫'});await u.click(within(card).getByRole('button',{name:'写话术'}));assert.equal(m.calls.length,0);await u.click(screen.getByRole('button',{name:'夸这只猫骨相甜美'}));const dialog=await screen.findByRole('dialog',{name:'猫咪推荐话术'});await within(dialog).findByText('微信推荐话术');assert.equal(m.calls.length,1);assert.equal(m.calls[0].action,'praise');assert.deepEqual(m.calls[0].cat_ids,['CAT-2026-000017']);assert.equal(input.value,'预算3000元');assert.ok(menu('在售猫源库').getAttribute('aria-current'));}finally{cleanup();m.restore();}});
+test('two selected cards produce a comparison only after explicit send and preserve both full IDs',async()=>{const m=fixture(),u=userEvent.setup({delay:null});try{mount();await ready();const buttons=screen.getAllByRole('button',{name:'加入对比'});await u.click(buttons[0]);assert.equal(screen.queryByLabelText('猫咪对比栏'),null);await u.click(buttons[1]);const bar=screen.getByLabelText('猫咪对比栏');assert.match(bar.textContent,/#017 与 #018/);assert.equal(m.calls.length,0);await u.click(within(bar).getByRole('button',{name:/AI一键生成双猫对比逼单话术/}));await screen.findByRole('dialog',{name:'双猫对比话术'});await screen.findByText('微信推荐话术');assert.deepEqual(m.calls[0].cat_ids,cats.map(c=>c.id));assert.equal(m.calls[0].action,'compare');}finally{cleanup();m.restore();}});
+test('screenshot mode redacts catalogue, old AI replies, detail and clipboard together',async()=>{const m=fixture(),u=userEvent.setup({delay:null});let copied='';Object.defineProperty(navigator,'clipboard',{value:{writeText:async v=>{copied=v;}},configurable:true});try{mount();await ready();await u.type(screen.getByLabelText('客户选猫需求'),'预算3000元，布偶妹妹');await u.click(screen.getByRole('button',{name:'发送客户需求'}));await screen.findByText('微信推荐话术');await u.click(screen.getByRole('button',{name:'隐藏底价(截图模式)'}));const card=screen.getByRole('article',{name:'#017 布偶猫'});assert.doesNotMatch(card.textContent,/2600|2,600|¥/);assert.doesNotMatch(document.querySelector('.sales-ai-reply').textContent,/2600/);await u.click(screen.getByRole('button',{name:'一键复制微信话术'}));assert.doesNotMatch(copied,/2600/);await u.click(within(card).getByRole('button',{name:'查看资料'}));const dialog=await screen.findByRole('dialog',{name:'猫咪销售资料'});assert.doesNotMatch(dialog.textContent,/2600|2,600|¥/);assert.match(dialog.textContent,/底价已隐藏/);}finally{cleanup();m.restore();}});
+test('manuals contain only two document cards, local policy QA still works with zero quota, and filters survive navigation',async()=>{const m=fixture({remaining:0}),u=userEvent.setup({delay:null});try{mount();await ready();await u.click(screen.getByRole('button',{name:'筛选条件'}));await u.type(screen.getByPlaceholderText('短编号、品种、花色'),'017');await u.click(menu('销冠手册与售后'));await screen.findByRole('heading',{name:'销冠手册与售后'});assert.equal(document.querySelectorAll('.workspace-tool').length,2);assert.equal(document.querySelector('.workspace-tool[href="/training/"]'),null);await u.type(screen.getByLabelText('合作或售后问题'),'售后怎么处理？');await u.click(screen.getByRole('button',{name:'查询手册'}));await screen.findByText('手册答疑');assert.equal(m.calls[0].action,'handbook');await u.click(menu('在售猫源库'));assert.equal(screen.getByPlaceholderText('短编号、品种、花色').value,'017');assert.equal(m.stock(),1);}finally{cleanup();m.restore();}});
+test('legacy assistant URL reuses the catalogue and practice progress survives the simplified navigation',async()=>{const m=fixture(),u=userEvent.setup({delay:null});try{mount('/assistant/');await ready();assert.equal(within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getAllByRole('link').length,3);await u.click(menu('新手模拟带练'));await u.click(await screen.findByRole('button',{name:'开始我的第一次带练'}));await screen.findByRole('heading',{name:/第 1 步：看一条示范/});await u.click(menu('在售猫源库'));await u.click(menu('新手模拟带练'));await screen.findByRole('heading',{name:/第 1 步：看一条示范/});assert.equal(m.calls.length,0);}finally{cleanup();m.restore();}});
 test('admin component works with real authorization, D1 create/log/reset/ban and emergency stop APIs',async()=>{
   const db=makeDB(),original=globalThis.fetch;
   const env={SALES_DB:db,ADMIN_USERNAME:'qa',ADMIN_PASSWORD_HASH:'120000.dGVzdA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',ADMIN_SESSION_SECRET:'component-only-session-secret-more-than-32-characters'};
@@ -89,67 +38,4 @@ test('admin component works with real authorization, D1 create/log/reset/ban and
     await waitFor(()=>assert.equal(screen.getByRole('button',{name:'立即暂停 AI'}).disabled,false));await user.click(screen.getByRole('button',{name:'立即暂停 AI'}));
     await screen.findByText('AI 服务已暂停');assert.equal(db.sql.prepare('SELECT enabled FROM ai_settings').get().enabled,0);
   }finally{cleanup();globalThis.fetch=original;db.close();}
-});
-
-function workspaceFixture(){
-  const original=globalThis.fetch;let stockCalls=0,paidCalls=0;
-  globalThis.fetch=async(path)=>{
-    if(path==='/api/public-cats'){stockCalls++;return Response.json({success:true,data:[{id:'A01',breed:'布偶猫',color:'蓝双',gender:'母',age:'3',price:2600,description:'圆脸亲人'},{id:'B02',breed:'英短',color:'金渐层',gender:'公',age:'4',price:2200,description:'安静圆脸'}]});}
-    if(path==='/api/ai/session')return Response.json({success:false},{status:401});
-    if(path==='/api/ai/ask'){paidCalls++;throw new Error('Navigation must never call the model');}
-    throw new Error('Unexpected workspace request '+path);
-  };
-  return{stockCalls:()=>stockCalls,paidCalls:()=>paidCalls,restore(){globalThis.fetch=original;}};
-}
-function menu(label){return within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getByRole('link',{name:new RegExp(label)});}
-test('workspace retains catalogue filters and AI draft across client navigation with one shared stock request',async()=>{
-  localStorage.clear();window.sessionStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});
-  try{
-    render(<MemoryRouter initialEntries={['/cats/']}><WorkspaceContent/></MemoryRouter>);
-    const search=await screen.findByPlaceholderText('编号、品种、花色');await screen.findByText('A01');
-    await user.type(search,'A01');await waitFor(()=>assert.match(screen.getByText(/找到 1 只猫咪/).textContent,/1/));
-    await user.type(screen.getByLabelText('客户需求或猫咪编号'),'预算3000元，客户喜欢圆脸');
-    await user.click(menu('销售支持'));await screen.findByRole('heading',{name:'把每一次接待，做得更从容。'});
-    await user.click(menu('猫源库'));assert.equal(screen.getByPlaceholderText('编号、品种、花色').value,'A01');assert.equal(screen.getByLabelText('客户需求或猫咪编号').value,'预算3000元，客户喜欢圆脸');
-    await user.click(screen.getByRole('button',{name:'写话术',exact:true}));
-    await waitFor(()=>assert.match(screen.getByLabelText('客户需求或猫咪编号').value,/#A01/));
-    assert.equal(screen.getByRole('button',{name:'💬 写话术'}).getAttribute('aria-pressed'),'true');
-    await user.click(screen.getByRole('button',{name:'恢复上一份草稿'}));assert.equal(screen.getByLabelText('客户需求或猫咪编号').value,'预算3000元，客户喜欢圆脸');
-    assert.equal(mock.stockCalls(),1);assert.equal(mock.paidCalls(),0);
-  }finally{cleanup();mock.restore();}
-});
-test('workspace builds a two-cat comparison without spending AI quota during navigation',async()=>{
-  localStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});try{
-    render(<MemoryRouter initialEntries={['/cats/']}><WorkspaceContent/></MemoryRouter>);
-    await screen.findByText('B02');const buttons=screen.getAllByRole('button',{name:'加入对比'});await user.click(buttons[0]);
-    assert.equal(screen.getByRole('button',{name:'对比并写话术'}).disabled,true);
-    await user.click(buttons[1]);await user.click(screen.getByRole('button',{name:'对比并写话术'}));
-    await waitFor(()=>assert.match(screen.getByLabelText('客户需求或猫咪编号').value,/#A01.*#B02/));assert.equal(mock.paidCalls(),0);assert.equal(mock.stockCalls(),1);
-  }finally{cleanup();mock.restore();}
-});
-test('embedded handbooks and practice preserve interactions and progress without replacing the common navigation',async()=>{
-  localStorage.clear();const mock=workspaceFixture(),user=userEvent.setup({delay:null});try{
-    render(<MemoryRouter initialEntries={['/manuals/']}><WorkspaceContent/></MemoryRouter>);
-    await user.click(await screen.findByRole('link',{name:/基础与成交手册/}));
-    await screen.findByRole('heading',{name:'线上卖猫教程'});await screen.findByRole('button',{name:'🌙 深色模式'});
-    await user.click(screen.getByRole('button',{name:'🌙 深色模式'}));assert.equal(screen.getByRole('button',{name:'☀️ 浅色模式'}).getAttribute('aria-pressed'),'true');
-    await user.click(menu('新手带练'));await user.click(await screen.findByRole('button',{name:'开始我的第一次带练'}));
-    await screen.findByRole('heading',{name:/第 1 步：看一条示范/});
-    await user.click(menu('销售支持'));await screen.findByRole('heading',{name:'把每一次接待，做得更从容。'});
-    await user.click(menu('新手带练'));await screen.findByRole('heading',{name:/第 1 步：看一条示范/});
-    assert.equal(screen.getAllByRole('navigation',{name:'销售工作台主导航'}).length,1);assert.equal(mock.paidCalls(),0);
-  }finally{cleanup();mock.restore();}
-});
-
-test('handbook entry works during AI cooldown and at zero quota, with copy and source links',async()=>{
- const original=globalThis.fetch,user=userEvent.setup({delay:null});let calls=0,copied='';
- const account={sales_name:'手册测试',remaining:0,daily_limit:1,used_today:1,retry_after:15};
- globalThis.fetch=async(path,options={})=>{
-  if(path==='/api/ai/session')return Response.json({success:true,user:account});
-  if(path==='/api/ai/ask'){calls++;const body=JSON.parse(options.body);assert.match(body.prompt,/合作.*售后/);return Response.json({success:true,user:account,data:{kind:'handbook',used_ai:false,matched_ids:[],reply_text:'按手册：请登记猫咪编号、收猫时间和问题资料后提交负责人。',sources:[{title:'客户反馈售后问题',manual:'基础与成交手册',href:'/guide/#tools'}]}});}
-  throw new Error('Unexpected handbook call '+path);
- };
- Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{copied=value;}},configurable:true});
- try{render(<SalesAI/>);await screen.findByRole('button',{name:/工号: 手册测试/});await user.click(screen.getByRole('button',{name:/查合作与售后/}));const send=screen.getByRole('button',{name:'发送客户需求'});assert.equal(send.disabled,false);await user.click(send);await screen.findByText('手册答疑');assert.equal(calls,1);await user.click(screen.getByRole('button',{name:'复制答复'}));assert.match(copied,/猫咪编号/);assert.equal(screen.getByRole('link',{name:/客户反馈售后问题/}).getAttribute('href'),'/guide/#tools');assert.match(screen.getByRole('button',{name:/工号: 手册测试/}).textContent,/剩余: 0/);}
- finally{cleanup();globalThis.fetch=original;}
 });

@@ -12,7 +12,7 @@ function destination(rel){
 }
 let pkg;
 try{pkg=JSON.parse(fs.readFileSync(path.join(target,'package.json'),'utf8'));}catch{console.error('Target is not an existing cat project.');process.exit(1);}
-if(!/^3\.[34]\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x cat project. No files changed.');process.exit(1);}
+if(!/^3\.[345]\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x/3.5.x cat project. No files changed.');process.exit(1);}
 for(const entry of manifest.files){
  destination(entry.path);
  const source=path.join(base,'payload',entry.path),actual=crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
@@ -36,7 +36,7 @@ try{
  for(const rel of manifest.deleted){const output=remember(rel);if(fs.existsSync(output))fs.unlinkSync(output);}
  fs.writeFileSync(path.join(backup,'restore-manifest.json'),JSON.stringify(records,null,2));
  console.log('Updated local source successfully.');console.log('Backup: '+backup);
- console.log('Only approved handbook backend modules changed. Database, other backend modules, credentials and wrangler.jsonc were preserved.');
+ console.log('Only approved sales backend modules changed. Database, other backend modules, credentials and wrangler.jsonc were preserved.');
  console.log('Next, in your project folder: npm ci, npm test, npm run test:components, npm run build.');
  console.log('No deployment or remote database operation was performed.');
 }catch(error){

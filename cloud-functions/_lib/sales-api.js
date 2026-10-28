@@ -47,28 +47,40 @@ async function userSession(db, request, body) {
 async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
-  // Reject paid requests before fetching stock, then recheck atomically in reserve.
-  const handbook=isHandbookQuestion(body.prompt);
+  const action=body.action;
+  const scripts=['praise','price','compare'],structured=scripts.includes(action);
+  if(action!=null&&!structured&&action!=='handbook')throw fail('操作类型无效');
+  if(structured&&body.mode!=='script')throw fail('卡片话术操作类型无效');
+  if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
+  const presets={praise:'请根据已录入资料，夸这只猫已知的骨相甜美与性格优势，生成微信推荐话术',price:'客户觉得这只猫价格偏高，请根据真实资料生成保价话术，不擅自降价',compare:'客户纠结这两只猫，请对比已知优缺点，生成自然的微信推荐话术'};
+  let selectedIds=[];
+  if(structured){
+    if(!Array.isArray(body.cat_ids)||body.cat_ids.length!==(action==='compare'?2:1)||body.cat_ids.some(id=>typeof id!=='string'||!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)))throw fail('请在猫咪卡片中选择正确的完整编号');
+    selectedIds=body.cat_ids.map(id=>id.toUpperCase());if(new Set(selectedIds).size!==selectedIds.length)throw fail('请选择两只不同的猫');
+  }
+  // Paid checks remain before any inventory/model call. Local handbook answers are free.
+  const handbook=action==='handbook'||(!structured&&isHandbookQuestion(body.prompt));
   if(!handbook)await preflight(db,key.id);
   let prompt;
-  try {prompt=validatePrompt(body.prompt);}
+  try {prompt=validatePrompt(structured?presets[action]:body.prompt);}
   catch(error){
     await auditLocal(db,key,body.mode,String(body.prompt || '').slice(0,200),error.audit || 'blocked',error.message);
     throw error;
   }
   if(handbook){
-    const data=answerHandbook(prompt);
+    const data=answerHandbook(prompt)||{kind:'handbook',matched_ids:[],reply_text:'这里查询合作与售后规则。选猫请回到在售猫源库输入客户需求。',sources:[],used_ai:false};
     await auditLocal(db,key,body.mode,prompt,'handbook',data.reply_text);
     return json({success:true,data,user:accountView(key)});
   }
   let catalog;try{catalog=await getCatalog(env);}catch{throw fail('库存暂时读取失败，本次未扣次数，请稍后重试',503);}
-  const selected=selectCandidates(catalog.cats,prompt,body.mode);
+  const selected=selectCandidates(catalog.cats,structured?selectedIds.map(id=>'#'+id).join(' ')+(action==='compare'?' 对比':'' ):prompt,body.mode);
+  const audited=structured?`[${action}] ${selectedIds.join(', ')} ${prompt}`:prompt;
   if(!selected.cats.length){
-    await auditLocal(db,key,body.mode,prompt,'no_match',selected.message);
+    await auditLocal(db,key,body.mode,audited,'no_match',selected.message);
     return json({success:true,data:{matched_ids:[],reply_text:selected.message,used_ai:false},user:accountView(await preflight(db,key.id)),catalog_updated_at:catalog.updatedAt});
   }
   if(!env.DEEPSEEK_API_KEY)throw fail('AI 服务尚未配置，本次未扣次数',503);
-  const reservation=await reserve(db,key,body.mode,prompt);
+  const reservation=await reserve(db,key,body.mode,audited);
   let dispatched=false;
   try {
     // Emergency stop / ban could be changed while inventory was loading.
@@ -77,7 +89,7 @@ async function ask(db,env,request,body) {
       .bind(key.id,key.auth_version,key.device_hash).first();
     if(!stillAllowed)throw fail('授权已变更或 AI 服务已暂停',403);
     dispatched=true; // Never auto-retry a potentially billed upstream request.
-    const output=await generateReply(env,selected.cats,prompt,body.mode);
+    const output=await generateReply(env,selected.cats,prompt,body.mode,{hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
     await finish(db,reservation,output);
     const current=await resolveSession(db,request,body.device_id);
     return json({success:true,data:{matched_ids:output.matched_ids,reply_text:output.reply_text,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt});
