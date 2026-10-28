@@ -3,6 +3,7 @@ import {inventoryResult,inventoryQuery} from './sales-engine.js';
 import {readWorkbench,ensureControlTables,decorateKeys,encryptSalesCode,vaultStatement,adminEventStatement,checkKeyExpiry} from './workbench-control.js';
 import {handleWorkbenchAdmin} from './workbench-admin.js';
 import {runAgentTask} from './sales-agent-run.js';
+import {startTask,advanceTask,readTask,listTasks,cancelTask} from './sales-agent-autopilot.js';
 import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
@@ -45,9 +46,9 @@ async function userIpLimit(db,request,activation=false) {
   await rateLimit(db,`${activation?'activation':'sales-api'}:${ip}`,activation?8:60,activation?900:60);
   if(activation)await rateLimit(db,'activation-global',500,900);
 }
-async function userSession(db, request, body) {
+async function userSession(db, request, body, taskAction=false) {
   const user=await resolveSession(db,request,body?.device_id);
-  if (isWrite(request))await rateLimit(db,`account:${user.id}`,10,60);
+  if (isWrite(request))await rateLimit(db,taskAction?`agent-task:${user.id}`:`account:${user.id}`,taskAction?45:10,60);
   return user;
 }
 async function ask(db,env,request,body) {
@@ -219,6 +220,16 @@ export async function handleSales({request,env}) {
       const user=await userSession(db,request,body);
       await db.prepare('DELETE FROM sales_sessions WHERE key_id=? AND device_hash=?').bind(user.id,user.device_hash).run();
       return json({success:true},200,{'Set-Cookie':cookie('')});
+    }
+    if(path==='/api/ai/task'){
+      methodCheck(request,['GET','POST']);
+      if(request.method==='GET'){const key=await userSession(db,request);const query=new URL(request.url).searchParams;return json({success:true,data:query.get('list')==='1'?await listTasks(db,key):await readTask(db,key,query.get('task_id'))});}
+      if(!body.device_id)throw fail('设备标识不能为空');
+      const key=await userSession(db,request,body,body.action==='next');
+      if(body.action==='start')return json({success:true,...await startTask(db,env,request,body,key)});
+      if(body.action==='next')return json({success:true,...await advanceTask(db,env,request,body,key)});
+      if(body.action==='cancel')return json({success:true,...await cancelTask(db,body,key)});
+      throw fail('任务操作无效');
     }
     if(path==='/api/ai/ask'){
       methodCheck(request,['POST']);

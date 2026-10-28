@@ -120,7 +120,22 @@ function Workspace(){
     setDetail(cat);setDetailTool(tool?{id:crypto.randomUUID(),tool,params}:null);
     const id=normalizeId(cat.id);agent.remember(agent.context.cat_ids.includes(id)?{focus_id:id}:{task:'details',cat_ids:[id],focus_id:id,params:{}});
   }
-  async function executeAgent(plan,current,{caption,restore=false}={}){
+  // Autopilot must wait for the canvas to actually render. Opening the dialog
+  // alone is not a successful image task.
+  const posterRenderReceipt=useRef(null);
+  function settlePosterRender(status){
+    const pending=posterRenderReceipt.current;if(!pending)return;
+    posterRenderReceipt.current=null;clearTimeout(pending.timer);
+    status?.status==='ready'?pending.resolve():pending.reject(new Error(status?.text||'浏览器没有成功渲染拼图'));
+  }
+  const posterOperationReceipt=useRef(null);
+  function settlePosterOperation(status){
+    const pending=posterOperationReceipt.current;
+    if(!pending||pending.operation!==status?.operation)return;
+    posterOperationReceipt.current=null;clearTimeout(pending.timer);
+    status.status==='ready'?pending.resolve():pending.reject(new Error(status.text||'浏览器操作失败'));
+  }
+  async function executeAgent(plan,current,{caption,restore=false,verifyRender=false}={}){ 
     if(plan.tool==='show_matches'){setMarketing(null);setDetail(null);navigate('/cats/');return {text:'已返回库存结果。'};}
     const switches={poster:'posterEnabled',downloads:'downloadsEnabled',single_poster:'singlePosterEnabled',calculator:'calculatorEnabled'};if(switches[plan.tool]&&!workbenchConfig[switches[plan.tool]])return {ok:false,text:'这项功能已被管理员暂停。'};
     const params=agentParams(plan.params||{}),requested=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids||[];
@@ -154,7 +169,19 @@ function Workspace(){
       if(chosen.length<2)return {ok:false,text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
       settings.count=chosen.length;const control={id:crypto.randomUUID(),params:settings,cats:chosen,caption};
       const quotes=continuing?{...(current.quotes||{})}:{};if(settings.quoteTarget)quotes[settings.quoteTarget]=params.quote;
+      const verifyOperation=verifyRender&&['download','copy'].includes(params.operation);
+      const operationPromise=verifyOperation?new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{settlePosterOperation({operation:params.operation,status:'error',text:'浏览器操作超时'})},30000);
+        posterOperationReceipt.current={operation:params.operation,timer,resolve,reject};
+      }):null;
+      const renderPromise=verifyRender&&!caption&&!verifyOperation?new Promise((resolve,reject)=>{
+        if(posterRenderReceipt.current)settlePosterRender({status:'error',text:'图片预览被新的任务替换'});
+        const timer=setTimeout(()=>{settlePosterRender({status:'error',text:'图片渲染超时，请检查照片是否可正常加载'})},30000);
+        posterRenderReceipt.current={resolve,reject,timer};
+      }):null;
       setMarketing(old=>old&&continuing&&!restore?{...old,control}:{cats:chosen,template:settings.includePrices===false?'sign':'price',key:crypto.randomUUID(),settings:{...settings,overrides:quotes,designSeed:continuing?current.designSeed:undefined,caption:caption??(continuing?current.caption:undefined),bannerText:continuing?current.bannerText:undefined},control:params.operation&&!caption?control:null});
+      if(renderPromise)await renderPromise;
+      if(operationPromise)await operationPromise;
       const cleanSettings={...settings};delete cleanSettings.operation;delete cleanSettings.quoteTarget;delete cleanSettings.quote;delete cleanSettings.replaceIndex;
       return {text:params.operation==='download'?'已请求下载当前预览；若画面还在更新，请等待后点击下载。':caption?'文案已生成并放进当前拼图，无需再次执行。':`已准备${chosen.length}只在售猫的拼图${settings.includePrices===false?'，不显示价格':''}，可在弹窗继续调整。`,context:{task:'poster',cat_ids:chosen.map(c=>normalizeId(c.id)),params:cleanSettings,need:query,quotes,focus_id:null}};
     }
@@ -171,7 +198,7 @@ function Workspace(){
       <WorkbenchNotice/><footer className="workspace-footer"><span>合作销售专用 · 成交前请确认库存与最终费用</span></footer>
     </main></div>
     {compare.length>=1&&path==='/cats/'&&!hidePrices&&<div className="workspace-compare" aria-label="选猫操作台"><span className="workspace-compare-label">已选{compare.length}只 · {compare.map(id=>labels.get(normalizeId(id))).join(' 与 ')}</span><div className="workspace-compare-items">{compare.map(id=><button key={id} aria-label={`移除${labels.get(normalizeId(id))}`} onClick={()=>setCompare(items=>items.filter(x=>x!==id))}><X size={13}/>{labels.get(normalizeId(id))}</button>)}</div>{compare.length===2&&<button disabled={busy} onClick={()=>runScript(compare,'compare')}>⚖️ AI生成双猫对比逼单话术</button>}{compare.length>=2&&compare.length<=9?<button data-workbench-tool="poster" onClick={()=>openMarketing('price',compare)}>🖼️ 一键合成为报价拼图/小红书海报</button>:<span className="compare-hint">选2只可对比，2至9只均可拼图</span>}<button className="basket-clear" onClick={()=>setCompare([])}>清空</button></div>}
-    {marketing&&<MarketingStudio key={marketing.key} initialCats={marketing.cats} initialTemplate={marketing.template} initialSettings={marketing.settings} control={marketing.control} onStateChange={snapshot=>agent.remember(snapshot)} onPreviewReady={agent.capturePreview} allCats={cats} close={()=>setMarketing(null)}/>}
+    {marketing&&<MarketingStudio key={marketing.key} initialCats={marketing.cats} initialTemplate={marketing.template} initialSettings={marketing.settings} control={marketing.control} onStateChange={snapshot=>agent.remember(snapshot)} onPreviewReady={agent.capturePreview} onRenderStatus={settlePosterRender} onOperationStatus={settlePosterOperation} allCats={cats} close={()=>{settlePosterRender({status:'error',text:'拼图编辑器已关闭'});if(posterOperationReceipt.current)settlePosterOperation({operation:posterOperationReceipt.current.operation,status:'error',text:'拼图编辑器已关闭'});setMarketing(null);}}/>}
     {WORKSPACE_FEATURES.followups&&followups.open&&!hidePrices&&<FollowupDrawer cats={cats} onDetail={showDetail}/>}
     {notice&&<div className="workspace-notice" role="status"><Check size={16}/>{notice}</div>}
     {detail&&<Dialog title={hidePrices?'猫咪资料':'猫咪销售资料'} close={()=>setDetail(null)}><div className="workflow-cat-detail">{detail.image&&<SmartImage src={detail.image} alt={detail.breed||'在售猫咪'}/>}<b className="workflow-detail-id">{labels.get(normalizeId(detail.id))}</b><h2>{detail.breed} · {detail.color}</h2><p>{detail.gender} · 月龄{detail.age||'待确认'} · 疫苗{detail.vaccine||'待确认'}</p><p>{displayText(detail.description,cats,hidePrices)}</p>{displayedPrice(detail,customerDisplay)!=null&&<strong>{hidePrices?'售价 ':'合作底价 '}{money(displayedPrice(detail,customerDisplay))}</strong>}{!hidePrices&&<div><button disabled={busy} onClick={()=>runScript([detail.id],'praise')}>夸这只猫骨相甜美</button><button disabled={busy} onClick={()=>runScript([detail.id],'price')}>客户嫌贵保价逼单</button></div>}<CatTools cat={detail} label={labels.get(normalizeId(detail.id))} initialQuote={detail.price==null?null:Number(detail.price)+(customerDisplay.markup||800)} customerView={hidePrices} request={detailTool}/><small>库存实时变化，成交前请再次核对。</small></div></Dialog>}

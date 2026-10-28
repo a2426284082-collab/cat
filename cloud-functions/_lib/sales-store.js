@@ -134,5 +134,6 @@ export async function housekeeping(db, batchSize=500) {
     db.prepare('DELETE FROM sales_rate_limits WHERE bucket IN (SELECT bucket FROM sales_rate_limits WHERE expires_at<? LIMIT ?)').bind(now,batchSize),
     db.prepare('DELETE FROM sales_sessions WHERE token_hash IN (SELECT token_hash FROM sales_sessions WHERE expires_at<? LIMIT ?)').bind(now,batchSize),
     db.prepare('DELETE FROM ai_call_logs WHERE id IN (SELECT id FROM ai_call_logs WHERE created_at<? LIMIT ?)').bind(now-90*86400,batchSize),
+    db.prepare('DELETE FROM sales_agent_tasks WHERE id IN (SELECT id FROM sales_agent_tasks WHERE expires_at<? LIMIT ?)').bind(now,batchSize),
   ]);
 }

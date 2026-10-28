@@ -10,7 +10,7 @@ import {releaseCanvas} from './media.js';
 import CommentTips from './CommentTips.jsx';
 import AgentFollowup from './AgentFollowup.jsx';
 
-export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,onPreviewReady,allCats,close}){
+export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,onPreviewReady,onRenderStatus,onOperationStatus,allCats,close}){
  const {config:workbenchConfig}=useWorkbenchConfig();
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
@@ -36,13 +36,13 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  useEffect(()=>{if(!download)return;return()=>URL.revokeObjectURL(download.url);},[download]);
  useEffect(()=>{
   const abort=new AbortController();exportController.current?.abort();releaseCanvas(readyCanvas.current?.canvas);readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setExportError('');setCopied(false);
-  if(!workbenchConfig.posterEnabled){setRenderState('error');setRenderError('营销拼图已被管理员暂停');return()=>abort.abort();}
-  if(!valid){setRenderState('error');setRenderError('请核对整数加价、各只猫咪售价与招牌文字；售价不能低于合作底价。');return()=>abort.abort();}
+  if(!workbenchConfig.posterEnabled){setRenderState('error');setRenderError('营销拼图已被管理员暂停');onRenderStatus?.({status:'error',text:'营销拼图已被管理员暂停'});return()=>abort.abort();}
+  if(!valid){setRenderState('error');setRenderError('请核对整数加价、各只猫咪售价与招牌文字；售价不能低于合作底价。');onRenderStatus?.({status:'error',text:'海报售价或配置校验失败'});return()=>abort.abort();}
   const wait=setTimeout(()=>{
    const run=async()=>{if(abort.signal.aborted)return;let stage;
     try{stage=document.createElement('canvas');const seed=randomSeed();await renderMarketingCanvas(stage,cats,{...options,seed},{signal:abort.signal,onProgress:(done,total)=>{if(!abort.signal.aborted)setProgress(`照片 ${done}/${total}`);}});if(abort.signal.aborted){releaseCanvas(stage);return;}
-     const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');try{const thumb=document.createElement('canvas');thumb.width=240;thumb.height=Math.round(240*stage.height/stage.width);thumb.getContext('2d').drawImage(stage,0,0,thumb.width,thumb.height);onPreviewReady?.(thumb.toDataURL('image/jpeg',0.65));releaseCanvas(thumb);}catch{}
-    }catch(e){releaseCanvas(stage);if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');setProgress('');}}
+     const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');onRenderStatus?.({status:'ready',text:'图片已在浏览器真实渲染完成，但尚未下载或发送'});try{const thumb=document.createElement('canvas');thumb.width=240;thumb.height=Math.round(240*stage.height/stage.width);thumb.getContext('2d').drawImage(stage,0,0,thumb.width,thumb.height);onPreviewReady?.(thumb.toDataURL('image/jpeg',0.65));releaseCanvas(thumb);}catch{}
+    }catch(e){releaseCanvas(stage);if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');setProgress('');onRenderStatus?.({status:'error',text:e.message||'拼图生成失败'});}}
    };
    renderTail.current=renderTail.current.catch(()=>{}).then(run);
   },450);
@@ -83,10 +83,10 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
    if(freshExport){await renderTail.current.catch(()=>{});if(controller.signal.aborted)return;stage=document.createElement('canvas');owned=true;seed=randomSeed();if(seed===ready.seed)seed=(seed+1)>>>0;await renderMarketingCanvas(stage,cats,{...options,seed},{signal:controller.signal});}
    const blob=await canvasBlob(stage);if(!alive.current||controller.signal.aborted||revision.current!==key){if(owned)releaseCanvas(stage);return;}
    if(owned){const canvas=visible.current;canvas.width=stage.width;canvas.height=stage.height;canvas.getContext('2d').drawImage(stage,0,0);releaseCanvas(ready.canvas);readyCanvas.current={canvas:stage,key,seed};}
-   const url=URL.createObjectURL(blob),name=`petcloud-collage-${cats.length}-${height}-${seed.toString(36)}.png`;setDownload({url,name});const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();
-  }catch(e){if(owned)releaseCanvas(stage);if(alive.current&&!controller.signal.aborted)setExportError(e.message);}finally{exportLock.current=false;if(alive.current)setExporting(false);}
+   const url=URL.createObjectURL(blob),name=`petcloud-collage-${cats.length}-${height}-${seed.toString(36)}.png`;setDownload({url,name});const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();onOperationStatus?.({status:'ready',operation:'download',text:'已触发浏览器下载，保存是否完成需由销售确认'});
+  }catch(e){if(owned)releaseCanvas(stage);if(alive.current&&!controller.signal.aborted){setExportError(e.message);onOperationStatus?.({status:'error',operation:'download',text:e.message||'下载失败'});}}finally{exportLock.current=false;if(alive.current)setExporting(false);}
  }
- async function copy(){try{await navigator.clipboard.writeText(currentCaption);setCopied(true);clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}catch{setAiError('复制失败，请在文案框内长按全选复制。');}}
+ async function copy(){try{await navigator.clipboard.writeText(currentCaption);setCopied(true);onOperationStatus?.({status:'ready',operation:'copy',text:'文案已经复制到剪贴板'});clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}catch{setAiError('复制失败，请在文案框内长按全选复制。');onOperationStatus?.({status:'error',operation:'copy',text:'浏览器复制失败'});}}
  return <Dialog title="营销拼图与文案" close={close} explicitCloseOnly className="marketing-dialog">
   <div className="marketing-studio"><section className="marketing-visual" aria-label="海报预览与下载">
    <div className="marketing-preview" style={{aspectRatio:`1080 / ${height}`,'--poster-ratio':1080/height}}>
