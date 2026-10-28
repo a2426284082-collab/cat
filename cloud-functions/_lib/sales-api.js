@@ -4,6 +4,7 @@ import { accountView, activate, auditLocal, cleanCode, cookie, database, digest,
   nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay } from './sales-store.js';
 import { generateReply, selectCandidates, validatePrompt, normalizePrompt, marketingOptions } from './sales-engine.js';
 import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
+import {planningInput,generateAgentPlan} from './sales-agent.js';
 
 const isWrite = request => !['GET','HEAD'].includes(request.method);
 function originCheck(request) {
@@ -47,9 +48,9 @@ async function userSession(db, request, body) {
 async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
-  const action=body.action;
+  const action=body.action,planning=action==='agent_plan';
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
-  if(action!=null&&!structured&&action!=='handbook')throw fail('操作类型无效');
+  if(action!=null&&!structured&&!planning&&action!=='handbook')throw fail('操作类型无效');
   if(structured&&body.mode!=='script')throw fail('卡片话术操作类型无效');
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
   const presets={praise:'请根据已录入资料，夸这只猫已知的骨相甜美与性格优势，生成微信推荐话术',price:'客户觉得这只猫价格偏高，请根据真实资料生成保价话术，不擅自降价',compare:'客户纠结这两只猫，请对比已知优缺点，生成自然的微信推荐话术',marketing:'请根据在售猫咪资料生成营销推荐文案'};
@@ -60,10 +61,10 @@ async function ask(db,env,request,body) {
   }
   // Paid checks remain before any inventory/model call. Local handbook answers are free.
   const effectiveInput=typeof body.prompt==='string'?normalizePrompt(body.prompt):body.prompt;
-  const handbook=action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput));
+  const handbook=!planning&&(action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput)));
   if(!handbook)await preflight(db,key.id);
-  let prompt;
-  try {prompt=validatePrompt(structured?presets[action]:effectiveInput);}
+  let prompt,agentContext;
+  try {if(planning){const input=planningInput(effectiveInput,body.agent_context);prompt=input.prompt;agentContext=input.context;}else prompt=validatePrompt(structured?presets[action]:effectiveInput);}
   catch(error){
     await auditLocal(db,key,body.mode,String(body.prompt || '').slice(0,200),error.audit || 'blocked',error.message);
     throw error;
@@ -75,15 +76,19 @@ async function ask(db,env,request,body) {
   }
   let catalog;try{catalog=await getCatalog(env);}catch{throw fail('库存暂时读取失败，本次未扣次数，请稍后重试',503);}
   let selected;
-  if(marketing){
+  if(planning){
+    const stockIds=new Set(catalog.cats.map(cat=>String(cat.id).replace(/^#+/,'').trim().toUpperCase()));
+    if(agentContext.cat_ids.some(id=>!stockIds.has(id)))throw fail('任务中的猫咪已不在当前在售库，请刷新或开始新任务',409);
+    selected={cats:[]};
+  }else if(marketing){
     const stock=new Map();
     for(const cat of catalog.cats){if(cat.status&&cat.status!=='在售')continue;const id=String(cat.id).replace(/^#+/,'').trim().toUpperCase();if(stock.has(id))throw fail('库存编号重复，请联系运营核对',503);stock.set(id,cat);}
     selected={cats:selectedIds.map(id=>stock.get(id)).filter(Boolean)};
   }else selected=selectCandidates(catalog.cats,structured?selectedIds.map(id=>'#'+id).join(' ')+(action==='compare'?' 对比':'' ):prompt,body.mode);
   if(marketing&&selected.cats.length!==selectedIds.length)throw fail('所选猫咪已不在售，请刷新猫源并重新选猫',409);
   const marketingConfig=marketing?marketingOptions(body,selected.cats):null;
-  const audited=marketing?`[marketing] ${selectedIds.join(', ')} ${JSON.stringify(marketingConfig)}`:structured?`[${action}] ${selectedIds.join(', ')} ${prompt}`:prompt;
-  if(!selected.cats.length){
+  const audited=planning?`[agent_plan] ${prompt}`:marketing?`[marketing] ${selectedIds.join(', ')} ${JSON.stringify(marketingConfig)}`:structured?`[${action}] ${selectedIds.join(', ')} ${prompt}`:prompt;
+  if(!planning&&!selected.cats.length){
     await auditLocal(db,key,body.mode,audited,'no_match',selected.message);
     return json({success:true,data:{matched_ids:[],reply_text:selected.message,used_ai:false},user:accountView(await preflight(db,key.id)),catalog_updated_at:catalog.updatedAt});
   }
@@ -97,10 +102,10 @@ async function ask(db,env,request,body) {
       .bind(key.id,key.auth_version,key.device_hash).first();
     if(!stillAllowed)throw fail('授权已变更或 AI 服务已暂停',403);
     dispatched=true; // Never auto-retry a potentially billed upstream request.
-    const output=await generateReply(env,selected.cats,prompt,body.mode,{marketing:marketingConfig,hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
+    const output=planning?await generateAgentPlan(env,prompt,agentContext,new Set(catalog.cats.map(cat=>String(cat.id).replace(/^#+/,'').trim().toUpperCase()))):await generateReply(env,selected.cats,prompt,body.mode,{marketing:marketingConfig,hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
     await finish(db,reservation,output);
     const current=await resolveSession(db,request,body.device_id);
-    return json({success:true,data:{matched_ids:output.matched_ids,reply_text:output.reply_text,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt});
+    return json({success:true,data:planning?{kind:'agent_plan',plan:output.plan,used_ai:true}:{matched_ids:output.matched_ids,reply_text:output.reply_text,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt});
   } catch(error) {
     // finish is idempotent for reservations, including a successful call whose
     // session was revoked before the result was delivered.

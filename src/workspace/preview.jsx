@@ -33,6 +33,7 @@ window.fetch=async(input,options={})=>{
  if(path==='/api/ai/ask'){
   if(!signedIn)return response({success:false,message:'请先激活'},401);
   const body=JSON.parse(options.body||'{}'),prompt=String(body.prompt||'');
+  if(body.action==='agent_plan'){used++;last=Date.now();return response({success:true,user:user(),data:{kind:'agent_plan',used_ai:true,plan:{tool:'clarify',params:{},message:'离线示例演示本地工具；复杂语义识别需要连接正式接口。'}}});}
   if(/【\s*(#\s*)?】/.test(prompt))return response({success:false,message:'请先填写模板中的预算、品种或编号'},400);
   const handbook=answerHandbook(prompt);if(handbook||body.action==='handbook')return response({success:true,user:user(),data:handbook||{kind:'handbook',used_ai:false,matched_ids:[],sources:[],reply_text:'请输入合作或售后规则问题。'}});
   const ids=body.cat_ids||[...new Set([...prompt.matchAll(/#\s*([a-z0-9_-]+)/ig)].map(x=>x[1].toUpperCase()))];

@@ -6,17 +6,18 @@ import {canvasBlob,generateDesign,marketingDraft,pickMarketingCats,PRICE_TAG_NAM
 import {money,normalizeId,shortIdMap} from './presentation.js';
 import {releaseCanvas} from './media.js';
 import CommentTips from './CommentTips.jsx';
+import AgentFollowup from './AgentFollowup.jsx';
 
-export default function MarketingStudio({initialCats,initialTemplate='price',allCats,close}){
+export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,allCats,close}){
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
- const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign()),[includePrices,setIncludePrices]=useState(initialTemplate!=='sign');
- const [bannerEnabled,setBannerEnabled]=useState(initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(null),[mirrorEnabled,setMirrorEnabled]=useState(true);
- const [height,setHeight]=useState(1080),[markup,setMarkup]=useState(800),[overrides,setOverrides]=useState({}),[shop,setShop]=useState('同城靠谱猫舍'),[city,setCity]=useState(''),[platform,setPlatform]=useState('xhs');
+ const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
+ const [bannerEnabled,setBannerEnabled]=useState(initialSettings.bannerEnabled??initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(initialSettings.bannerText??null),[mirrorEnabled,setMirrorEnabled]=useState(initialSettings.mirrorEnabled??true);
+ const [height,setHeight]=useState(initialSettings.height||1080),[markup,setMarkup]=useState(initialSettings.markup??800),[overrides,setOverrides]=useState(initialSettings.overrides||{}),[shop,setShop]=useState(initialSettings.shop||'同城靠谱猫舍'),[city,setCity]=useState(initialSettings.city||''),[platform,setPlatform]=useState(initialSettings.platform||'xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
  const [exportError,setExportError]=useState(''),[download,setDownload]=useState(null),[note,setNote]=useState(''),[exporting,setExporting]=useState(false);
  const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false);
- const renderTail=useRef(Promise.resolve());
+ const renderTail=useRef(Promise.resolve()),[agentOperation,setAgentOperation]=useState(null),handledOperation=useRef(null);
  const template=includePrices?'price':'sign',bannerText=customBanner??`${city}${shop} · 真实在售 · 支持看视频`;
  const exportController=useRef(null),exportLock=useRef(false),visible=useRef(null),readyCanvas=useRef(null),alive=useRef(true),timer=useRef(null),revision=useRef('');
  const labels=useMemo(()=>shortIdMap(allCats),[allCats]);
@@ -43,9 +44,25 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
   },450);
   return()=>{clearTimeout(wait);abort.abort();};
  },[fingerprint,renderRetry,valid]);
- function changeBatch(){const next=pickMarketingCats(allCats,cats.map(c=>c.id));if(!next.length){setNote('当前至少需要2只有照片的在售猫咪。');return;}setCats(next);setOverrides({});setNote(`已从完整图库重选${next.length}只，优先覆盖不同品种。`);}
+ function changeBatch(){const next=pickMarketingCats(allCats,cats.map(c=>c.id)).slice(0,cats.length);if(!next.length){setNote('当前至少需要2只有照片的在售猫咪。');return;}setCats(next);setOverrides({});setNote(`已从完整图库重选${next.length}只，优先覆盖不同品种。`);}
  function changeDesign(){let next=generateDesign();for(let i=0;i<5&&next.background===design.background&&next.gap===design.gap&&next.radius===design.radius&&next.tagShape===design.tagShape;i++)next=generateDesign();setDesign(next);}
  function shufflePhotos(){setCats(shufflePhotoOrder(cats));setNote('猫咪格子顺序已打乱，单只售价保持不变。');}
+ const report=useRef(onStateChange);report.current=onStateChange;
+ useEffect(()=>{report.current?.({task:'poster',cat_ids:cats.map(c=>normalizeId(c.id)),params:{count:cats.length,includePrices,bannerEnabled,mirrorEnabled,height,markup:Number(markup)||0,...(shop?{shop}:{}),...(city?{city}:{}),platform},quotes:prices,designSeed:design.seed,bannerText,caption:currentCaption});},[fingerprint,currentCaption]);
+ useEffect(()=>{if(initialSettings.caption)setCaption({key:captionKey,text:String(initialSettings.caption).slice(0,1600)});},[]);
+ useEffect(()=>{if(!control?.id)return;const p=control.params||{};
+  if(control.cats)setCats(control.cats);
+  if(p.includePrices!=null)setIncludePrices(p.includePrices);if(p.bannerEnabled!=null)setBannerEnabled(p.bannerEnabled);if(p.mirrorEnabled!=null)setMirrorEnabled(p.mirrorEnabled);
+  if(p.height)setHeight(p.height);if(p.markup!=null&&Number(p.markup)!==Number(markup)){setMarkup(p.markup);setOverrides({});}if(p.platform)setPlatform(p.platform);if(p.city!=null&&p.city!==city){setCity(p.city);setCustomBanner(null);}if(p.shop!=null&&p.shop!==shop){setShop(p.shop);setCustomBanner(null);}
+  if(p.quoteTarget&&p.quote!=null)setOverrides(old=>({...old,[p.quoteTarget]:p.quote}));
+  if(p.operation)setAgentOperation({id:control.id,operation:p.operation});
+ },[control?.id]);
+ useEffect(()=>{if(!agentOperation||handledOperation.current===agentOperation.id)return;
+  const op=agentOperation.operation;if(op==='download'&&(renderState!=='ready'||readyCanvas.current?.key!==fingerprint))return;
+  handledOperation.current=agentOperation.id;
+  if(op==='style')changeDesign();if(op==='shuffle')shufflePhotos();if(op==='batch')setNote('已换一批在售猫，当前图数保持不变。');
+  if(op==='download')void exportPNG();if(op==='copy')void copy();if(op==='generate')void generate();
+ },[agentOperation,renderState,fingerprint]);
  async function generate(){
   if(generating||!valid)return;const key=captionKey;setGenerating(true);setAiError('');
   try{const response=await ask({mode:'script',action:'marketing',cat_ids:cats.map(c=>normalizeId(c.id)),marketing:{template,platform,city,shop,prices:cats.map(c=>prices[c.id])}});if(alive.current&&captionRevision.current===key)setCaption({key,text:response.reply_text,ai:true});}
@@ -77,7 +94,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
    {download&&<a className="marketing-save-link" href={download.url} download={download.name} target="_blank" rel="noreferrer">未自动保存？打开图片后长按保存</a>}
    {exportError&&<p role="alert" className="sales-ai-error">{exportError}</p>}
   </section><section className="marketing-controls" aria-label="海报设置与文案" tabIndex={0}>
-   <div className="marketing-settings"><h2>排版与报价</h2>
+   <AgentFollowup/><div className="marketing-settings"><h2>排版与报价</h2>
     <fieldset className="marketing-basics"><legend className="sr-only">海报基础设置</legend>
      <label>导出尺寸<select value={height} onChange={e=>setHeight(Number(e.target.value))}><option value={1080}>1080 × 1080 方图</option><option value={1440}>1080 × 1440 竖图</option></select></label>
      <label>统一加价（元）<input type="number" min="0" max="100000" step="1" value={markup} onChange={e=>{setMarkup(e.target.value);setOverrides({});}}/></label>
