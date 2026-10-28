@@ -1,6 +1,6 @@
 {
   "from_version": "3.3.x, 3.4.x, 3.5.x, 3.6.x, 3.7.x, 3.8.x, 3.9.x or 3.10.x",
-  "to_version": "3.10.0",
+  "to_version": "3.10.1",
   "files": [
     {
       "path": ".gitignore",
@@ -8,11 +8,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "2df037f596c6bf9262f39716fdc2c5acb8973d14ebfaa6233dbe6ab545c80a69"
+      "sha256": "7abcb549107bfe1ee36e89981636cf74d113418923e4c84fd128736589f1f653"
     },
     {
       "path": "WORKSPACE_UPDATE.md",
-      "sha256": "21a06b5f76ef446d80a324a419c6695dbca345ebfb6f36713b855a6a3713da59"
+      "sha256": "67bd77711872f7c31d05ecc899630b7f4c11e8a186a8393f620433fc99198ea5"
     },
     {
       "path": "cloud-functions/_lib/feishu.js",
@@ -64,11 +64,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "10a11ec7a5ca3470773dbdbbf91c74b08e2310260897fa65c78d2dd572ecf604"
+      "sha256": "213409ac134368b0119b93fd22466f6097ba34065af4e2133403adfa48eb430e"
     },
     {
       "path": "package.json",
-      "sha256": "7886069c3af9027bdc893af6cd78d33816571f1943d0958c108a9e284424b479"
+      "sha256": "68bbf6f5060719caafd7e8c83bf8a1a3e99d77fdb58f2a44973f2e87fc2fcb01"
     },
     {
       "path": "public/ui-assets/manual-5fc4a5c43f4999cf.webp",
@@ -120,7 +120,7 @@
     },
     {
       "path": "src/App.jsx",
-      "sha256": "77e2e03a44086992c2e324376f0580dcb24176f641b1c353fec13099484c57dd"
+      "sha256": "31ee568c3cfcf1682b92e7e9a73597e06f01d0038067350d25360d6fcb20e619"
     },
     {
       "path": "src/AssistantApp.jsx",
@@ -128,7 +128,7 @@
     },
     {
       "path": "src/SalesWorkspace.jsx",
-      "sha256": "5825309822ec032738b1f94c99a0cb42df69fa62a35d75223e7f2e46ecd778bd"
+      "sha256": "3cb3c4876357458d14fb7f39c6a9fac8abdba5e277551011fe99c836e04241d4"
     },
     {
       "path": "src/assistant-main.jsx",
@@ -216,7 +216,7 @@
     },
     {
       "path": "src/workspace/CatTools.jsx",
-      "sha256": "dfe2f092cfe8b8e979936a5008b67a4bfcb9e9f46bd762b7582bdde88e6a8d84"
+      "sha256": "ea2242f56038ba321077f108c4109ff9849b4d9ed865a9610092ed259853d2ab"
     },
     {
       "path": "src/workspace/CommentTips.jsx",
@@ -232,7 +232,7 @@
     },
     {
       "path": "src/workspace/MarketingStudio.jsx",
-      "sha256": "b8bbfed7b1746d3a3051e2a525fc2ff031eb07cef5eb556a860e6f88fbf04813"
+      "sha256": "61be964b59837b7b7912b3f3b290f3f786198763200ed3c27bd5b58ef0eb0925"
     },
     {
       "path": "src/workspace/SalesSession.jsx",
@@ -255,6 +255,10 @@
       "sha256": "0dfa94d3c7dad8f5301e05dc5b078acbdbd2df9264751a1d75df11f631317df2"
     },
     {
+      "path": "src/workspace/features.js",
+      "sha256": "9316dc44878cc895a132070637f69205ed71aebc346cdabc9d0066864c0d08d1"
+    },
+    {
       "path": "src/workspace/followups.jsx",
       "sha256": "60345309283d7b2f367a3270e5fbd0360dd6ac3335c865ff75cd26bb6657192e"
     },
@@ -264,7 +268,7 @@
     },
     {
       "path": "src/workspace/marketing.js",
-      "sha256": "d0731cf5a0f53feadedbd20687aaf1f77c548eca13492c821cf3e4553755544b"
+      "sha256": "ba559cd29de4a2feea48d5fda92220c50147b6cd9f88896e9c134fea884d7fb5"
     },
     {
       "path": "src/workspace/media.js",
@@ -320,7 +324,7 @@
     },
     {
       "path": "test/marketing.test.js",
-      "sha256": "aea18598a85e0234049133131d1583d3b8344e170437eedbba447660237db6ce"
+      "sha256": "6ca585ea584497015692b8f2a510754554dad7ae67eecbe1110aa5cbebbf5ff3"
     },
     {
       "path": "test/media-api.test.js",
@@ -332,7 +336,7 @@
     },
     {
       "path": "test/preview-smoke.mjs",
-      "sha256": "a8037f4f736819a9e6453c0af2c9aafc656af6e8ab882fe7095d2a6939ac944b"
+      "sha256": "ca599c0ac9fd8d9bc164a85f86fcba705f53e6982231b2943315178df18f20a3"
     },
     {
       "path": "test/public-api.test.js",
@@ -344,7 +348,7 @@
     },
     {
       "path": "test/sales-components.test.jsx",
-      "sha256": "122df0cbf22f19ddbfe052c8d35d64651fdaa4bcb6572b29ac95a86751ca6d5c"
+      "sha256": "f5b1c2b81f7ce4f0233106373cf43a43595b30286b2ff514cfd4bbbfbcabc569"
     },
     {
       "path": "test/sales-faq.test.js",

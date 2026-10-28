@@ -7,6 +7,7 @@ import {money,normalizeId,shortIdMap} from './presentation.js';
 import {releaseCanvas} from './media.js';
 import {useFollowups} from './followups.jsx';
 import CommentTips from './CommentTips.jsx';
+import {WORKSPACE_FEATURES} from './features.js';
 
 export default function MarketingStudio({initialCats,initialTemplate='price',allCats,close}){
  const {ask,busy,cooldown,user,epoch}=useSalesSession(),followups=useFollowups();
@@ -16,7 +17,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
  const [exportError,setExportError]=useState(''),[download,setDownload]=useState(null),[note,setNote]=useState(''),[exporting,setExporting]=useState(false);
- const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false),[remember,setRemember]=useState(true);
+ const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false),[remember,setRemember]=useState(WORKSPACE_FEATURES.followups);
  const batch=useRef(crypto.randomUUID()),renderTail=useRef(Promise.resolve());
  const template=includePrices?'price':'sign',bannerText=customBanner??`${city}${shop} · 真实在售 · 支持看视频`;
  const exportController=useRef(null),exportLock=useRef(false),visible=useRef(null),readyCanvas=useRef(null),alive=useRef(true),timer=useRef(null),revision=useRef('');
@@ -62,7 +63,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
    const blob=await canvasBlob(stage);if(!alive.current||controller.signal.aborted||revision.current!==key){if(owned)releaseCanvas(stage);return;}
    if(owned){const canvas=visible.current;canvas.width=stage.width;canvas.height=stage.height;canvas.getContext('2d').drawImage(stage,0,0);releaseCanvas(ready.canvas);readyCanvas.current={canvas:stage,key,seed};}
    const url=URL.createObjectURL(blob),name=`petcloud-collage-${cats.length}-${height}-${seed.toString(36)}.png`;setDownload({url,name});const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();
-   if(remember&&includePrices)followups?.recordPoster(cats,prices,batch.current);
+   if(WORKSPACE_FEATURES.followups&&remember&&includePrices)followups?.recordPoster(cats,prices,batch.current);
   }catch(e){if(owned)releaseCanvas(stage);if(alive.current&&!controller.signal.aborted)setExportError(e.message);}finally{exportLock.current=false;if(alive.current)setExporting(false);}
  }
  async function copy(){try{await navigator.clipboard.writeText(currentCaption);setCopied(true);clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}catch{setAiError('复制失败，请在文案框内长按全选复制。');}}
@@ -73,7 +74,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
     {renderState!=='ready'&&<div className="marketing-preview-state" role={renderError?'alert':'status'}>{renderError||'正在更新海报…'}{progress&&<small className="poster-progress">{progress}</small>}{renderError&&<button onClick={()=>setRenderRetry(v=>v+1)}>重新加载照片</button>}</div>}
    </div>
    <div className="marketing-export"><button className="workspace-primary" disabled={renderState!=='ready'||exporting} onClick={exportPNG}><Download size={16}/>{exporting?'正在导出…':'下载高清PNG'}</button><span>1080 × {height} · 本地合成不扣AI次数</span></div>
-   <div className="marketing-save-options"><label><input type="checkbox" checked={freshExport} onChange={e=>setFreshExport(e.target.checked)}/>下载时重新微调构图（稍慢）</label><label><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/>下载报价图后记入跟进备忘录</label><small>默认直接保存已预览图片，避免重复合成。</small></div>
+   <div className="marketing-save-options"><label><input type="checkbox" checked={freshExport} onChange={e=>setFreshExport(e.target.checked)}/>下载时重新微调构图（稍慢）</label>{WORKSPACE_FEATURES.followups&&<label><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/>下载报价图后记入跟进备忘录</label>}<small>默认直接保存已预览图片，避免重复合成。</small></div>
    {download&&<a className="marketing-save-link" href={download.url} download={download.name} target="_blank" rel="noreferrer">未自动保存？打开图片后长按保存</a>}
    {exportError&&<p role="alert" className="sales-ai-error">{exportError}</p>}
    <div className="marketing-settings">

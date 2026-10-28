@@ -86,7 +86,7 @@ function priceTag(ctx,cat,price,cell,design,variation){
  if(shape===4){
   const right=design.corner==='right',cx=right?cell.x+cell.width-57:cell.x+57,cy=cell.y+57;ctx.translate(cx,cy);ctx.rotate((right?1:-1)*Math.PI/4);ctx.fillStyle=palette.fill;ctx.fillRect(-130,-25,260,50);ctx.strokeStyle=palette.stroke;ctx.lineWidth=1+variation.borderDelta*.4;ctx.strokeRect(-130,-25,260,50);fitText(ctx,text,158,31,18);ctx.textAlign='center';ctx.fillStyle=palette.ink;ctx.fillText(text,0,1);ctx.restore();return;
  }
- const label=shape===2?'售价 '+price:shape===3?'售价 '+text:text;
+ const label=text;
  const font=fitText(ctx,label,cell.width-57,size,22),width=ctx.measureText(label).width+28,height=font+24,x=tagLeft(cell,width,position),y=cell.y+cell.height-height-(shape===3?26:14);
  ctx.shadowColor='rgba(0,0,0,.16)';ctx.shadowBlur=5;ctx.shadowOffsetY=3;rounded(ctx,x,y,width,height,shape===2?3:shape===3?15:height/2);ctx.fillStyle=shape===2?'#FFFADE':palette.fill;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle=shape===2?palette.stroke:palette.fill;ctx.lineWidth=1.4+variation.borderDelta*.5;ctx.stroke();
  if(shape===2){ctx.fillStyle='#EADDA7';ctx.beginPath();ctx.moveTo(x+width-17,y);ctx.lineTo(x+width,y+17);ctx.lineTo(x+width-17,y+17);ctx.closePath();ctx.fill();}
