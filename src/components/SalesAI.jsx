@@ -27,7 +27,7 @@ export default function SalesAI({cats=[],onDetail,hidePrices=false,customerDispl
   <div className="agent-task-bar"><span>{context.task!=='help'?`接着处理：${taskLabel}`:'可连续处理当前任务'} · 快捷工具直接执行，自由指令理解并执行计1次{cooldown?` · AI冷却${cooldown}秒`:''}</span><button onClick={agent.reset}>新任务</button></div>
   {!agent.conversationOpen&&<AIResult result={agent.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={onDetail}/>}
 
-  {context.task==='poster'&&context.cat_ids.length>=2&&!agent.conversationOpen&&<button className="agent-open-conversation" disabled={agent.pending} onClick={()=>agent.send('打开当前拼图')}>打开拼图预览</button>}
+  {context.task==='poster'&&context.cat_ids.length>=2&&!agent.conversationOpen&&<button className="agent-open-conversation" disabled={agent.pending} onClick={()=>agent.reopen([...agent.messages].reverse().find(row=>row.action?.tool==='poster'))}>打开拼图预览</button>}
   {agent.messages.length>0&&!agent.conversationOpen&&<button className="agent-open-conversation" onClick={agent.openConversation}>打开对话继续处理</button>}
   {agent.conversationOpen&&<AgentConversation cats={cats} hidePrices={hidePrices} agent={agent} renderResult={()=> <AIResult result={agent.result} cats={cats} hidePrices={hidePrices} customerDisplay={customerDisplay} onDetail={cat=>{agent.closeConversation();onDetail?.(cat);}}/>}/>}
   {!agent.conversationOpen&&!hidePrices&&agent.messages.length>0&&<details className="agent-history"><summary>本次对话 · 最近{Math.ceil(agent.messages.length/2)}轮</summary><ol>{agent.messages.map((row,i)=><li key={i} className={row.role}><b>{row.role==='user'?'你':'助手'}</b><p>{displayText(row.text,cats,false)}</p></li>)}</ol><small>仅当前浏览器标签页保留，最多8轮，30分钟过期；新任务或退出账号会清空。发送模型时只带有限任务摘要。</small></details>}

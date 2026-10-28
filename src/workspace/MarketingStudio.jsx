@@ -10,7 +10,7 @@ import {releaseCanvas} from './media.js';
 import CommentTips from './CommentTips.jsx';
 import AgentFollowup from './AgentFollowup.jsx';
 
-export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,allCats,close}){
+export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,onPreviewReady,allCats,close}){
  const {config:workbenchConfig}=useWorkbenchConfig();
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
@@ -41,7 +41,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
   const wait=setTimeout(()=>{
    const run=async()=>{if(abort.signal.aborted)return;let stage;
     try{stage=document.createElement('canvas');const seed=randomSeed();await renderMarketingCanvas(stage,cats,{...options,seed},{signal:abort.signal,onProgress:(done,total)=>{if(!abort.signal.aborted)setProgress(`照片 ${done}/${total}`);}});if(abort.signal.aborted){releaseCanvas(stage);return;}
-     const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');
+     const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');try{const thumb=document.createElement('canvas');thumb.width=240;thumb.height=Math.round(240*stage.height/stage.width);thumb.getContext('2d').drawImage(stage,0,0,thumb.width,thumb.height);onPreviewReady?.(thumb.toDataURL('image/jpeg',0.65));releaseCanvas(thumb);}catch{}
     }catch(e){releaseCanvas(stage);if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');setProgress('');}}
    };
    renderTail.current=renderTail.current.catch(()=>{}).then(run);

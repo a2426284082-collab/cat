@@ -1,3 +1,4 @@
+import {cleanMessage} from './agent-artifacts.js';
 import {normalizeId,shortIdMap} from './presentation.js';
 import {provinces} from './sales-tools.js';
 import {parseDemandLocally} from '../../cloud-functions/_lib/smart-search.js';
@@ -90,9 +91,9 @@ function cleanTask(value={}){
  return context;
 }
 export function readAgentSession(storage,key,now=Date.now()){
- try{const value=JSON.parse(storage.getItem(AGENT_STORAGE+key)||'null');if(!value||typeof value.at!=='number'||now-value.at>AGENT_TTL||value.at>now+60000)return null;return {context:cleanTask(value.context),messages:Array.isArray(value.messages)?value.messages.slice(-16).filter(r=>['user','assistant'].includes(r.role)&&typeof r.text==='string').map(r=>({role:r.role,text:r.text.slice(0,600)})):[]};}catch{return null;}
+ try{const value=JSON.parse(storage.getItem(AGENT_STORAGE+key)||'null');if(!value||typeof value.at!=='number'||now-value.at>AGENT_TTL||value.at>now+60000)return null;return {context:cleanTask(value.context),messages:Array.isArray(value.messages)?value.messages.slice(-16).map(cleanMessage).filter(Boolean):[]};}catch{return null;}
 }
-export function writeAgentSession(storage,key,state){try{storage.setItem(AGENT_STORAGE+key,JSON.stringify({at:Date.now(),context:cleanTask(state.context),messages:state.messages.slice(-16).map(r=>({role:r.role,text:String(r.text).slice(0,600)}))}));return true;}catch{return false;}}
+export function writeAgentSession(storage,key,state){try{storage.setItem(AGENT_STORAGE+key,JSON.stringify({at:Date.now(),context:cleanTask(state.context),messages:state.messages.slice(-16).map(cleanMessage).filter(Boolean)}));return true;}catch{return false;}}
 export {agentParams,validateAgentPlan};
 
 // Exact, reversible edits to an existing preview are free. All other free-form input goes to semantics.
