@@ -4,15 +4,20 @@ import Dialog from './Dialog.jsx';
 import {useSalesSession} from './SalesSession.jsx';
 import {canvasBlob,generateDesign,marketingDraft,pickMarketingCats,PRICE_TAG_NAMES,randomSeed,renderMarketingCanvas,retailPrice,shufflePhotoOrder,validPrice} from './marketing.js';
 import {money,normalizeId,shortIdMap} from './presentation.js';
+import {releaseCanvas} from './media.js';
+import {useFollowups} from './followups.jsx';
+import CommentTips from './CommentTips.jsx';
 
 export default function MarketingStudio({initialCats,initialTemplate='price',allCats,close}){
- const {ask,busy,cooldown,user}=useSalesSession();
+ const {ask,busy,cooldown,user,epoch}=useSalesSession(),followups=useFollowups();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign()),[includePrices,setIncludePrices]=useState(initialTemplate!=='sign');
  const [bannerEnabled,setBannerEnabled]=useState(initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(null),[mirrorEnabled,setMirrorEnabled]=useState(true);
  const [height,setHeight]=useState(1080),[markup,setMarkup]=useState(800),[overrides,setOverrides]=useState({}),[shop,setShop]=useState('同城靠谱猫舍'),[city,setCity]=useState(''),[platform,setPlatform]=useState('xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
  const [exportError,setExportError]=useState(''),[download,setDownload]=useState(null),[note,setNote]=useState(''),[exporting,setExporting]=useState(false);
+ const [hasPreview,setHasPreview]=useState(false),[progress,setProgress]=useState(''),[freshExport,setFreshExport]=useState(false),[remember,setRemember]=useState(true);
+ const batch=useRef(crypto.randomUUID()),renderTail=useRef(Promise.resolve());
  const template=includePrices?'price':'sign',bannerText=customBanner??`${city}${shop} · 真实在售 · 支持看视频`;
  const exportController=useRef(null),exportLock=useRef(false),visible=useRef(null),readyCanvas=useRef(null),alive=useRef(true),timer=useRef(null),revision=useRef('');
  const labels=useMemo(()=>shortIdMap(allCats),[allCats]);
@@ -23,16 +28,20 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
  const captionRevision=useRef(captionKey);captionRevision.current=captionKey;
  const draft=useMemo(()=>marketingDraft(cats,options),[cats,options]),currentCaption=caption?.key===captionKey?caption.text:draft;
  const valid=validPrice(markup)&&Number.isInteger(Number(markup))&&Number(markup)<=100000&&(!includePrices||cats.every(c=>validPrice(prices[c.id])&&(c.price==null||prices[c.id]>=Number(c.price))))&&(!bannerEnabled||Boolean(bannerText.trim()));
- useEffect(()=>{alive.current=true;return()=>{alive.current=false;exportController.current?.abort();clearTimeout(timer.current);};},[]);
+ useEffect(()=>{setCaption(null);setAiError('');},[epoch]);
+ useEffect(()=>{alive.current=true;const display=visible.current;return()=>{releaseCanvas(display);alive.current=false;exportController.current?.abort();clearTimeout(timer.current);releaseCanvas(readyCanvas.current?.canvas);};},[]);
  useEffect(()=>{if(!download)return;return()=>URL.revokeObjectURL(download.url);},[download]);
  useEffect(()=>{
-  const abort=new AbortController();exportController.current?.abort();readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setExportError('');setCopied(false);
+  const abort=new AbortController();exportController.current?.abort();releaseCanvas(readyCanvas.current?.canvas);readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setExportError('');setCopied(false);
   if(!valid){setRenderState('error');setRenderError('请核对整数加价、各只猫咪售价与招牌文字；售价不能低于合作底价。');return()=>abort.abort();}
-  const wait=setTimeout(async()=>{
-   try{const stage=document.createElement('canvas'),seed=randomSeed();await renderMarketingCanvas(stage,cats,{...options,seed},{signal:abort.signal});if(abort.signal.aborted)return;
-    const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setRenderState('ready');
-   }catch(e){if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');}}
-  },180);
+  const wait=setTimeout(()=>{
+   const run=async()=>{if(abort.signal.aborted)return;let stage;
+    try{stage=document.createElement('canvas');const seed=randomSeed();await renderMarketingCanvas(stage,cats,{...options,seed},{signal:abort.signal,onProgress:(done,total)=>{if(!abort.signal.aborted)setProgress(`照片 ${done}/${total}`);}});if(abort.signal.aborted){releaseCanvas(stage);return;}
+     const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');
+    }catch(e){releaseCanvas(stage);if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');setProgress('');}}
+   };
+   renderTail.current=renderTail.current.catch(()=>{}).then(run);
+  },450);
   return()=>{clearTimeout(wait);abort.abort();};
  },[fingerprint,renderRetry,valid]);
  function changeBatch(){const next=pickMarketingCats(allCats,cats.map(c=>c.id));if(!next.length){setNote('当前至少需要2只有照片的在售猫咪。');return;}setCats(next);setOverrides({});setNote(`已从完整图库重选${next.length}只，优先覆盖不同品种。`);}
@@ -46,20 +55,25 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
  async function exportPNG(){
   const ready=readyCanvas.current,key=fingerprint;if(exportLock.current||!ready||ready.key!==key)return;
   exportLock.current=true;setExporting(true);setExportError('');const controller=new AbortController();exportController.current=controller;
-  try{const stage=document.createElement('canvas');let seed=randomSeed();if(seed===ready.seed)seed=(seed+1)>>>0;await renderMarketingCanvas(stage,cats,{...options,seed},{signal:controller.signal});
-   const blob=await canvasBlob(stage);if(!alive.current||controller.signal.aborted||revision.current!==key)return;
-   const canvas=visible.current;canvas.width=stage.width;canvas.height=stage.height;canvas.getContext('2d').drawImage(stage,0,0);readyCanvas.current={canvas:stage,key,seed};
+  let stage=ready.canvas,owned=false;
+  try{
+   let seed=ready.seed;
+   if(freshExport){await renderTail.current.catch(()=>{});if(controller.signal.aborted)return;stage=document.createElement('canvas');owned=true;seed=randomSeed();if(seed===ready.seed)seed=(seed+1)>>>0;await renderMarketingCanvas(stage,cats,{...options,seed},{signal:controller.signal});}
+   const blob=await canvasBlob(stage);if(!alive.current||controller.signal.aborted||revision.current!==key){if(owned)releaseCanvas(stage);return;}
+   if(owned){const canvas=visible.current;canvas.width=stage.width;canvas.height=stage.height;canvas.getContext('2d').drawImage(stage,0,0);releaseCanvas(ready.canvas);readyCanvas.current={canvas:stage,key,seed};}
    const url=URL.createObjectURL(blob),name=`petcloud-collage-${cats.length}-${height}-${seed.toString(36)}.png`;setDownload({url,name});const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();
-  }catch(e){if(alive.current&&!controller.signal.aborted)setExportError(e.message);}finally{exportLock.current=false;if(alive.current)setExporting(false);}
+   if(remember&&includePrices)followups?.recordPoster(cats,prices,batch.current);
+  }catch(e){if(owned)releaseCanvas(stage);if(alive.current&&!controller.signal.aborted)setExportError(e.message);}finally{exportLock.current=false;if(alive.current)setExporting(false);}
  }
  async function copy(){try{await navigator.clipboard.writeText(currentCaption);setCopied(true);clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}catch{setAiError('复制失败，请在文案框内长按全选复制。');}}
  return <Dialog title="营销拼图与文案" close={close} explicitCloseOnly className="marketing-dialog">
   <div className="marketing-studio"><section className="marketing-visual" aria-label="海报预览与设置">
    <div className="marketing-preview" style={{aspectRatio:`1080 / ${height}`}}>
-    <canvas ref={visible} aria-label={`${cats.length}图营销海报`} role="img" hidden={renderState!=='ready'}/>
-    {renderState!=='ready'&&<div className="marketing-preview-state" role={renderError?'alert':'status'}>{renderError||'正在本地合成高清图片…'}{renderError&&<button onClick={()=>setRenderRetry(v=>v+1)}>重新加载照片</button>}</div>}
+    <canvas ref={visible} aria-label={`${cats.length}图营销海报`} role="img" hidden={!hasPreview}/>
+    {renderState!=='ready'&&<div className="marketing-preview-state" role={renderError?'alert':'status'}>{renderError||'正在更新海报…'}{progress&&<small className="poster-progress">{progress}</small>}{renderError&&<button onClick={()=>setRenderRetry(v=>v+1)}>重新加载照片</button>}</div>}
    </div>
    <div className="marketing-export"><button className="workspace-primary" disabled={renderState!=='ready'||exporting} onClick={exportPNG}><Download size={16}/>{exporting?'正在导出…':'下载高清PNG'}</button><span>1080 × {height} · 本地合成不扣AI次数</span></div>
+   <div className="marketing-save-options"><label><input type="checkbox" checked={freshExport} onChange={e=>setFreshExport(e.target.checked)}/>下载时重新微调构图（稍慢）</label><label><input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}/>下载报价图后记入跟进备忘录</label><small>默认直接保存已预览图片，避免重复合成。</small></div>
    {download&&<a className="marketing-save-link" href={download.url} download={download.name} target="_blank" rel="noreferrer">未自动保存？打开图片后长按保存</a>}
    {exportError&&<p role="alert" className="sales-ai-error">{exportError}</p>}
    <div className="marketing-settings">
@@ -87,6 +101,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',all
    <textarea id="marketing-caption" value={currentCaption} onChange={e=>{setCaption({key:captionKey,text:e.target.value,ai:caption?.ai});setCopied(false);}} rows={14} maxLength={1600}/>
    <div className="marketing-copy-actions"><button className="workspace-primary" disabled={busy||generating||cooldown>0||!valid||user?.remaining===0} onClick={generate}><Sparkles size={15}/>{generating?'正在生成…':cooldown?`等待${cooldown}秒`:'AI生成文案（1次）'}</button><button onClick={copy}><Copy size={15}/>{copied?'已复制文案':'复制文案'}</button></div>
    {aiError&&<p role="alert" className="sales-ai-error">{aiError}</p>}<small>改猫咪、改价或改店名后，文案会同步回到基础版；AI生成需再次点击。图片与文案均可先预览，再自行发布。</small>
+   <CommentTips/>
   </section></div>
  </Dialog>;
 }

@@ -21,7 +21,7 @@ createServer(async (req, res) => {
   if (req.method !== 'GET') result = new Response(null, { status: 405 });
   else if (path === '/api/public-cats') result = await list({ env: process.env });
   else if (/^\/api\/public-images\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
-    result = await image({ env: process.env, params: { token: path.split('/').pop() } });
+    result = await image({ env: process.env, params: { token: path.split('/').pop() }, request: new Request(`http://localhost${req.url}`,{headers:req.headers}) });
   } else if (/^\/api\/public-videos\/[A-Za-z0-9_-]{1,200}$/.test(path)) {
     result = await video({ env: process.env, params: { token: path.split('/').pop() }, request: new Request(`http://localhost${req.url}`, { headers: req.headers }) });
   } else result = new Response(null, { status: 404 });

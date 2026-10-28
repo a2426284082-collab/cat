@@ -7,7 +7,7 @@ export async function onRequestGet({ env }) {
   try {
     const { cats, updatedAt } = await getCatalog(env);
     return new Response(JSON.stringify({ success: true, data: cats, updatedAt }), {
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' },
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=60, must-revalidate', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' },
     });
   } catch (error) {
     const details = { code: CODES.has(error?.code) ? error.code : 'CATALOG_READ_FAILED' };

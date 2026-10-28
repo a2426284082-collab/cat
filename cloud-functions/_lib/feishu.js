@@ -317,3 +317,14 @@ export async function getVideoChunk(envInput, fileToken, start, end, type) {
   if (bytes.byteLength !== to - from + 1) throw new Error('video chunk length mismatch');
   return { bytes, contentRange: `bytes ${from}-${to}/${total}`, type };
 }
+
+// Full-file download is streamed to the browser; never buffer an entire video in a Worker.
+export async function getVideoDownload(envInput,fileToken){
+ const env=config(envInput),token=await accessToken(env);
+ const response=await fetch(`${FEISHU}/drive/v1/medias/${encodeURIComponent(fileToken)}/download`,{headers:{Authorization:`Bearer ${token}`,'Accept-Encoding':'identity'},signal:AbortSignal.timeout(60000)});
+ if(!response.ok||response.status!==200||!response.body){await response.body?.cancel();throw new Error('video download unavailable');}
+ const max=200*1024*1024,length=Number(response.headers.get('content-length'));
+ if(length>max){await response.body.cancel();throw new Error('video exceeds download limit');}
+ let bytes=0;const stream=response.body.pipeThrough(new TransformStream({transform(chunk,controller){bytes+=chunk.byteLength;if(bytes>max)throw new Error('video exceeds download limit');controller.enqueue(chunk);}}));
+ return {body:stream,length:Number.isSafeInteger(length)&&length>0?length:null};
+}

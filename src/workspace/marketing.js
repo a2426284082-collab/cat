@@ -1,3 +1,4 @@
+import {isInlineImage,loadPreparedImage} from './media.js';
 import {seededShuffle,hashSeed,randomFromSeed} from './distribution.js';
 // Local image composition; no model calls, uploads or third-party image proxy.
 export const FONT='-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
@@ -52,13 +53,14 @@ export function marketingDraft(cats,{template,city='',shop='同城靠谱猫舍',
 }
 function abortError(){return new DOMException('已取消','AbortError');}
 export function loadCanvasImage(src,{signal}={}){
+ if(!isInlineImage(src))return loadPreparedImage(src,{signal});
  return new Promise((resolve,reject)=>{
   if(signal?.aborted){reject(abortError());return;}
   const image=new Image();image.crossOrigin='anonymous';image.decoding='async';
   const timer=setTimeout(()=>done(new Error('照片加载超时，请换图或重试')),20000);
   const abort=()=>{done(abortError());image.src='';};
   function done(error){clearTimeout(timer);signal?.removeEventListener('abort',abort);image.onload=null;image.onerror=null;error?reject(error):resolve(image);}
-  image.onload=()=>image.naturalWidth&&image.naturalHeight?done():done(new Error('照片尺寸无效'));
+  image.onload=()=>{if(image.naturalWidth&&image.naturalHeight){image.close=()=>{image.src='';};done();}else done(new Error('照片尺寸无效'));};
   image.onerror=()=>done(new Error('照片无法读取，请刷新猫源或更换照片后重试'));
   signal?.addEventListener('abort',abort,{once:true});image.src=src;
  });
@@ -96,15 +98,16 @@ function drawBanner(ctx,width,height,options,design){
  const text=String(options.bannerText||options.shop||'同城靠谱猫舍').trim(),w=920,x=(width-w)/2,y=(height-width)/2+(design.bannerPosition==='top'?105:350);
  ctx.save();let font=47;ctx.font=`700 ${font}px ${FONT}`;let lines=bannerLines(ctx,text,w-70);while(lines.length>3&&font>30){font-=2;ctx.font=`700 ${font}px ${FONT}`;lines=bannerLines(ctx,text,w-70);}const lineHeight=font+10,h=57+lines.length*lineHeight;ctx.shadowColor='rgba(0,0,0,.2)';ctx.shadowBlur=12;ctx.shadowOffsetY=5;rounded(ctx,x,y,w,h,design.bannerRadius);ctx.fillStyle=design.bannerFill;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle=design.bannerStroke;ctx.lineWidth=4;ctx.setLineDash(design.bannerDashed?[12,7]:[]);ctx.stroke();ctx.setLineDash([]);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=design.bannerInk;lines.forEach((line,i)=>ctx.fillText(line,width/2,y+34+i*lineHeight+font/2));ctx.restore();
 }
-export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImage=loadCanvasImage}={}){
+export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImage=loadCanvasImage,onProgress}={}){
  if(!validPhotoCount(cats.length))throw new Error('请选择2至9只有照片的猫咪');
  const width=1080,height=options.height===1440?1440:1080,design=options.design||generateDesign(options.seed??randomSeed()),variation=createVariation(cats.length,options.seed??randomSeed()),cells=gridCells(cats.length,width,height,design.gap,design.gap);
  if(cats.some(c=>!c.image))throw new Error('所选猫咪缺少照片，请换一只后再生成');
  const includePrices=options.includePrices??options.template!=='sign';
  if(includePrices&&cats.some(c=>!validPrice(options.prices?.[c.id])))throw new Error('请为每只猫填写有效售价');
  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('当前浏览器不支持图片合成，请用系统浏览器打开');
- canvas.width=width;canvas.height=height;ctx.fillStyle=design.background;ctx.fillRect(0,0,width,height);await document.fonts?.ready;
+ canvas.width=width;canvas.height=height;ctx.fillStyle=design.background;ctx.fillRect(0,0,width,height);
  for(let i=0;i<cats.length;i++){
+  onProgress?.(i,cats.length);
   if(signal?.aborted)throw abortError();
   const image=await loadImage(cats[i].image,{signal});if(signal?.aborted){image.close?.();throw abortError();}
   try{const cell=cells[i],v=variation.photos[i],photo=includePrices&&design.tagShape===1?{...cell,height:cell.height-Math.min(68,cell.height*.23)}:cell;
@@ -112,6 +115,7 @@ export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImag
    if(includePrices)priceTag(ctx,cats[i],options.prices[cats[i].id],cell,design,v);
   }finally{image.close?.();}
  }
+ onProgress?.(cats.length,cats.length);
  if(options.bannerEnabled)drawBanner(ctx,width,height,options,design);
  if(height>width){const dark=['#18181B','#271C19'].includes(design.background);ctx.fillStyle=dark?'#F5EBE1':'#7C4A2D';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`600 31px ${FONT}`;ctx.fillText(options.shop||'今日心动猫咪 · 私信看更多照片与视频',540,74);ctx.fillStyle=dark?'#C4B99B':'#78716C';ctx.font=`400 24px ${FONT}`;ctx.fillText('猫咪库存与最终费用，下单前请再次确认',540,height-78);}
  return canvas;

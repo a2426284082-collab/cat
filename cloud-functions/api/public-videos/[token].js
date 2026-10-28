@@ -1,4 +1,4 @@
-import { getCatalog, getVideoChunk } from '../../_lib/feishu.js';
+import { getCatalog, getVideoChunk, getVideoDownload } from '../../_lib/feishu.js';
 import { getTemporaryVideoLink } from '../../_lib/video-links.js';
 
 const CHUNK_SIZE = 4 * 1024 * 1024;
@@ -19,6 +19,12 @@ export async function onRequestGet({ env, params, request }) {
     const catalog = await getCatalog(env);
     const type = catalog.videoTokens.get(fileToken);
     if (!type) return new Response(null, { status: 404 });
+    if(request&&new URL(request.url).searchParams.get('download')==='1'){
+      const file=await getVideoDownload(env,fileToken),ext=type==='video/webm'?'webm':type==='video/mp4'?'mp4':'m4v';
+      const name=(new URL(request.url).searchParams.get('name')||'cat-video').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,60)||'cat-video';
+      return new Response(file.body,{headers:{'Content-Type':type,'Content-Disposition':`attachment; filename="${name}.${ext}"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff',...(file.length?{'Content-Length':String(file.length)}:{})}});
+    }
+
     const proxy = env.FEISHU_VIDEO_DELIVERY === 'proxy' ||
       (request?.url && new URL(request.url).searchParams.get('delivery') === 'proxy');
     if (!proxy) {

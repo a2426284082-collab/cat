@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypt
 const base=__dirname,targetArg=process.argv[2];
 if(!targetArg){console.error('Usage: node apply-update.cjs "PATH_TO_YOUR_CAT_MAIN"');process.exit(1);}
 const target=path.resolve(targetArg),manifest=JSON.parse(fs.readFileSync(path.join(base,'manifest.json'),'utf8'));
-const approvedBackend=new Set(["cloud-functions/_lib/sales-api.js", "cloud-functions/_lib/sales-engine.js", "cloud-functions/_lib/sales-handbook-data.js", "cloud-functions/_lib/sales-handbook.js", "cloud-functions/_lib/sales-intent.js"]);
+const approvedBackend=new Set(["cloud-functions/_lib/feishu.js", "cloud-functions/_lib/sales-api.js", "cloud-functions/_lib/sales-engine.js", "cloud-functions/_lib/sales-handbook-data.js", "cloud-functions/_lib/sales-handbook.js", "cloud-functions/_lib/sales-intent.js", "cloud-functions/api/public-cats.js", "cloud-functions/api/public-images/[token].js", "cloud-functions/api/public-videos/[token].js"]);
 const forbidden=['wrangler.jsonc','cloudflare-worker.js','.env','.dev.vars'];
 function destination(rel){
  if(typeof rel!=='string'||path.isAbsolute(rel)||rel.split(/[\\/]/).includes('..')||forbidden.includes(rel)||/^migrations(\/|$)/.test(rel)||(/^cloud-functions(\/|$)/.test(rel)&&!approvedBackend.has(rel)))throw new Error('Unsafe update path: '+rel);
@@ -12,7 +12,7 @@ function destination(rel){
 }
 let pkg;
 try{pkg=JSON.parse(fs.readFileSync(path.join(target,'package.json'),'utf8'));}catch{console.error('Target is not an existing cat project.');process.exit(1);}
-if(!/^3\.[3456789]\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x/3.5.x/3.6.x/3.7.x/3.8.x/3.9.x cat project. No files changed.');process.exit(1);}
+if(!/^3\.(?:[3-9]|10)\./.test(pkg.version)||!fs.existsSync(path.join(target,'cloudflare-worker.js'))){console.error('This update needs the existing 3.3.x/3.4.x/3.5.x/3.6.x/3.7.x/3.8.x/3.9.x/3.10.x cat project. No files changed.');process.exit(1);}
 for(const entry of manifest.files){
  destination(entry.path);
  const source=path.join(base,'payload',entry.path),actual=crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
@@ -36,7 +36,7 @@ try{
  for(const rel of manifest.deleted){const output=remember(rel);if(fs.existsSync(output))fs.unlinkSync(output);}
  fs.writeFileSync(path.join(backup,'restore-manifest.json'),JSON.stringify(records,null,2));
  console.log('Updated local source successfully.');console.log('Backup: '+backup);
- console.log('Only approved sales backend modules changed. Database, other backend modules, credentials and wrangler.jsonc were preserved.');
+ console.log('Only approved sales and public media backend modules changed. Database, other backend modules, credentials and wrangler.jsonc were preserved.');
  console.log('Next, in your project folder: npm ci, npm test, npm run test:components, npm run build.');
  console.log('No deployment or remote database operation was performed.');
 }catch(error){
