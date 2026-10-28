@@ -1,3 +1,4 @@
+// ADMIN_CONTROL_PATCH_V1
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 const CatalogContext=createContext(null);
 const CACHE_KEY='public-cat-catalog-v2',MAX_AGE=30*60*1000;
@@ -16,6 +17,7 @@ export function CatalogProvider({children}){
         const body=await response.json();
         if(!response.ok||!body.success||!Array.isArray(body.data))throw new Error();
         if(!alive.current||aborter?.signal.aborted)return;
+        if(body.settings)window.dispatchEvent(new CustomEvent('workbench-settings',{detail:body.settings}));
         const savedAt=Date.now();setCats(body.data);setLastUpdated(savedAt);setError('');
         try{localStorage.setItem(CACHE_KEY,JSON.stringify({data:body.data,savedAt}));}catch{}
       }catch(reason){if(!aborter?.signal.aborted&&alive.current)setError(catsRef.current.length?'线上猫源刷新失败，当前显示最近一次成功同步的数据。':'猫源暂时无法读取，请稍后刷新。');}

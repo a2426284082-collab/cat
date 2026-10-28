@@ -9,7 +9,16 @@ export function SalesAuditLogs({items}){return <div className="sales-audit-list"
 export default function SalesRiskAdmin(){
  const [items,setItems]=useState([]),[settings,setSettings]=useState(null),[config,setConfig]=useState(WORKBENCH_DEFAULTS),[globalLimit,setGlobalLimit]=useState(1000),[name,setName]=useState(''),[limit,setLimit]=useState(20),[loading,setLoading]=useState(true),[pending,setPending]=useState({}),[error,setError]=useState(''),[code,setCode]=useState(null),[copied,setCopied]=useState(false),[log,setLog]=useState(null),[profile,setProfile]=useState(null),[query,setQuery]=useState(''),[filter,setFilter]=useState('all'),[visible,setVisible]=useState(30);
  const locks=useRef(new Set()),generation=useRef(0),request=useRef(0),timer=useRef(null),defaultSet=useRef(false),alive=useRef(true),focused=useRef(true);
- async function load(){const seq=++request.current,version=generation.current;const [keys,cfg,control]=await Promise.all([api('/api/sales-admin/keys'),api('/api/sales-admin/settings'),api('/api/sales-admin/control')]);if(!alive.current||seq!==request.current||version!==generation.current)return;setItems(keys.data||[]);setSettings(cfg.data);setGlobalLimit(cfg.data.daily_limit);setConfig(control.data);if(!defaultSet.current){setLimit(control.data.defaultDailyLimit);defaultSet.current=true;}}
+ async function load(){
+  const seq=++request.current,version=generation.current;
+  const results=await Promise.allSettled([api('/api/sales-admin/keys'),api('/api/sales-admin/settings'),api('/api/sales-admin/control')]);
+  if(!alive.current||seq!==request.current||version!==generation.current)return;
+  const [keys,cfg,control]=results,errors=[];
+  if(keys.status==='fulfilled')setItems(keys.value.data||[]);else errors.push('销售列表：'+keys.reason.message);
+  if(cfg.status==='fulfilled'){setSettings(cfg.value.data);setGlobalLimit(cfg.value.data.daily_limit);}else errors.push('全站风控：'+cfg.reason.message);
+  if(control.status==='fulfilled'){setConfig(control.value.data);if(!defaultSet.current){setLimit(control.value.data.defaultDailyLimit);defaultSet.current=true;}}else errors.push('工作台设置加载失败（账号列表仍可使用）：'+control.reason.message);
+  setError(errors.join('；'));
+ }
  useEffect(()=>{alive.current=true;load().catch(e=>{if(alive.current)setError(e.message);}).finally(()=>{if(alive.current)setLoading(false);});const hide=()=>{focused.current=false;setCode(null);clearTimeout(timer.current);};const focus=()=>{focused.current=true;};window.addEventListener('focus',focus);window.addEventListener('blur',hide);return()=>{alive.current=false;request.current++;clearTimeout(timer.current);window.removeEventListener('blur',hide);window.removeEventListener('focus',focus);};},[]);
  useEffect(()=>setVisible(30),[query,filter]);
  function showCode(value,label){if(!alive.current||!focused.current)return;clearTimeout(timer.current);setCode({value,label});setCopied(false);timer.current=setTimeout(()=>{if(alive.current)setCode(null);},45000);}

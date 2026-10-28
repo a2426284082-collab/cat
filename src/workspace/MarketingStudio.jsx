@@ -1,3 +1,5 @@
+// ADMIN_CONTROL_PATCH_V1
+import {useWorkbenchConfig} from './WorkbenchConfig.jsx';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {Copy,Download,RefreshCw,Shuffle,Sparkles} from 'lucide-react';
 import Dialog from './Dialog.jsx';
@@ -9,10 +11,11 @@ import CommentTips from './CommentTips.jsx';
 import AgentFollowup from './AgentFollowup.jsx';
 
 export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,allCats,close}){
+ const {config:workbenchConfig}=useWorkbenchConfig();
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
  const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
  const [bannerEnabled,setBannerEnabled]=useState(initialSettings.bannerEnabled??initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(initialSettings.bannerText??null),[mirrorEnabled,setMirrorEnabled]=useState(initialSettings.mirrorEnabled??true);
- const [height,setHeight]=useState(initialSettings.height||1080),[markup,setMarkup]=useState(initialSettings.markup??800),[overrides,setOverrides]=useState(initialSettings.overrides||{}),[shop,setShop]=useState(initialSettings.shop||'同城靠谱猫舍'),[city,setCity]=useState(initialSettings.city||''),[platform,setPlatform]=useState(initialSettings.platform||'xhs');
+ const [height,setHeight]=useState(initialSettings.height||workbenchConfig.defaultPosterHeight),[markup,setMarkup]=useState(initialSettings.markup??800),[overrides,setOverrides]=useState(initialSettings.overrides||{}),[shop,setShop]=useState(initialSettings.shop||'同城靠谱猫舍'),[city,setCity]=useState(initialSettings.city||''),[platform,setPlatform]=useState(initialSettings.platform||'xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
  const [caption,setCaption]=useState(null),[aiError,setAiError]=useState(''),[generating,setGenerating]=useState(false),[copied,setCopied]=useState(false);
  const [exportError,setExportError]=useState(''),[download,setDownload]=useState(null),[note,setNote]=useState(''),[exporting,setExporting]=useState(false);
@@ -33,6 +36,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  useEffect(()=>{if(!download)return;return()=>URL.revokeObjectURL(download.url);},[download]);
  useEffect(()=>{
   const abort=new AbortController();exportController.current?.abort();releaseCanvas(readyCanvas.current?.canvas);readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setExportError('');setCopied(false);
+  if(!workbenchConfig.posterEnabled){setRenderState('error');setRenderError('营销拼图已被管理员暂停');return()=>abort.abort();}
   if(!valid){setRenderState('error');setRenderError('请核对整数加价、各只猫咪售价与招牌文字；售价不能低于合作底价。');return()=>abort.abort();}
   const wait=setTimeout(()=>{
    const run=async()=>{if(abort.signal.aborted)return;let stage;
@@ -43,7 +47,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
    renderTail.current=renderTail.current.catch(()=>{}).then(run);
   },450);
   return()=>{clearTimeout(wait);abort.abort();};
- },[fingerprint,renderRetry,valid]);
+ },[fingerprint,renderRetry,valid,workbenchConfig.posterEnabled]);
  function changeBatch(){const next=pickMarketingCats(allCats,cats.map(c=>c.id)).slice(0,cats.length);if(!next.length){setNote('当前至少需要2只有照片的在售猫咪。');return;}setCats(next);setOverrides({});setNote(`已从完整图库重选${next.length}只，优先覆盖不同品种。`);}
  function changeDesign(){let next=generateDesign();for(let i=0;i<5&&next.background===design.background&&next.gap===design.gap&&next.radius===design.radius&&next.tagShape===design.tagShape;i++)next=generateDesign();setDesign(next);}
  function shufflePhotos(){setCats(shufflePhotoOrder(cats));setNote('猫咪格子顺序已打乱，单只售价保持不变。');}
