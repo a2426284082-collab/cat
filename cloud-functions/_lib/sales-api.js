@@ -55,7 +55,7 @@ async function ask(db,env,request,body) {
   const presets={praise:'请根据已录入资料，夸这只猫已知的骨相甜美与性格优势，生成微信推荐话术',price:'客户觉得这只猫价格偏高，请根据真实资料生成保价话术，不擅自降价',compare:'客户纠结这两只猫，请对比已知优缺点，生成自然的微信推荐话术',marketing:'请根据在售猫咪资料生成营销推荐文案'};
   let selectedIds=[];
   if(structured){
-    if(!Array.isArray(body.cat_ids)||(marketing?![4,9].includes(body.cat_ids.length):body.cat_ids.length!==(action==='compare'?2:1))||body.cat_ids.some(id=>typeof id!=='string'||!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)))throw fail('请在猫咪卡片中选择正确的完整编号');
+    if(!Array.isArray(body.cat_ids)||(marketing?body.cat_ids.length<2||body.cat_ids.length>9:body.cat_ids.length!==(action==='compare'?2:1))||body.cat_ids.some(id=>typeof id!=='string'||!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)))throw fail('请在猫咪卡片中选择正确的完整编号');
     selectedIds=body.cat_ids.map(id=>id.toUpperCase());if(new Set(selectedIds).size!==selectedIds.length)throw fail('请选择不同的猫咪');
   }
   // Paid checks remain before any inventory/model call. Local handbook answers are free.

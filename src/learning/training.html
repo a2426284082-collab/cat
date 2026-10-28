@@ -1,27 +1,23 @@
 
-  <div class="workspace-training-tools"><button class="quiet-button" id="restart">↻ 重新练习</button></div>
   <div class="training-main legacy-main">
-    <header class="page-heading"><div><span class="eyebrow">你的第一位客户，从这里开始</span><h1>第一次接待，我们陪你练。</h1><p>从发出第一条作品，到接住第一位客户。每一步只做一件事。</p></div><span class="time-badge">简单跟着做 <span>· 可以随时暂停</span></span></header>
+    <header class="page-heading"><div><h1>新手带练</h1><p>一次一个小任务，暂停后可接着练。</p></div><button class="quiet-button" id="restart">↻ 重新练习</button></header>
     <div class="training-layout">
-      <aside class="lesson-sidebar" aria-label="练习路线">
-        <div class="lesson-summary"><span>本次练习进度</span><strong id="lessonPercent">0%</strong></div>
+      <details class="lesson-sidebar" aria-label="练习路线"><summary class="training-route-toggle"><span>查看练习路线</span><strong id="lessonPercent">0%</strong></summary>
         <div class="progress-track"><span id="lessonProgress"></span></div>
         <nav id="steps" aria-label="练习步骤"></nav>
-        <div class="sidebar-note"><span>✦</span><b>不用急，跟着做就好。</b><p>点错也没关系，我会告诉你<br>为什么，再陪你试一次。</p></div>
         <small id="saveStatus">进度保存在当前浏览器</small>
-      </aside>
+      </details>
       <section class="lesson-workspace" aria-label="带练操作区">
         <div class="workspace-top"><button class="icon-button" id="topBack" aria-label="返回上一步">‹</button><b id="phaseTitle">新手带练</b><span class="practice-badge">模拟</span></div>
         <div class="phase-track"><span id="phaseProgress"></span></div>
         <div id="panel"></div>
       </section>
-      <aside class="coach-aside" aria-label="带练教练与客户对话">
-        <div class="coach-intro"><span class="coach-avatar">✦</span><div><b>你的带练搭子</b><small>每一步，我都在</small></div><span class="online-dot"></span></div>
+      <details class="coach-aside" aria-label="带练教练与客户对话"><summary>查看客户对话与本步提示</summary>
         <div class="coach-copy"><span>这一步，先记住</span><p id="coachTip">不用背话术，先跟着做一次。</p></div>
         <div class="customer-top"><span class="customer-avatar">林</span><div><b>客户小林</b><small id="customerStage">完成获客后，她会来咨询</small></div></div>
         <div class="chat" id="chat" role="log" aria-label="模拟客户对话" aria-live="polite"></div>
         <p class="chat-caption">模拟对话，跟着练习更新</p>
-      </aside>
+      </details>
     </div>
     <footer class="page-footer"><span>猫咪、价格和对话均为模拟资料，不会发送真实消息或产生订单。</span><span id="stepStatus" aria-live="polite">准备开始</span></footer>
   </div>

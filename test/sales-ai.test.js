@@ -200,3 +200,12 @@ test('nine-cat marketing uses server stock, approved retail prices, one stateles
   assert.equal((await call('/api/ai/ask',s.env,{method:'POST',session:s.session,body})).status,429);assert.equal(net.count(),1);
  }finally{s.db.close();}
 });
+
+test('marketing accepts every 2–9-cat selection and rejects one/ten before billing',async(t)=>{
+ const stock=Array.from({length:9},(_,i)=>({id:'BENTO'+i,breed:'布偶猫',price:600+i*100,description:'亲人'})),net=mockFetch(t,{catalog:stock,model:()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({reply_text:'🐾 今天在售的小猫，喜欢哪只可以私信看视频，费用下单前确认。 #猫咪日常'})}}]})});
+ for(let count=2;count<=9;count++){
+  const s=await setup();s.env.FEISHU_TABLE_ID='bento-fixture';const selected=stock.slice(0,count),body={device_id:s.id,mode:'script',action:'marketing',cat_ids:selected.map(c=>c.id),marketing:{template:'price',platform:'xhs',city:'杭州',shop:'猫舍',prices:selected.map(c=>c.price+800)}};
+  try{const response=await call('/api/ai/ask',s.env,{method:'POST',session:s.session,body});assert.equal(response.status,200);assert.equal((await response.json()).data.matched_ids.length,count);assert.equal(s.db.sql.prepare('SELECT used_today FROM sales_keys').get().used_today,1);}finally{s.db.close();}
+ }
+ const s=await setup();try{for(const count of [1,10]){const response=await call('/api/ai/ask',s.env,{method:'POST',session:s.session,body:{device_id:s.id,mode:'script',action:'marketing',cat_ids:Array.from({length:count},(_,i)=>'BENTO'+i)}});assert.equal(response.status,400);}assert.equal(s.db.sql.prepare('SELECT used_today FROM sales_keys').get().used_today,0);assert.equal(net.count(),8);}finally{s.db.close();}
+});
