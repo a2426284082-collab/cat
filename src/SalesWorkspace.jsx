@@ -27,6 +27,7 @@ import {filterAgentCats,agentParams,mergeMatchNeed} from './workspace/agent.js';
 import {orderCommand,provinces} from './workspace/sales-tools.js';
 import {clearPreviewCache} from './workspace/media.js';
 import './workspace/agent.css';
+import './workspace/mobile-office.css';
 
 const loaders={
   '/cats/':()=>import('./App.jsx'),'/manuals/':()=>import('./workspace/SupportPage.jsx'),
@@ -120,6 +121,7 @@ function Workspace(){
     const id=normalizeId(cat.id);agent.remember(agent.context.cat_ids.includes(id)?{focus_id:id}:{task:'details',cat_ids:[id],focus_id:id,params:{}});
   }
   async function executeAgent(plan,current,{caption}={}){
+    if(plan.tool==='show_matches'){setMarketing(null);setDetail(null);navigate('/cats/');return {text:'已返回库存结果。'};}
     const switches={poster:'posterEnabled',downloads:'downloadsEnabled',single_poster:'singlePosterEnabled',calculator:'calculatorEnabled'};if(switches[plan.tool]&&!workbenchConfig[switches[plan.tool]])return {text:'这项功能已被管理员暂停。'};
     const params=agentParams(plan.params||{}),requested=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids||[];
     const find=id=>cats.find(c=>normalizeId(c.id)===id&&(!c.status||c.status==='在售'));

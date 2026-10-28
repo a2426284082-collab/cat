@@ -105,3 +105,13 @@ export function previewControl(text,context={}){
  if(replace)return {tool:'poster',cat_ids:[],params:{operation:'replace',replaceIndex:num(replace[1])-1},query:''};
  if(!edit.test(normalized))return null;const params=posterPatch(normalized);return Object.keys(params).length?{tool:'poster',cat_ids:[],params,query:''}:null;
 }
+
+export function directInventoryNeed(raw){
+ const text=String(raw||'').normalize('NFKC').trim();
+ const lookup=/找|挑|选|推荐|想看|想要|看看|搜/.test(text)&&/猫|布偶|英短|美短|缅因|渐层|德文/.test(text);
+ const price=/\d{2,7}\s*(?:元|块(?:钱)?)/.test(text),constraint=/预算|布偶|英短|美短|缅因|德文|渐层|性价比|捡漏|温顺|粘人/.test(text);
+ const noImage=/不(?:要|用|需要)?(?:做图|作图)|不做(?:海报|拼图)/.test(text);
+ const positive=text.replace(/不(?:要|用|需要)?(?:做图|作图|海报|拼图)/g,'');
+ if(!lookup||!price||/预算/.test(text)||/宣传图|海报|拼图|做图|作图|小红书.*图/.test(positive)&&!noImage)return null;
+ return text;
+}

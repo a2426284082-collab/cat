@@ -150,3 +150,15 @@ export async function generateReply(env,cats,prompt,mode,options={}) {
   let data;try {data=JSON.parse(raw);}catch{throw fail('AI 返回格式异常',502);}
   return options.marketing?validateMarketingOutput(data,cats,options.marketing):validateOutput(data,cats,options);
 }
+
+// Inventory lookup is data retrieval; it never depends on a generated sales paragraph.
+export function inventoryQuery(input){
+ let text=normalizePrompt(input).replace(/(\d+)\s*块(?:钱)?/g,'$1元').replace(/(?:不做图|不要做图|不作图|不用做图|别做图|不需要做图)/g,'');
+ const amount=text.match(/(\d{2,7})\s*元/);if(amount&&!/预算|以内|以下|不超过|至少|最低|到|至|[-~]/.test(text))text='预算'+amount[1]+'元以内，'+text;
+ return text.slice(0,200);
+}
+export function inventoryResult(cats,query){
+ const chosen=selectCandidates(cats,inventoryQuery(query),'match');
+ if(!chosen.cats.length)return {kind:'inventory',used_ai:false,matched_ids:[],reply_text:chosen.message};
+ return {kind:'inventory',used_ai:false,matched_ids:chosen.cats.map(c=>'#'+normalizeId(c.id)),reply_text:'已从在售库找到'+chosen.cats.length+'只，以下为库存已录入资料：\n'+chosen.cats.map(c=>'#'+normalizeId(c.id)+' · '+(c.breed||'品种待确认')+' · '+(c.gender||'性别待确认')+' · '+(c.price==null?'价格待确认':'¥'+c.price)+' · 月龄'+(c.age||'待确认')+' · 疫苗'+(c.vaccine||'待确认')+(c.description?'\n'+c.description:'')).join('\n\n')+'\n成交前请再次确认库存。'};
+}

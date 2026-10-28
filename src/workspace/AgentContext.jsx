@@ -1,5 +1,5 @@
 import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
-import {previewControl,resolveCatReferences,mergeMatchNeed,readAgentSession,writeAgentSession,AGENT_STORAGE,AGENT_TTL,validateAgentPlan} from './agent.js';
+import {directInventoryNeed,previewControl,resolveCatReferences,mergeMatchNeed,readAgentSession,writeAgentSession,AGENT_STORAGE,AGENT_TTL,validateAgentPlan} from './agent.js';
 import {normalizeId} from './presentation.js';
 import {answerHandbook} from '../../cloud-functions/_lib/sales-handbook.js';
 export const AgentContext=createContext(null);
@@ -32,8 +32,9 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   if(plan.tool==='help')return message('我能挑猫、做2至9图拼图、写单猫或双猫话术、看资料、准备素材下载、算报价和查手册。可以接着说“换成四只”“不要价格”“看第二只”；说“新任务”清空这次上下文。');
   if(plan.tool==='clarify')return message(plan.message||'请补充需要操作的猫咪编号或具体任务。');
   if(plan.tool==='handbook'&&!/打开.*手册|去.*手册|查看手册/.test(plan.query||text)){const answer=answerHandbook(plan.query||text);if(answer){remember({task:'handbook'});return answer;}}
+  if(plan.tool==='inventory'){setPhase('executing');const output=await ask({mode:'match',action:'catalog_match',prompt:plan.query,hide_prices:session.hidePrices});if(version!==generation.current)return null;await execute({tool:'show_matches'},state.current.context);remember({task:'match',cat_ids:(output.matched_ids||[]).map(normalizeId),need:plan.query,params:{},focus_id:null});setConversationOpen(false);return output;}
   if(paid.has(plan.tool)){
-   if(semantic){if(plan.tool==='match')setConversationOpen(false);if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai)remember({task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
+   if(semantic){if(plan.tool==='match'){await execute({tool:'show_matches'},state.current.context);setConversationOpen(false);}if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai||serverResult.kind==='inventory')remember({task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
    const refs=plan.cat_ids?.length?plan.cat_ids:state.current.context.focus_id?[state.current.context.focus_id]:state.current.context.cat_ids,need=mergeMatchNeed(state.current.context.need,plan.query||text,cats,state.current.context.cat_ids);
    if(plan.tool!=='match'&&refs.length!==(plan.tool==='compare'?2:1))return message(plan.tool==='compare'?'请明确选择两只猫，或输入两个短编号。':'请明确是哪一只猫，例如“给 #017 写保价话术”。');
    const payload=plan.tool==='match'?{mode:'match',prompt:need,hide_prices:session.hidePrices}:{mode:'script',action:plan.tool,cat_ids:refs,hide_prices:session.hidePrices};
@@ -51,6 +52,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
    let plan,serverResult;const quick=source==='quick'&&tool==='match';
    if(/^(新客户|新任务|重新开始|清空对话|开始新对话)[。!！\s]*$/.test(text))plan={tool:'reset',cat_ids:[],params:{}};
    else if(/^(你好|谢谢|感谢|好的|收到)[。!！\s]*$/.test(text))plan={tool:'help',cat_ids:[],params:{}};
+   else if(!quick&&directInventoryNeed(text))plan={tool:'inventory',cat_ids:[],params:{},query:text};
    else if(previewControl(text,state.current.context))plan=previewControl(text,state.current.context);
    else if(quick){if(/【\s*(?:#\s*)?】/.test(text))plan={tool:'clarify',cat_ids:[],params:{},message:'填好模板里的客户信息后再发送，也可以切换自由输入直接描述。'};else plan={tool:'match',cat_ids:[],params:{},query:text};}
    else{

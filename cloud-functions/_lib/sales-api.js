@@ -1,3 +1,4 @@
+import {inventoryResult,inventoryQuery} from './sales-engine.js';
 // ADMIN_CONTROL_PATCH_V1
 import {readWorkbench,ensureControlTables,decorateKeys,encryptSalesCode,vaultStatement,adminEventStatement,checkKeyExpiry} from './workbench-control.js';
 import {handleWorkbenchAdmin} from './workbench-admin.js';
@@ -53,6 +54,7 @@ async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
+  if(body.action==='catalog_match'){const query=validatePrompt(inventoryQuery(body.prompt));const catalog=await getCatalog(env);const data=inventoryResult(catalog.cats,query);await auditLocal(db,key,'match',query,'inventory',data.reply_text);return json({success:true,data,user:accountView(key),catalog_updated_at:catalog.updatedAt});}
   if(body.action==='agent_run')return json({success:true,...await runAgentTask(db,env,request,body,key)});
   const action=body.action,planning=action==='agent_plan';
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
