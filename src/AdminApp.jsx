@@ -1,19 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import {adminApi} from './admin-api.js';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { loginProof } from './login-proof.js';
 import SalesRiskAdmin from './components/SalesRiskAdmin.jsx';
+import WorkbenchSettingsAdmin from './components/WorkbenchSettingsAdmin.jsx';
+import './admin-controls.css';
 import { changedCatFields } from './admin-edit.js';
 import { Bot, Cat, Clipboard, LogOut, MessageSquare, Pencil, Plus, RefreshCw, RotateCw, Search, Users, X } from 'lucide-react';
 
-async function api(url, options) {
-  const response = await fetch(url, {
-    credentials: 'same-origin',
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.message || '请求失败');
-  return result;
-}
+const api=adminApi;
 
 const statuses = ['在售', '已售', '下架'];
 const show = value => value === null || value === undefined || value === '' ? '—' : value;
@@ -77,32 +71,38 @@ function Editor({ cat, onClose, onSaved }) {
 export default function AdminApp() {
   const [user, setUser] = useState(null), [checking, setChecking] = useState(true);
   const [cats, setCats] = useState([]), [loading, setLoading] = useState(false), [error, setError] = useState('');
+  const [pendingRows,setPendingRows]=useState({}),[feedback,setFeedback]=useState(''),[visible,setVisible]=useState(40);
+  const locks=useRef(new Set()),revision=useRef(0),loadSequence=useRef(0),authRevision=useRef(0);
   const [query, setQuery] = useState(''), [status, setStatus] = useState('全部'), [editing, setEditing] = useState(null), [tab,setTab]=useState(window.location.pathname.startsWith('/admin-sales')?'sales':'cats');
   useEffect(() => { api('/api/admin/session').then(result => setUser(result.user)).catch(() => {}).finally(() => setChecking(false)); }, []);
-  async function load() { setLoading(true); setError(''); try { const result = await api('/api/admin/cats'); setCats(result.data || []); } catch (reason) { setError(reason.message); } finally { setLoading(false); } }
+  async function load(manual=false) {const sequence=++loadSequence.current,start=revision.current,auth=authRevision.current;setLoading(true);setError('');try{const result=await api('/api/admin/cats'+(manual?'?refresh=1':''));if(sequence===loadSequence.current&&start===revision.current&&auth===authRevision.current)setCats(result.data||[]);}catch(reason){if(auth===authRevision.current)setError(reason.message);}finally{if(sequence===loadSequence.current)setLoading(false);}}
+
   useEffect(() => { if (user && tab==='cats') load(); }, [user,tab]);
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return cats.filter(cat => (status === '全部' || cat.status === status) && (!needle || [cat.id,cat.breed,cat.color,cat.supplier,cat.supplierOriginalId].some(value => String(value || '').toLowerCase().includes(needle))));
   }, [cats, query, status]);
-  async function quick(cat, nextStatus) {
-    setError('');
-    try { await api(`/api/admin/cats/${encodeURIComponent(cat.recordId)}`, { method: 'PATCH', body: JSON.stringify({ status: nextStatus }) }); setCats(items => items.map(item => item.recordId === cat.recordId ? { ...item, status: nextStatus } : item)); }
-    catch (reason) { setError(`${cat.id}：${reason.message}`); }
+  async function quick(cat,nextStatus){
+    const id=cat.recordId,auth=authRevision.current,lockKey=auth+':'+id;if(locks.current.has(lockKey))return;locks.current.add(lockKey);revision.current++;setPendingRows(old=>({...old,[id]:true}));setError('');setFeedback(`${cat.id} 状态已在页面更新，正在同步飞书…`);setCats(items=>items.map(item=>item.recordId===id?{...item,status:nextStatus}:item));
+    try{await api(`/api/admin/cats/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify({status:nextStatus})});if(auth===authRevision.current)setFeedback(`${cat.id} 已同步：${nextStatus}`);}
+    catch(reason){if(auth===authRevision.current){setCats(items=>items.map(item=>item.recordId===id?{...item,status:cat.status}:item));setError(`${cat.id} 同步未确认，页面已回退，请刷新核对：${reason.message}`);setFeedback('');}}
+    finally{locks.current.delete(lockKey);revision.current++;if(auth===authRevision.current)setPendingRows(old=>{const next={...old};delete next[id];return next;});}
   }
-  async function logout() { try { await api('/api/admin/logout', { method: 'POST', body: '{}' }); } finally { setUser(null); setCats([]); } }
+  useEffect(()=>setVisible(40),[query,status]);
+  async function logout() { authRevision.current++;loadSequence.current++;try { await api('/api/admin/logout', { method: 'POST', body: '{}' }); } finally { setUser(null); setCats([]);setPendingRows({});setFeedback(''); } }
   if (checking) return <div className="min-h-screen grid place-items-center text-slate-500">正在检查登录状态…</div>;
   if (!user) return <Login onLogin={setUser} />;
-  return <div className="min-h-screen">
+  return <div className="admin-app min-h-screen">
     <header className="border-b bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500 text-white"><Cat/></span><div><h1 className="font-bold">猫源管理台</h1><p className="text-xs text-slate-500">直接管理飞书猫源</p></div></div><div className="flex items-center gap-3 text-sm"><span className="hidden text-slate-500 sm:inline">{user.username}</span><button onClick={logout} className="flex items-center gap-1.5 rounded-lg border px-3 py-2 hover:bg-slate-50"><LogOut size={16}/>退出</button></div></div></header>
     <main className="mx-auto max-w-7xl px-4 py-6">
-      <nav className="mb-5 flex gap-2 overflow-x-auto">{[['cats','猫源管理',Cat],['sales','销售账号与风控',Users]].map(([key,label,Icon])=><button key={key} onClick={()=>setTab(key)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${tab===key?'bg-slate-900 text-white':'border bg-white'}`}><Icon size={17}/>{label}</button>)}</nav>
-      {tab==='sales'&&<SalesRiskAdmin/>}{tab==='cats'&&<>
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-400" size={20}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索猫ID、品种、毛色、供应商、原编号" className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 outline-none focus:border-orange-500" /></div><select value={status} onChange={e => setStatus(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5"><option>全部</option>{statuses.map(item => <option key={item}>{item}</option>)}</select><button onClick={load} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 hover:bg-slate-50"><RefreshCw size={18} className={loading ? 'animate-spin' : ''}/>刷新</button></div>
+      <nav className="mb-5 flex gap-2 overflow-x-auto">{[['cats','猫源管理',Cat],['sales','销售账号与风控',Users],['settings','工作台设置',Pencil]].map(([key,label,Icon])=><button key={key} onClick={()=>setTab(key)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${tab===key?'bg-slate-900 text-white':'border bg-white'}`}><Icon size={17}/>{label}</button>)}</nav>
+      {tab==='sales'&&<SalesRiskAdmin/>}{tab==='settings'&&<WorkbenchSettingsAdmin/>}{tab==='cats'&&<>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-400" size={20}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索猫ID、品种、毛色、供应商、原编号" className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 outline-none focus:border-orange-500" /></div><select value={status} onChange={e => setStatus(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5"><option>全部</option>{statuses.map(item => <option key={item}>{item}</option>)}</select><button onClick={()=>load(true)} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 hover:bg-slate-50"><RefreshCw size={18} className={loading ? 'animate-spin' : ''}/>刷新</button></div>
       <div className="mb-4 flex items-center justify-between text-sm text-slate-500"><span>共 {cats.length} 只，当前显示 {filtered.length} 只</span></div>
-      {error && <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-[1050px] w-full text-left text-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="px-4 py-3">猫咪</th><th>品种 / 毛色</th><th>性别 / 年龄</th><th>售价</th><th>供应商 / 原编号</th><th>状态</th><th className="pr-4 text-right">操作</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map(cat => <tr key={cat.recordId} className="hover:bg-slate-50/70"><td className="px-4 py-3"><div className="flex items-center gap-3">{cat.image ? <img src={cat.image} loading="lazy" className="h-14 w-14 rounded-lg object-cover"/> : <span className="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 text-slate-400"><Cat/></span>}<strong>{cat.id}</strong></div></td><td><div>{show(cat.breed)}</div><div className="text-xs text-slate-500">{show(cat.color)}</div></td><td><div>{show(cat.gender)}</div><div className="text-xs text-slate-500">{cat.age == null ? '—' : `${cat.age}个月`}</div></td><td className="font-semibold text-orange-600">{cat.price == null ? '—' : `¥${cat.price}`}</td><td><div>{show(cat.supplier)}</div><div className="text-xs text-slate-500">{show(cat.supplierOriginalId)}</div></td><td><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cat.status === '在售' ? 'bg-emerald-50 text-emerald-700' : cat.status === '已售' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>{show(cat.status)}</span></td><td className="pr-4"><div className="flex justify-end gap-2"><button onClick={() => quick(cat, cat.status === '在售' ? '已售' : '在售')} className="rounded-lg border px-3 py-1.5 hover:bg-white">{cat.status === '在售' ? '标记已售' : '恢复在售'}</button><button onClick={() => setEditing(cat)} className="rounded-lg border p-2 hover:bg-white" aria-label="编辑"><Pencil size={16}/></button></div></td></tr>)}</tbody></table></div>{!loading && !filtered.length && <p className="py-16 text-center text-slate-500">没有符合条件的猫咪</p>}</div></>}
+      {feedback&&<p role="status" className="admin-feedback">{feedback}</p>}
+      {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="admin-cats-table min-w-[1050px] w-full text-left text-sm"><thead className="bg-slate-50 text-slate-500"><tr><th className="px-4 py-3">猫咪</th><th>品种 / 毛色</th><th>性别 / 年龄</th><th>售价</th><th>供应商 / 原编号</th><th>状态</th><th className="pr-4 text-right">操作</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.slice(0,visible).map(cat => <tr aria-busy={Boolean(pendingRows[cat.recordId])} key={cat.recordId} className="hover:bg-slate-50/70"><td data-label="猫咪" className="px-4 py-3"><div className="flex items-center gap-3">{cat.image ? <img src={cat.image} loading="lazy" className="h-14 w-14 rounded-lg object-cover"/> : <span className="grid h-14 w-14 place-items-center rounded-lg bg-slate-100 text-slate-400"><Cat/></span>}<strong>{cat.id}</strong></div></td><td data-label="品种 / 毛色"><div>{show(cat.breed)}</div><div className="text-xs text-slate-500">{show(cat.color)}</div></td><td data-label="性别 / 年龄"><div>{show(cat.gender)}</div><div className="text-xs text-slate-500">{cat.age == null ? '—' : `${cat.age}个月`}</div></td><td data-label="售价" className="font-semibold text-orange-600">{cat.price == null ? '—' : `¥${cat.price}`}</td><td data-label="供货信息"><div>{show(cat.supplier)}</div><div className="text-xs text-slate-500">{show(cat.supplierOriginalId)}</div></td><td data-label="状态"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cat.status === '在售' ? 'bg-emerald-50 text-emerald-700' : cat.status === '已售' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>{show(cat.status)}</span></td><td data-label="操作" className="pr-4"><div className="flex justify-end gap-2"><button disabled={Boolean(pendingRows[cat.recordId])} onClick={() => quick(cat, cat.status === '在售' ? '已售' : '在售')} className="rounded-lg border px-3 py-1.5 hover:bg-white">{pendingRows[cat.recordId]?'同步中…':cat.status === '在售' ? '标记已售' : '恢复在售'}</button><button disabled={Boolean(pendingRows[cat.recordId])} onClick={() => setEditing(cat)} className="rounded-lg border p-2 hover:bg-white" aria-label="编辑"><Pencil size={16}/></button></div></td></tr>)}</tbody></table></div>{!loading && !filtered.length && <p className="py-16 text-center text-slate-500">没有符合条件的猫咪</p>}</div>{visible<filtered.length&&<button className="admin-more" onClick={()=>setVisible(n=>n+40)}>加载更多（已显示{Math.min(visible,filtered.length)} / {filtered.length}）</button>}</>}
     </main>
-    {editing && <Editor cat={editing} onClose={() => setEditing(null)} onSaved={updated => { setCats(items => items.map(item => item.recordId === updated.recordId ? updated : item)); setEditing(null); }} />}
+    {editing && <Editor cat={editing} onClose={() => setEditing(null)} onSaved={updated => { revision.current++;setCats(items => items.map(item => item.recordId === updated.recordId ? updated : item)); setEditing(null); }} />}
   </div>;
 }

@@ -1,0 +1,28 @@
+.workbench-shell[data-workbench-poster=off] .sidebar-art-tools,.workbench-shell[data-workbench-poster=off] [data-workbench-tool=poster]{display:none}
+.workbench-notice{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-top:1px solid #EFECE6;padding:12px 0;font-size:11px;color:#A8A29E}.workbench-notice button{color:#7C4A2D;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:760px){
+ .workbench-shell[data-workbench-density=compact] .workflow-workspace .workspace-header{height:52px;padding:0 12px}
+ .workbench-shell[data-workbench-density=compact] .workspace-brand>span{width:29px;height:29px;border-radius:8px}
+ .workbench-shell[data-workbench-density=compact] .workspace-brand b{font-size:13px}.workbench-shell[data-workbench-density=compact] .workspace-brand small{font-size:8px}
+ .workbench-shell[data-workbench-density=compact] .workflow-workspace .workspace-content{padding:9px 10px 76px}
+ .workbench-shell[data-workbench-density=compact] .workspace-ai-pane .sales-ai{margin-bottom:15px}.workbench-shell[data-workbench-density=compact] .sales-ai-heading{padding:6px 0 12px}
+ .workbench-shell[data-workbench-density=compact] .sales-ai-heading h2{font-size:20px!important;line-height:1.4}
+ .workbench-shell[data-workbench-density=compact] .sales-ai-composer{padding:9px 10px 7px}.workbench-shell[data-workbench-density=compact] .sales-ai-composer textarea{font-size:16px;line-height:1.5;min-height:48px;max-height:120px;padding:0}
+ .workbench-shell[data-workbench-density=compact] .sales-ai-toolbar{padding-top:4px;min-height:30px}.workbench-shell[data-workbench-density=compact] .sales-ai-send{width:30px;height:30px}
+ .workbench-shell[data-workbench-density=compact] .sales-ai-quick{gap:5px;margin-top:9px}.workbench-shell[data-workbench-density=compact] .sales-ai-quick button{font-size:10px;padding:6px;min-height:32px;flex:1 1 0;min-width:0;line-height:1.5}
+ .workbench-shell[data-workbench-density=compact] .agent-task-bar{font-size:9px;margin:7px 0}.workbench-shell[data-workbench-density=compact] .catalog-status{font-size:10px;padding:8px 0;gap:5px;margin-bottom:10px}
+ .workbench-shell[data-workbench-density=compact] .catalog-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .workbench-shell[data-workbench-density=compact] .catalog-photo{aspect-ratio:4/3}.workbench-shell[data-workbench-density=compact] .catalog-card-body{padding:9px 8px 6px}
+ .workbench-shell[data-workbench-density=compact] .workspace-stock-card h3{font-size:12px;line-height:1.5;margin:0 0 4px}.workbench-shell[data-workbench-density=compact] .workspace-stock-card p{font-size:10px;line-height:1.6;margin:3px 0}
+ .workbench-shell[data-workbench-density=compact] .catalog-description{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ .workbench-shell[data-workbench-density=compact] .catalog-short-id{font-size:10px;padding:3px 6px;top:7px;left:7px}.workbench-shell[data-workbench-density=compact] .catalog-price{margin-top:6px;min-height:36px;padding-top:7px;gap:4px}
+ .workbench-shell[data-workbench-density=compact] .catalog-price small{font-size:9px}.workbench-shell[data-workbench-density=compact] .catalog-price strong{font-size:15px}.workbench-shell[data-workbench-density=compact] .catalog-price>button{font-size:10px;padding:5px 6px;min-height:32px}
+ .workbench-shell[data-workbench-density=compact] .workspace-card-actions{gap:5px;padding:5px 7px 8px}.workbench-shell[data-workbench-density=compact] .workspace-card-actions>button{font-size:10px!important;min-height:33px;padding:5px!important}
+ .workbench-shell[data-workbench-density=compact] .workflow-workspace .workspace-sidebar{height:calc(60px + env(safe-area-inset-bottom,0px))}.workbench-shell[data-workbench-density=compact] .workflow-workspace .workspace-sidebar nav{height:60px}.workbench-shell[data-workbench-density=compact] .workflow-workspace .workspace-sidebar nav>a,.workbench-shell[data-workbench-density=compact] .workspace-utilities-toggle{height:51px}.workbench-shell[data-workbench-density=compact] .workspace-sidebar nav b{font-size:11px}.workbench-shell[data-workbench-density=compact] .workspace-sidebar-utilities{bottom:calc(67px + env(safe-area-inset-bottom,0px))}
+ .workbench-shell[data-workbench-density=compact] .marketing-dialog{height:94dvh}.workbench-shell[data-workbench-density=compact] .marketing-controls{padding-top:8px}.workbench-shell[data-workbench-density=compact] .marketing-visual{--poster-preview-max:clamp(86px,20dvh,165px)}
+ .workbench-shell[data-workbench-density=compact] .marketing-controls :is(input[type=number],input[type=text],textarea,select){font-size:16px}.workbench-shell[data-workbench-density=compact] .marketing-copy h2{font-size:17px}
+ .workbench-shell[data-workbench-density=compact] .workflow-cat-detail{padding:13px}.workbench-shell[data-workbench-density=compact] .workflow-cat-detail h2{font-size:18px}.workbench-shell[data-workbench-density=compact] .workflow-cat-detail p{font-size:12px}
+ .workbench-shell[data-workbench-density=compact] .catalog-filters :is(input,select),.workbench-shell[data-workbench-density=compact] .customer-display-controls input,.workbench-shell[data-workbench-density=compact] .agent-followup input{font-size:16px}
+ .workbench-shell[data-workbench-density=compact] .workspace-compare{font-size:10px;bottom:calc(69px + env(safe-area-inset-bottom,0px));padding:8px}
+ .workbench-shell[data-workbench-density=compact] .workspace-compare>button{font-size:10px;min-height:33px;padding:6px 8px}
+}
