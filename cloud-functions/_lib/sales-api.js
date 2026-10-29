@@ -11,8 +11,6 @@ import { accountView, activate, auditLocal, cleanCode, cookie, database, digest,
   nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay, openGuest, isGuest, guestIpGuard, GUEST_HINT } from './sales-store.js';
 import { generateReply, selectCandidates, validatePrompt, normalizePrompt, marketingOptions } from './sales-engine.js';
 import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
-import {planningInput,generateAgentPlan} from './sales-agent.js';
-import {generateMarketingLabPlan} from './marketing-lab.js';
 
 const isWrite = request => !['GET','HEAD'].includes(request.method);
 function originCheck(request) {
@@ -65,9 +63,9 @@ async function ask(db,env,request,body) {
     return json({success:true,...await runCatOnly(db,env,request,safe,key,isGuest(key))});
   }
   if(body.action==='agent_run'||body.action==='agent_plan')throw fail('旧版跨工具规划 Agent 已冻结，请刷新网页使用智能找猫助手。',410);
-  const action=body.action,planning=action==='agent_plan';
+  const action=body.action;
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
-  if(action!=null&&!structured&&!planning&&action!=='handbook')throw fail('操作类型无效');
+  if(action!=null&&!structured&&action!=='handbook')throw fail('操作类型无效');
   if(structured&&body.mode!=='script')throw fail('卡片话术操作类型无效');
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
   if(action==='marketing'&&!(await readWorkbench(db)).posterEnabled)throw fail('营销拼图功能已被管理员暂停',403);
@@ -78,11 +76,11 @@ async function ask(db,env,request,body) {
     selectedIds=body.cat_ids.map(id=>id.toUpperCase());if(new Set(selectedIds).size!==selectedIds.length)throw fail('请选择不同的猫咪');
   }
   // Paid checks remain before any inventory/model call. Local handbook answers are free.
-  const effectiveInput=typeof body.prompt==='string'?(planning?body.prompt:normalizePrompt(body.prompt)):body.prompt;
-  const handbook=!planning&&(action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput)));
+  const effectiveInput=typeof body.prompt==='string'?normalizePrompt(body.prompt):body.prompt;
+  const handbook=action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput));
   if(!handbook)await preflight(db,key.id);
-  let prompt,agentContext;
-  try {if(planning){const input=planningInput(effectiveInput,body.agent_context);prompt=input.prompt;agentContext=input.context;}else prompt=validatePrompt(structured?presets[action]:effectiveInput);}
+  let prompt;
+  try {prompt=validatePrompt(structured?presets[action]:effectiveInput);}
   catch(error){
     await auditLocal(db,key,body.mode,String(body.prompt || '').slice(0,200),error.audit || 'blocked',error.message);
     throw error;
@@ -94,19 +92,15 @@ async function ask(db,env,request,body) {
   }
   let catalog;try{catalog=await getCatalog(env);}catch{throw fail('库存暂时读取失败，本次未扣次数，请稍后重试',503);}
   let selected;
-  if(planning){
-    const stockIds=new Set(catalog.cats.map(cat=>String(cat.id).replace(/^#+/,'').trim().toUpperCase()));
-    if(agentContext.cat_ids.some(id=>!stockIds.has(id)))throw fail('任务中的猫咪已不在当前在售库，请刷新或开始新任务',409);
-    selected={cats:[]};
-  }else if(marketing){
+  if(marketing){
     const stock=new Map();
     for(const cat of catalog.cats){if(cat.status&&cat.status!=='在售')continue;const id=String(cat.id).replace(/^#+/,'').trim().toUpperCase();if(stock.has(id))throw fail('库存编号重复，请联系运营核对',503);stock.set(id,cat);}
     selected={cats:selectedIds.map(id=>stock.get(id)).filter(Boolean)};
   }else selected=selectCandidates(catalog.cats,structured?selectedIds.map(id=>'#'+id).join(' ')+(action==='compare'?' 对比':'' ):prompt,body.mode);
   if(marketing&&selected.cats.length!==selectedIds.length)throw fail('所选猫咪已不在售，请刷新猫源并重新选猫',409);
   const marketingConfig=marketing?marketingOptions(body,selected.cats):null;
-  const audited=planning?`[agent_plan] ${prompt}`:marketing?`[marketing] ${selectedIds.join(', ')} ${JSON.stringify(marketingConfig)}`:structured?`[${action}] ${selectedIds.join(', ')} ${prompt}`:prompt;
-  if(!planning&&!selected.cats.length){
+  const audited=marketing?`[marketing] ${selectedIds.join(', ')} ${JSON.stringify(marketingConfig)}`:structured?`[${action}] ${selectedIds.join(', ')} ${prompt}`:prompt;
+  if(!selected.cats.length){
     await auditLocal(db,key,body.mode,audited,'no_match',selected.message);
     return json({success:true,data:{matched_ids:[],reply_text:selected.message,used_ai:false},user:accountView(await preflight(db,key.id)),catalog_updated_at:catalog.updatedAt});
   }
@@ -121,57 +115,17 @@ async function ask(db,env,request,body) {
     if(!stillAllowed)throw fail('授权已变更或 AI 服务已暂停',403);
     await checkKeyExpiry(db,key.id);
     dispatched=true; // Never auto-retry a potentially billed upstream request.
-    const output=planning?await generateAgentPlan(env,prompt,agentContext,new Set(catalog.cats.map(cat=>String(cat.id).replace(/^#+/,'').trim().toUpperCase()))):await generateReply(env,selected.cats,prompt,body.mode,{marketing:marketingConfig,hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
+    const output=await generateReply(env,selected.cats,prompt,body.mode,{marketing:marketingConfig,hidePrices:body.hide_prices===true,expectedCount:action==='compare'?2:undefined});
     await finish(db,reservation,output);
     const current=await resolveSession(db,request,body.device_id);
-    return json({success:true,data:planning?{kind:'agent_plan',plan:output.plan,used_ai:true}:{matched_ids:output.matched_ids,reply_text:output.reply_text,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt});
+    return json({success:true,data:{matched_ids:output.matched_ids,reply_text:output.reply_text,used_ai:true},user:accountView(current),catalog_updated_at:catalog.updatedAt});
   } catch(error) {
     // finish is idempotent for reservations, including a successful call whose
     // session was revoked before the result was delivered.
-    const refund=!dispatched||Boolean(planning&&error.reason_code)||error.refund_user_quota===true;
-    await finish(db,reservation,{status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?`模型任务规划失败（${error.reason_code||'UNKNOWN'}）`:'请求在调用模型前取消'}, {refund});
+    const refund=!dispatched||error.refund_user_quota===true;
+    await finish(db,reservation,{status:dispatched?'upstream_error':'cancelled',reply_text:dispatched?'AI 内容生成或校验失败':'请求在调用模型前取消'}, {refund});
     const current=await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(key.id).first();
-    throw fail(dispatched?`未取得可执行的 AI 任务计划（${error.reason_code||'SERVICE_ERROR'}）。${refund?'本次未扣销售配额。':'本次已计入1次。'}`:error.message,error.status||502,{user:current?accountView(current):undefined});
-  }
-}
-
-async function marketingLab(db,env,request,body){
-  if(request.method==='GET')return json({success:true,data:{ready:Boolean(env.DEEPSEEK_API_KEY),enabled:Boolean((await readWorkbench(db,{fresh:true})).marketingLabEnabled)}});
-  if(request.method!=='POST')throw fail('请求方法不支持',405,{allow:'GET, POST'});
-  if(!body.device_id)throw fail('设备标识不能为空');
-  // The feature gate is checked on every call, not from the 10-second config cache.
-  // An admin switching it off must stop new billable requests on the server.
-  const config=await readWorkbench(db,{fresh:true});
-  if(!config.marketingLabEnabled)throw fail('AI营销出图实验室已被管理员关闭',403);
-  const key=await userSession(db,request,body);
-  const prompt=String(body.prompt||'').trim();
-  if(prompt.length<2||prompt.length>1200)throw fail('请输入2到1200字的出图要求',400);
-  const template=typeof body.template==='string'?body.template.trim():'xhs_cover';
-  if(!['xhs_cover','grid_4','cat_profile','douyin_cover'].includes(template))throw fail('模板类型无效',400);
-  if(!Array.isArray(body.cat_ids)||body.cat_ids.length<1||body.cat_ids.length>4||body.cat_ids.some(v=>typeof v!=='string'||v.length>42))throw fail('请选择1到4只带照片的在售猫咪',400);
-  const normalized=body.cat_ids.map(id=>String(id).replace(/^#+/,'').trim().toUpperCase());
-  if(new Set(normalized).size!==normalized.length)throw fail('不能重复选择同一只猫咪',400);
-  if(!env.DEEPSEEK_API_KEY)throw fail('AI 服务尚未配置，本次未扣次数',503);
-  await preflight(db,key.id);
-  const catalog=await getCatalog(env);
-  const pool=new Map();
-  for(const cat of catalog.cats){
-    if(cat.status&&cat.status!=='在售')continue;
-    const id=String(cat.id).replace(/^#+/,'').trim().toUpperCase();
-    if(cat.image&&!pool.has(id))pool.set(id,cat);
-  }
-  const cats=normalized.map(id=>pool.get(id)).filter(Boolean);
-  if(cats.length!==normalized.length)throw fail('所选猫咪已变化，或有猫咪缺少照片，请刷新后重试',409);
-  // Reuse the same per-account and global D1 quota as the existing cat finder.
-  if(isGuest(key))await guestIpGuard(db,request);
-  const reservation=await reserve(db,key,'script',`[marketing_lab] ${template} ${prompt.slice(0,500)}`);
-  try{
-    const result=await generateMarketingLabPlan(env,{prompt,template,photoCount:cats.length});
-    await finish(db,reservation,{status:'success',reply_text:'营销排版方案已生成',matched_ids:normalized});
-    return json({success:true,data:{...result,cats:cats.map(cat=>({id:cat.id,breed:cat.breed,color:cat.color,gender:cat.gender,age:cat.age,image:cat.image,images:Array.isArray(cat.images)?cat.images:[cat.image].filter(Boolean)}))},user:accountView(await resolveSession(db,request,body.device_id))});
-  }catch(error){
-    await finish(db,reservation,{status:'upstream_error',reply_text:'营销排版生成失败'});
-    throw error;
+    throw fail(dispatched?`${error.status?error.message:'AI 服务暂时不可用'}。${refund?'本次未扣销售配额。':'本次已计入1次。'}`:error.message,error.status||502,{user:current?accountView(current):undefined});
   }
 }
 
@@ -313,10 +267,6 @@ export async function handleSales({request,env}) {
       // Old task data may still be read or cancelled, but cannot resume.
       if(body.action==='cancel')return json({success:true,...await cancelTask(db,body,key)});
       throw fail('任务操作无效');
-    }
-    if(path==='/api/marketing-lab'){
-      methodCheck(request,['GET','POST']);
-      return await marketingLab(db,env,request,body);
     }
     if(path==='/api/ai/ask'){
       methodCheck(request,['POST']);

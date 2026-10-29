@@ -1,0 +1,19 @@
+# Dependencies / local artifacts
+node_modules/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+.playwright/
+test-results/
+playwright-report/
+workspace-backups/
+
+# Build only in CI / Cloudflare; never deploy old hashed bundles
+dist/
+
+# Local Worker state and runtime secrets
+.wrangler/
+.dev.vars
+.dev.vars.*

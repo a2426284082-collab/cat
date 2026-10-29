@@ -13,3 +13,20 @@ test('admin can edit name and validity in one transaction; anonymous configurati
 test('code envelopes use random IVs and bind ciphertext to its account hash',async()=>{const f=fixture();assert.notEqual(await encryptSalesCode(f.env,'AAAA-BBBB-CCCC-DDDD'),await encryptSalesCode(f.env,'AAAA-BBBB-CCCC-DDDD'));const a=await createManagedKey(f.db,f.env,'A',20),b=await createManagedKey(f.db,f.env,'B',20);const cipher=(await f.db.prepare('SELECT key_cipher FROM sales_key_secrets WHERE key_id=?').bind(a.id).first()).key_cipher;await f.db.prepare('UPDATE sales_key_secrets SET key_cipher=? WHERE key_id=?').bind(cipher,b.id).run();await assert.rejects(()=>revealSalesCode(f.db,f.env,b.id,'qa'),/无法解密/);});
 
 test('admin network timeouts abort once and never retry a potentially committed write',async()=>{const {adminApi}=await import('../src/admin-api.js'),prior=globalThis.fetch;let calls=0;globalThis.fetch=async(url,options)=>{calls++;return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true}));};try{await assert.rejects(()=>adminApi('/api/test',{method:'POST',body:'{}',timeoutMs:5}),/结果尚未确认/);assert.equal(calls,1);}finally{globalThis.fetch=prior;}});
+
+// Removing the retired AI poster experiment must not brick persisted admin config.
+test('retired marketing experiment flag in persisted D1 config is ignored and stripped without a migration',async()=>{
+ const f=fixture();
+ const obsolete={...WORKBENCH_DEFAULTS,marketingLabEnabled:true};
+ await f.db.prepare('CREATE TABLE IF NOT EXISTS workbench_config (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL, updated_at INTEGER NOT NULL)').run();
+ await f.db.prepare('INSERT INTO workbench_config(id,value,updated_at) VALUES(1,?,?)').bind(JSON.stringify(obsolete),1).run();
+ const config=await readWorkbench(f.db,{fresh:true});
+ assert.deepEqual(config,WORKBENCH_DEFAULTS);
+ assert.equal(Object.hasOwn(config,'marketingLabEnabled'),false);
+ const response=await call(f,'/api/sales-admin/control');
+ assert.equal(response.status,200);
+ assert.equal(Object.hasOwn((await response.json()).data,'marketingLabEnabled'),false);
+ const updated=await call(f,'/api/sales-admin/control',{method:'PATCH',body:config});
+ assert.equal(updated.status,200);
+ assert.equal(JSON.parse((await f.db.prepare('SELECT value FROM workbench_config WHERE id=1').first()).value).marketingLabEnabled,undefined);
+});

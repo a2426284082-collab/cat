@@ -101,3 +101,13 @@ test('all existing API files are imported; frontend and secrets are not bundled 
   assert.deepEqual(config.assets.run_worker_first, ['/api', '/api/*', '/baidu_verify_codeva-5BMeKqCfaF.html', '/admin-sales', '/admin-sales/*']);
   assert.equal(config.vars, undefined);
 });
+
+test('retired AI marketing image endpoint is unavailable (not an accidental asset fallback)',async()=>{
+ const env={ASSETS:{fetch:()=>{throw new Error('API must never be served as a web page');}}};
+ for(const method of ['GET','POST']){
+  const options=method==='POST'?{method,headers:{Origin:origin,'Content-Type':'application/json'},body:'{}'}:{method};
+  const res=await run('/api/marketing-lab',env,options);
+  assert.equal(res.status,404);
+  assert.equal((await res.json()).message,'接口不存在');
+ }
+});

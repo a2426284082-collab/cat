@@ -15,7 +15,11 @@ test('recruitment homepage cannot open or preload the business workspace', () =>
   assert.ok(links.every(href => href.startsWith('#')), 'homepage buttons should stay within the landing page');
   const images = [...html.matchAll(/<img\b[^>]*src=["']([^"']+)["']/gi)].map(match => match[1]);
   assert.ok(images.length >= 5);
-  assert.ok(images.every(src => src.startsWith('data:image/')), 'homepage images should not load cat API attachments');
+  assert.ok(images.every(src => src.startsWith('data:image/') || /^\/home-assets\/screenshot-[a-f0-9]{16}\.(?:jpg|png|webp)$/.test(src)), 'homepage images should be local assets, never cat API attachments');
+  for (const src of images.filter(src => src.startsWith('/home-assets/'))) {
+    const file = readFileSync(new URL(`../public${src}`, import.meta.url));
+    assert.ok(file.byteLength > 100, `homepage image is present: ${src}`);
+  }
 });
 
 test('catalogue keeps its React entry and noindex under the new build route', () => {

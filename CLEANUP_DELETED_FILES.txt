@@ -1,0 +1,76 @@
+已删除文件清单（大小为原文件大小，原压缩包未改动）
+
+ADMIN_CONTROL_UPDATE.md	4,680 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+ADMIN_EDIT_FIX_V4.md	1,461 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+AGENT_FIX.md	1,050 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+AGENT_TASK_CARDS_UPDATE.md	2,822 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+CATALOG_REPAIR.md	2,365 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+CHAT_UPDATE.md	1,865 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+CLOUDFLARE_SERVICES_FIX_V3.md	6,153 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+FIX_NOTES.txt	1,761 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+MOBILE_TASK_UPDATE.md	2,120 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+README-#U8865#U4e01#U8bf4#U660e.txt	1,410 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+SALES_V1_PREVIEW.md	3,435 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES.txt	1,031 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_20260930_UI_VISUALS.txt	1,025 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_20261001_ASSISTANT.txt	1,215 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_20261001_SUPPORT.txt	2,270 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_20261001_SUPPORT_V2.txt	1,153 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_AI_CHAT.md	1,510 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_HOMEPAGE_20261009.md	2,374 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_HOMEPAGE_20261014.md	2,665 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_HOMEPAGE_20261015.md	1,700 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_MOBILE.txt	2,086 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_SMART_SEARCH.md	900 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+UPDATE_NOTES_TRAINING_INTEGRATED.md	3,572 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+WORKSPACE_UPDATE.md	9,274 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+admin-controls-preview.html	218,054 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+assistant-design-preview.html	27,266 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+dist/assets/admin-38f51313.js	11,595 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/admin-56e749eb.js	17,054 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/admin-9158294d.js	11,619 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/assistant-21d8be46.js	9,301 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/assistant-247e8383.js	8,685 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-0ace267b.css	16,899 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-0e23d08a.js	143,598 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-10e24b70.js	176,690 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-13656d41.css	20,883 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-136bd459.css	16,648 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-1a263ca1.css	21,276 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-31ccceaa.js	175,801 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-397aeba3.js	172,012 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-4f17399d.css	15,108 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-5051f1a4.js	144,282 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-7611a0ff.js	143,397 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-8c5f9986.css	15,901 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-b14274c7.js	159,990 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-b2241478.css	16,807 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-b66cd885.js	175,351 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-d9058eb6.css	19,557 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-e75caae8.js	175,540 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/index-f29fe900.css	16,644 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/main-24bc8259.js	33,132 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/main-646a3fb6.js	33,132 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/main-6f867938.js	33,132 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/main-7e26e26c.js	32,413 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/main-a35771a1.js	32,409 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/sparkles-6e7f8639.js	690 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/sparkles-ad29d4e8.js	492 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/x-09714902.js	928 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+dist/assets/x-a10ac1a2.js	928 字节	已存在于旧构建中的哈希文件，当前 dist HTML 和依赖链均未引用
+node_modules	0 字节	非源码文件或未完整安装的第三方依赖，应通过 npm ci 安装
+public/training-assets/acquisition-generated-master.png	1,778,268 字节	现有项目源码、HTML、CSS和测试中均未引用的图片
+public/ui-assets/acquisition-demo-board.png	1,855,922 字节	现有项目源码、HTML、CSS和测试中均未引用的图片
+sales-workspace-clear-preview.html	1,452,601 字节	旧更新记录或可再生成的离线预览，不影响线上运行
+src/AssistantApp.jsx	113 字节	未从当前入口、构建脚本或测试中导入的旧实现
+src/assistant.css	26,736 字节	未从当前入口、构建脚本或测试中导入的旧实现
+src/workspace/AgentTaskCard.jsx	1,472 字节	未从当前入口、构建脚本或测试中导入的旧实现
+src/workspace/PosterResultCard.jsx	1,719 字节	未从当前入口、构建脚本或测试中导入的旧实现
+training/training.css	36,649 字节	未从当前入口、构建脚本或测试中导入的旧实现
+training/training.js	35,120 字节	未从当前入口、构建脚本或测试中导入的旧实现
+
+3.12.7 新增清理（无运行时引用的历史补丁工具）：
+apply-update.cjs
+restore-update.cjs
+transforms.cjs
+manifest.json

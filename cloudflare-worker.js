@@ -92,7 +92,7 @@ export default {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
       });
     }
-    if (pathname.startsWith('/api/ai/') || pathname.startsWith('/api/sales-admin/') || pathname === '/api/marketing-lab') {
+    if (pathname.startsWith('/api/ai/') || pathname.startsWith('/api/sales-admin/')) {
       return handleSales({request:platformRequest(request), env});
     }
     if (pathname !== '/api' && !pathname.startsWith('/api/')) {
