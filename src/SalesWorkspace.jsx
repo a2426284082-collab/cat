@@ -26,6 +26,7 @@ import {AgentContext,useWorkspaceAgent} from './workspace/AgentContext.jsx';
 import {filterAgentCats,agentParams,mergeMatchNeed,exactReplacementAllowed} from './workspace/agent.js';
 import {orderCommand,provinces} from './workspace/sales-tools.js';
 import {clearPreviewCache} from './workspace/media.js';
+import {renderPosterHeadless} from './workspace/poster-headless.js';
 import './workspace/agent.css';
 import './workspace/mobile-office.css';
 
@@ -57,7 +58,7 @@ function Workspace(){
   const [marketing,setMarketing]=useState(null),[utilitiesOpen,setUtilitiesOpen]=useState(false);
   const configDefaults=useRef(false);useEffect(()=>{if(configReady&&!configDefaults.current){configDefaults.current=true;try{if(!localStorage.getItem('sales-customer-display')&&!localStorage.getItem('sales-hide-prices'))setCustomerDisplay(old=>({...old,markup:workbenchConfig.defaultMarkup}));}catch{}}},[configReady]);
   const hidePrices=customerDisplay.enabled,priorSalesIdentity=useRef(salesSession.listingIdentity);
-  useEffect(()=>{const prior=priorSalesIdentity.current;priorSalesIdentity.current=salesSession.listingIdentity;if(prior.startsWith('sales:')&&prior!==salesSession.listingIdentity){setMarketing(null);setDetail(null);setJob(null);setCompare([]);}},[salesSession.listingIdentity]);
+  useEffect(()=>{const prior=priorSalesIdentity.current;priorSalesIdentity.current=salesSession.listingIdentity;if(prior.startsWith('sales:')&&prior!==salesSession.listingIdentity){headlessAbort.current?.abort();setMarketing(null);setDetail(null);setJob(null);setCompare([]);}},[salesSession.listingIdentity]);
   const panel=useRef(null),positions=useRef({}),active=useRef(path),restorePending=useRef(false);
   useEffect(()=>{if(rawPath==='/assistant/'||(!WORKSPACE_FEATURES.training&&rawPath==='/training/'))navigate('/cats/'+location.search+location.hash,{replace:true});},[rawPath]);
   useEffect(()=>{setJob(null);setDetail(null);setCompare([]);},[epoch]);
@@ -123,6 +124,7 @@ function Workspace(){
   // Autopilot must wait for the canvas to actually render. Opening the dialog
   // alone is not a successful image task.
   const posterRenderReceipt=useRef(null);
+  const headlessAbort=useRef(null);
   function settlePosterRender(status){
     const pending=posterRenderReceipt.current;if(!pending)return;
     posterRenderReceipt.current=null;clearTimeout(pending.timer);
@@ -135,7 +137,7 @@ function Workspace(){
     posterOperationReceipt.current=null;clearTimeout(pending.timer);
     status.status==='ready'?pending.resolve():pending.reject(new Error(status.text||'浏览器操作失败'));
   }
-  async function executeAgent(plan,current,{caption,restore=false,verifyRender=false}={}){ 
+  async function executeAgent(plan,current,{caption,restore=false,verifyRender=false,silentPoster=false,onProgress,taskId,goalId}={}){ 
     if(plan.tool==='show_matches'){setMarketing(null);setDetail(null);navigate('/cats/');return {text:'已返回库存结果。'};}
     const switches={poster:'posterEnabled',downloads:'downloadsEnabled',single_poster:'singlePosterEnabled',calculator:'calculatorEnabled'};if(switches[plan.tool]&&!workbenchConfig[switches[plan.tool]])return {ok:false,text:'这项功能已被管理员暂停。'};
     const params=agentParams(plan.params||{}),requested=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids||[];
@@ -187,6 +189,31 @@ function Workspace(){
       if(chosen.length<2)return {ok:false,text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
       settings.count=chosen.length;const control={id:crypto.randomUUID(),params:settings,cats:chosen,caption};
       const quotes=continuing?{...(current.quotes||{})}:{};if(settings.quoteTarget)quotes[settings.quoteTarget]=params.quote;
+      // Agent work is done in an off-screen canvas without opening an editor.
+      // The editor is retained only for explicit manual reopening.
+      if(silentPoster&&!restore){
+        const cleanSettings={...settings};for(const k of ['operation','quoteTarget','quote','replaceIndex'])delete cleanSettings[k];
+        const posterContext={task:'poster',cat_ids:chosen.map(c=>normalizeId(c.id)),params:cleanSettings,
+          need:query,quotes,focus_id:null};
+        if(caption){
+          // Writing copy is a distinct deliverable. Do not render the same PNG
+          // for a second time when the caption is generated.
+          return {text:'推荐文案已生成，将在对话中单独交付。',context:posterContext};
+        }
+        // The active job belongs to the currently signed-in account. A change
+        // of account or a new job can cancel it instead of leaving a spinner.
+        headlessAbort.current?.abort();
+        const controller=new AbortController();headlessAbort.current=controller;
+        try{
+          const artifact=await renderPosterHeadless({cats:chosen,settings:{...cleanSettings,overrides:quotes,
+              designSeed:continuing?current.designSeed:undefined,bannerText:current.bannerText},
+            owner:salesSession.listingIdentity,taskId,goalId,signal:controller.signal,onProgress});
+          posterContext.designSeed=artifact.designSeed;
+          return {artifact,context:posterContext,
+            text:artifact.persisted?`已在浏览器内部合成${chosen.length}只猫的高清PNG，图片预览和下载入口在本次对话中；没有自动保存到电脑。`:
+              `已合成${chosen.length}只猫的高清PNG，但浏览器无法持久保存。请在当前会话立即下载。`};
+        }finally{if(headlessAbort.current===controller)headlessAbort.current=null;}
+      }
       const verifyOperation=verifyRender&&['download','copy'].includes(params.operation);
       const operationPromise=verifyOperation?new Promise((resolve,reject)=>{
         const timer=setTimeout(()=>{settlePosterOperation({operation:params.operation,status:'error',text:'浏览器操作超时'})},30000);
@@ -205,7 +232,7 @@ function Workspace(){
     }
     return {ok:false,text:'当前没有可执行的对应操作，请说具体的选猫或素材任务。'};
   }
-  const agent=useWorkspaceAgent({cats,session:{...salesSession,hidePrices,markup:customerDisplay.markup},execute:executeAgent,onReset:()=>{setMarketing(null);setDetail(null);setJob(null);setCompare([]);}});
+  const agent=useWorkspaceAgent({cats,session:{...salesSession,hidePrices,markup:customerDisplay.markup},execute:executeAgent,onReset:()=>{headlessAbort.current?.abort();setMarketing(null);setDetail(null);setJob(null);setCompare([]);}});
   return <AgentContext.Provider value={agent}><div className={`sales-workspace workflow-workspace${hidePrices?' customer-view':''}`} onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>
     <header className="workspace-header"><Link className="workspace-brand" to="/cats/"><span><Cat size={24}/></span><div><b>{workbenchConfig.brandName}</b><small>{workbenchConfig.brandSubtitle}</small></div></Link><div className="workspace-breadcrumb"><span>销售工作台</span><ChevronRight size={14}/><b>{titles[path]||'工作区'}</b></div></header>
     <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}<button className="workspace-utilities-toggle" aria-expanded={utilitiesOpen} aria-controls="workspace-sidebar-utilities" onClick={()=>setUtilitiesOpen(v=>!v)}><Sparkles size={19}/><b>做图与设置</b></button></nav><div id="workspace-sidebar-utilities" className={`workspace-sidebar-utilities${utilitiesOpen?' is-open':''}`}><SidebarUtilities customerDisplay={customerDisplay} onCustomerDisplay={privacy} onMarketing={openMarketing}/></div></aside>

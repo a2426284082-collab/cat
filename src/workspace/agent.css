@@ -17,3 +17,12 @@
 .agent-durable-restore{padding:14px;border:1px solid #d7c6b2;border-radius:12px;background:#fffdf9;display:grid;gap:7px}.agent-durable-restore p{margin:0;overflow-wrap:anywhere}.agent-durable-restore small{color:#715f4b}.agent-durable-restore button{justify-self:start;border-radius:9px;padding:9px 14px;background:#704529;color:white;border:0;cursor:pointer}
 
 .agent-recent-tasks{border:1px solid #e8dfd2;border-radius:10px;padding:10px 12px;background:#fff}.agent-recent-tasks summary{cursor:pointer;font-weight:600}.agent-recent-tasks ul{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:5px}.agent-recent-tasks button{border:0;background:#f6f0e8;border-radius:7px;padding:7px 9px;width:100%;text-align:left;cursor:pointer;color:#503b29}
+
+/* Real, browser-generated PNG artifacts: no automatic editor dialogs. */
+.agent-poster-artifact{display:grid;gap:10px;max-width:420px;margin:10px 0;padding:12px;border:1px solid var(--line,#e4e4e7);border-radius:12px;background:rgba(255,255,255,.65)}
+.agent-poster-artifact-image{display:block;width:100%;height:auto;border-radius:8px;object-fit:contain}
+.agent-poster-artifact-actions{display:flex;gap:8px;flex-wrap:wrap}
+.agent-poster-artifact-actions a,.agent-poster-artifact-actions button{font:inherit;font-size:13px;text-decoration:none;padding:8px 12px;border-radius:8px;border:1px solid #a3a3a3;background:white;color:#222;cursor:pointer}
+.agent-media-progress{display:grid;gap:7px;padding:12px;background:#f7faf8;border-radius:10px;margin:8px 0}
+.agent-media-progress progress{width:100%;accent-color:#228568}
+.agent-media-progress small,.agent-poster-artifact small{color:#666;font-size:12px}

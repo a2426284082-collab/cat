@@ -2,13 +2,14 @@ import {isQuickTemplate,artifactContext,cleanArtifact,REOPEN_TOOLS} from './agen
 import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
 import {resolveCatReferences,mergeMatchNeed,readAgentSession,writeAgentSession,AGENT_STORAGE,AGENT_TTL,validateAgentPlan} from './agent.js';
 import {normalizeId} from './presentation.js';
+import {readPosterArtifact} from './poster-artifacts.js';
 import {answerHandbook} from '../../cloud-functions/_lib/sales-handbook.js';
 export const AgentContext=createContext(null);
 export const useAgentContext=()=>useContext(AgentContext);
 const empty=()=>({task:'help',cat_ids:[],params:{},need:''}),paid=new Set(['match','praise','price','compare']);
 const message=text=>({kind:'tool',used_ai:false,matched_ids:[],reply_text:text});
 export function useWorkspaceAgent({cats,session,execute,onReset}){
- const {ask,taskNext,taskRead,taskCancel,epoch,listingIdentity,checking}=session,[context,setContext]=useState(empty),[messages,setMessages]=useState([]),[result,setResult]=useState(null),[pending,setPending]=useState(false),[storageFailed,setStorageFailed]=useState(false),[conversationOpen,setConversationOpen]=useState(false),[phase,setPhase]=useState('idle'),[workflowProgress,setWorkflowProgress]=useState([]),[pendingWorkflow,setPendingWorkflow]=useState(null),[durableTask,setDurableTask]=useState(null),[recentTasks,setRecentTasks]=useState([]);
+ const {ask,taskNext,taskRead,taskCancel,epoch,listingIdentity,checking}=session,[context,setContext]=useState(empty),[messages,setMessages]=useState([]),[result,setResult]=useState(null),[pending,setPending]=useState(false),[storageFailed,setStorageFailed]=useState(false),[conversationOpen,setConversationOpen]=useState(false),[phase,setPhase]=useState('idle'),[workflowProgress,setWorkflowProgress]=useState([]),[pendingWorkflow,setPendingWorkflow]=useState(null),[durableTask,setDurableTask]=useState(null),[recentTasks,setRecentTasks]=useState([]),[mediaProgress,setMediaProgress]=useState(null);
  const activeArtifact=useRef(null);
  const state=useRef({context,messages}),owner=useRef(null),generation=useRef(0),lock=useRef(false),alive=useRef(true),priorEpoch=useRef(epoch),lastTouch=useRef(Date.now());state.current={context,messages};const renderedOwner=owner.current;
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;generation.current++;};},[]);
@@ -17,7 +18,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
  async function reopen(row){if(lock.current||!row?.action)return;const action=cleanArtifact(row.action),version=generation.current;if(action.context.cat_ids.some(id=>!cats.some(c=>normalizeId(c.id)===id&&(!c.status||c.status==='在售')))){setResult(message('这张任务卡中的猫咪库存已变化，请刷新核对；原记录保留。'));return;}try{activeArtifact.current=row.id;setConversationOpen(false);if(['match','praise','price','compare','order'].includes(action.tool)){await execute({tool:'show_matches'},action.context);setResult(row.result||message(row.text));}else await execute({tool:action.tool,cat_ids:action.context.cat_ids,params:action.context.params,query:action.context.need},action.context,{restore:true});if(version===generation.current)remember(action.context);}catch(e){setResult(message(e.message||'工具暂时未打开，原任务卡已保留。'));}}
 
  function recordTask(tool,snapshot,text){const context=remember(snapshot),output=message(text);activeArtifact.current=append('assistant',text,{result:output,action:{tool,context:artifactContext(context)}});setResult(output);}
- function reset(){if(durableTask?.task_id&&['waiting','thinking','paused'].includes(durableTask.status))taskCancel?.(durableTask.task_id).catch(()=>{});activeArtifact.current=null;generation.current++;lock.current=false;setPending(false);setConversationOpen(false);setPhase('idle');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);setRecentTasks([]);setContext(empty());setMessages([]);setResult(null);onReset?.();try{if(owner.current)sessionStorage.removeItem(AGENT_STORAGE+owner.current);}catch{}}
+ function reset(){if(durableTask?.task_id&&['waiting','thinking','paused'].includes(durableTask.status))taskCancel?.(durableTask.task_id).catch(()=>{});activeArtifact.current=null;generation.current++;lock.current=false;setPending(false);setConversationOpen(false);setPhase('idle');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);setRecentTasks([]);setMediaProgress(null);setContext(empty());setMessages([]);setResult(null);onReset?.();try{if(owner.current)sessionStorage.removeItem(AGENT_STORAGE+owner.current);}catch{}}
  useEffect(()=>{
   if(checking)return;const next=listingIdentity,prior=owner.current;
   if(prior===next)return;
@@ -28,7 +29,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   let saved;try{saved=readAgentSession(sessionStorage,next);}catch{}
   if(saved){setContext(saved.context);setMessages(saved.messages);setPendingWorkflow(saved.pendingWorkflow||null);if(saved.pendingWorkflow?.length)setWorkflowProgress(saved.pendingWorkflow.map((step,i)=>({label:step.plan.tool,state:'waiting',index:i})));else setWorkflowProgress([]);}else if(prior){setContext(empty());setMessages([]);}
  },[listingIdentity,checking]);
- useEffect(()=>{if(priorEpoch.current!==epoch){priorEpoch.current=epoch;generation.current++;lock.current=false;setPending(false);setConversationOpen(false);setPhase('idle');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);setRecentTasks([]);setContext(empty());setMessages([]);setResult(null);setWorkflowProgress([]);setPendingWorkflow(null);}},[epoch]);
+ useEffect(()=>{if(priorEpoch.current!==epoch){priorEpoch.current=epoch;generation.current++;lock.current=false;setPending(false);setConversationOpen(false);setPhase('idle');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);setRecentTasks([]);setMediaProgress(null);setContext(empty());setMessages([]);setResult(null);setWorkflowProgress([]);setPendingWorkflow(null);}},[epoch]);
  // Restore the latest durable task from Cloudflare D1, not the 30-minute session cache.
  useEffect(()=>{if(checking||!listingIdentity?.startsWith('sales:')||!taskRead)return;
   let active=true;taskRead('list').then(list=>{if(active)setRecentTasks(Array.isArray(list)?list:[]);}).catch(()=>{});
@@ -37,7 +38,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
  },[checking,listingIdentity]);
  useEffect(()=>{if(!checking&&owner.current===listingIdentity&&renderedOwner===listingIdentity){try{setStorageFailed(!writeAgentSession(sessionStorage,listingIdentity,{context,messages,pendingWorkflow}));}catch{setStorageFailed(true);}}},[context,messages,pendingWorkflow,listingIdentity,checking]);
  function append(role,text,extra={}){const id=crypto.randomUUID();setMessages(old=>[...old,{id,role,text:String(text).slice(0,role==='user'?4000:600),...extra}].slice(-16));return id;}
- async function perform(plan,text,version,serverResult,semantic=false,workflow=false){
+ async function perform(plan,text,version,serverResult,semantic=false,workflow=false,taskMeta={}){
   if(plan.tool==='reset'){reset();return message('已开始新任务。下一位客户的需求不会沿用上一位。');}
   if(plan.tool==='chat')return message(plan.message||'你可以继续说客户的情况，我会帮你整理下一步。');
   if(plan.tool==='help'&&plan.message)return message(plan.message);
@@ -47,7 +48,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   if(plan.tool==='handbook'&&!/打开.*手册|去.*手册|查看手册/.test(plan.query||text)){const answer=answerHandbook(plan.query||text);if(answer){remember({task:'handbook'});return answer;}}
   if(plan.tool==='inventory'){setPhase('executing');const output=await ask({mode:'match',action:'catalog_match',prompt:plan.query,hide_prices:session.hidePrices});if(version!==generation.current)return null;await execute({tool:'show_matches'},state.current.context);remember({task:'match',cat_ids:(output.matched_ids||[]).map(normalizeId),need:plan.query,params:{},focus_id:null});setConversationOpen(false);return output;}
   if(paid.has(plan.tool)){
-   if(semantic){if(plan.tool==='match'){await execute({tool:'show_matches'},state.current.context);if(!workflow)setConversationOpen(false);}if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai||serverResult.kind==='inventory')remember(workflow&&plan.tool!=='match'?{task:state.current.context.task}:{task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
+   if(semantic){if(plan.tool==='match'){await execute({tool:'show_matches'},state.current.context);if(!workflow&&!semantic)setConversationOpen(false);}if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai||serverResult.kind==='inventory')remember(workflow&&plan.tool!=='match'?{task:state.current.context.task}:{task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
    const refs=plan.cat_ids?.length?plan.cat_ids:state.current.context.focus_id?[state.current.context.focus_id]:state.current.context.cat_ids,need=mergeMatchNeed(state.current.context.need,plan.query||text,cats,state.current.context.cat_ids);
    if(plan.tool!=='match'&&refs.length!==(plan.tool==='compare'?2:1))return message(plan.tool==='compare'?'请明确选择两只猫，或输入两个短编号。':'请明确是哪一只猫，例如“给 #017 写保价话术”。');
    const payload=plan.tool==='match'?{mode:'match',prompt:need,hide_prices:session.hidePrices}:{mode:'script',action:plan.tool,cat_ids:refs,hide_prices:session.hidePrices};
@@ -55,14 +56,16 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
    if(plan.tool==='match')setConversationOpen(false);
    remember({task:plan.tool,cat_ids:(output.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?need:state.current.context.need,params:{},focus_id:null});return output;
   }
-  setPhase('executing');if(!workflow)setConversationOpen(false);
-  const output=await execute(plan,state.current.context,{caption:serverResult?.kind==='marketing_copy'?serverResult.reply_text:undefined,verifyRender:workflow});
+  setPhase('executing');if(!workflow&&!semantic)setConversationOpen(false);
+  const output=await execute(plan,state.current.context,{caption:serverResult?.kind==='marketing_copy'?serverResult.reply_text:undefined,
+   verifyRender:workflow,silentPoster:semantic||workflow,taskId:taskMeta.taskId,goalId:taskMeta.goalId,
+   onProgress:step=>setMediaProgress({...step,taskId:taskMeta.taskId||null,goalId:taskMeta.goalId||null})});
   if(version!==generation.current)return null;if(output?.ok===false)throw new Error(output.text||'工具执行失败');if(output?.context)remember(output.context);
   if(semantic&&plan.tool==='poster'&&plan.params?.operation==='generate'&&serverResult?.kind==='marketing_copy'){
    if(!serverResult.reply_text?.trim())throw new Error('推荐文案为空，无法交付给销售');
-   return {...serverResult,reply_text:`推荐文案已生成并放进当前拼图。\n\n【可直接复制的推荐话术】\n${serverResult.reply_text}`};
+   return {...serverResult,reply_text:`【可直接复制的推荐话术】\n${serverResult.reply_text}`};
   }
-  return output?.result||message(output?.text||'已打开对应工具。');
+  return output?.result||(output?.artifact?{...message(output.text||'图片已生成'),artifact:output.artifact}:message(output?.text||'已打开对应工具。'));
  }
  const workflowLabels={match:'筛选在售猫',poster:'制作拼图/文案',praise:'生成推荐话术',price:'生成保价话术',compare:'对比猫咪',handbook:'核对销售手册',details:'查看资料',downloads:'打开下载',single_poster:'单猫海报',calculator:'核算报价',order:'查库核实',catalog:'筛选猫源',client_view:'对客模式'};
  function normalizeWorkflow(rows){
@@ -82,7 +85,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   const snapshot=artifactContext({...ctx,task:REOPEN_TOOLS.includes(task)?task:'match',...(['details','downloads','single_poster','calculator'].includes(task)?{cat_ids:plan.cat_ids?.length?plan.cat_ids:ctx.cat_ids,params:plan.params}:{}),...(['handbook','catalog'].includes(task)?{need:plan.query||ctx.need,params:plan.params}:{})});
   const action=REOPEN_TOOLS.includes(task)?{tool:task,context:snapshot}:null;
   const line=`第${index+1}步 · ${workflowLabels[task]||task}：${output.reply_text||'已执行'}`;
-  activeArtifact.current=append('assistant',line,{result:output,...(action?{action}:{})});
+  activeArtifact.current=append('assistant',line,{result:output,...(output?.artifact?{artifact:output.artifact}:{}),...(action?{action}:{})});
  }
  async function executeWorkflow(rows,version){
   const steps=normalizeWorkflow(rows);
@@ -96,7 +99,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
     setWorkflowProgress(old=>old.map((p,n)=>n===i?{...p,state:'blocked'}:p));
     const out=message(note);setResult(out);append('assistant',out.reply_text);setPendingWorkflow(null);setPhase('blocked');return;
    }
-   setPhase('executing');setWorkflowProgress(old=>old.map((p,n)=>n===i?{...p,state:'running'}:p));
+   setPhase('executing');setMediaProgress(null);setWorkflowProgress(old=>old.map((p,n)=>n===i?{...p,state:'running'}:p));
    try{
     const out=await perform(row.plan,row.plan.query||'',version,row.result,true,true);
     if(!out||version!==generation.current)return;
@@ -131,16 +134,17 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
    }
    if(task.status!=='waiting'||!task.step){setPhase('paused');return;}
    const {id,plan,result:serverResult}=task.step;
-   setPhase('executing');setWorkflowProgress(old=>old.map((p,i)=>(task.goals?.length?task.goals[i]?.id===task.step.goal_id:i===old.length-1)?{...p,state:'running'}:p));
+   setPhase('executing');setMediaProgress(null);setWorkflowProgress(old=>old.map((p,i)=>(task.goals?.length?task.goals[i]?.id===task.step.goal_id:i===old.length-1)?{...p,state:'running'}:p));
    const receiptKey=AGENT_STORAGE+'receipt:'+listingIdentity;
    let receipt=null;
    try{const saved=JSON.parse(sessionStorage.getItem(receiptKey)||'null');if(saved?.task_id===task.task_id&&saved?.receipt?.step_id===id&&Date.now()-saved.at<AGENT_TTL)receipt=saved.receipt;}catch{}
    if(!receipt){
     try{
-     const output=await perform(plan,plan.query||'',version,serverResult,true,true);
+     const output=await perform(plan,plan.query||'',version,serverResult,true,true,
+       {taskId:task.task_id,goalId:task.step.goal_id,stepId:id});
      if(version!==generation.current||!alive.current)return;
      if(!output)throw new Error('执行结果为空');
-     const text=String(output.reply_text||'已打开工具').slice(0,500);
+     const text=String((output.artifact?`图片成果 ${output.artifact.id}（${output.artifact.persisted?'已保存至此浏览器':'仅当前会话'}）；`:'')+(output.reply_text||'工具执行完毕')).slice(0,500);
      receipt={step_id:id,status:'success',text};
      saveStepArtifact(plan,output,task.history.length);setResult(output);
     }catch(error){receipt={step_id:id,status:'error',text:String(error.message||'工具执行失败').slice(0,500)};}
@@ -160,6 +164,26 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   if(lock.current||!id)return;
   try{const task=await taskRead(id);if(!task)return;
    setDurableTask(task);setConversationOpen(true);
+   if(task.context)remember(task.context);
+   // Recover saved PNG metadata from the D1 step receipt, then load the actual
+   // bytes from this browser's IndexedDB. No image bytes enter D1.
+   const history=await Promise.all((task.history||[]).slice(-14).map(async event=>{
+     const item={id:event.step_id||crypto.randomUUID(),role:'assistant',text:`${event.tool||'工具'}：${event.text||'已执行'}`};
+     const found=String(event.text||'').match(/图片成果 ([a-zA-Z0-9_-]{8,110})/);
+     if(found){
+       const local=await readPosterArtifact({id:found[1],owner:listingIdentity});
+       if(local){
+         item.artifact={id:local.id,catIds:local.catIds||[],width:local.width,
+           height:local.height,bytes:local.blob?.size||0,persisted:true,designSeed:local.settings?.designSeed||0};
+         const reopenContext=artifactContext({task:'poster',cat_ids:local.catIds||[],
+           params:local.settings||{},designSeed:local.settings?.designSeed,need:task.context?.need||''});
+         item.action={tool:'poster',context:reopenContext};
+       }
+       else item.text+='（图片文件只保存在原浏览器，当前无法恢复预览）';
+     }
+     return item;
+   }));
+   setMessages([{id:crypto.randomUUID(),role:'user',text:task.goal||'历史任务'},...history]);
    if(['waiting','paused','thinking'].includes(task.status)){setPhase('paused');setResult(message('云端任务已找回，请点击恢复任务继续执行。'));}
    else{setPhase(task.status==='done'?'done':'blocked');setWorkflowProgress(task.goals?.length?task.goals.map((g,i)=>({label:g.label,state:g.status==='done'?'done':g.attempts>0?'failed':'waiting',index:i})):task.history.map((h,i)=>({label:workflowLabels[h.tool]||h.tool,state:h.status==='success'?'done':'failed',index:i}))); setResult(message(task.summary||'该任务已结束，历史执行记录已找回。'));}
   }catch(error){setResult(message(error.message||'读取历史任务失败'));}
@@ -181,7 +205,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   finally{lock.current=false;setPending(false);}
  }
  async function run(text,{source='free',tool}={}){
-  text=String(text||'').trim();if([...text].length>4000){setResult(message('任务描述最多4000字，请删除不必要的内容后再发送。'));return;}if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
+  text=String(text||'').trim();if([...text].length>4000){setResult(message('任务描述最多4000字，请删除不必要的内容后再发送。'));return;}if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setMediaProgress(null);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
   try{
    let plan,serverResult;const quick=source==='quick'&&tool==='match'&&isQuickTemplate(text);
    if(quick){if(/【\s*(?:#\s*)?】/.test(text))plan={tool:'clarify',cat_ids:[],params:{},message:'填好模板中的客户信息后再发送，也可以自由描述需求。'};else plan={tool:'inventory',cat_ids:[],params:{},query:text};}
@@ -202,5 +226,5 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   }catch(e){if(alive.current&&version===generation.current&&!e.cancelled){setPhase('error');const output=message(e.message||'这次操作没能完成，请重试。');setResult(output);append('assistant',output.reply_text);}}
   finally{if(alive.current&&(version===generation.current||!lock.current)){lock.current=false;setPending(false);}}
  }
- return {context,messages,result,pending,phase,workflowProgress,pendingWorkflow,resumeWorkflow,durableTask,resumeDurableTask,recentTasks,openSavedTask,conversationOpen,openConversation:()=>setConversationOpen(true),closeConversation:()=>setConversationOpen(false),storageFailed,remember,recordTask,capturePreview,reopen,reset,send:run};
+ return {context,messages,result,pending,phase,mediaProgress,ownerIdentity:listingIdentity,workflowProgress,pendingWorkflow,resumeWorkflow,durableTask,resumeDurableTask,recentTasks,openSavedTask,conversationOpen,openConversation:()=>setConversationOpen(true),closeConversation:()=>setConversationOpen(false),storageFailed,remember,recordTask,capturePreview,reopen,reset,send:run};
 }

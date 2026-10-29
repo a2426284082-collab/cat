@@ -10,9 +10,18 @@ export function artifactContext(value={}){
  return c;
 }
 export function cleanArtifact(a){if(!a||!REOPEN_TOOLS.includes(a.tool))throw new Error('任务卡无效');return {tool:a.tool,context:artifactContext({...a.context,task:a.tool}),...(typeof a.preview==='string'&&a.preview.length<120000&&/^data:image\/jpeg;base64,[a-zA-Z0-9+/=]+$/.test(a.preview)?{preview:a.preview}:{})};}
+export function cleanPosterDescriptor(a){
+ if(!a||typeof a!=='object'||typeof a.id!=='string'||!/^[a-zA-Z0-9_-]{8,110}$/.test(a.id))return null;
+ if(!Array.isArray(a.catIds)||a.catIds.length<2||a.catIds.length>9)return null;
+ const catIds=a.catIds.filter(id=>typeof id==='string'&&id.length<=45).slice(0,9);
+ if(catIds.length!==a.catIds.length)return null;
+ return {id:a.id,catIds,width:Number(a.width)||1080,height:Number(a.height)||1080,
+  bytes:Number(a.bytes)||0,persisted:a.persisted===true,designSeed:Number(a.designSeed)||0,mime:'image/png'};
+}
 export function cleanMessage(row){
  if(!row||!['user','assistant'].includes(row.role)||typeof row.text!=='string')return null;
  const out={id:typeof row.id==='string'&&/^[a-z0-9-]{1,60}$/i.test(row.id)?row.id:crypto.randomUUID(),role:row.role,text:row.text.slice(0,row.role==='user'?4000:600)};
+ if(row.role==='assistant'&&row.artifact){const item=cleanPosterDescriptor(row.artifact);if(item)out.artifact=item;}
  if(row.role==='assistant'&&row.action){try{out.action=cleanArtifact(row.action);}catch{}}
  if(row.role==='assistant'&&row.result){const r=row.result;out.result={kind:['tool','inventory','handbook','copy','chat'].includes(r.kind)?r.kind:undefined,used_ai:r.used_ai===true,reply_text:String(r.reply_text||'').slice(0,1600),matched_ids:Array.isArray(r.matched_ids)?r.matched_ids.filter(id=>typeof id==='string'&&/^#?[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)).slice(0,9):[]};}
  return out;
