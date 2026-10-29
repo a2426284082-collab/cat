@@ -98,7 +98,7 @@ function explicitPrice(source){
  return {mode:'none',target:null,min:null,max:null,basis:'customer'};
 }
 export function inferSalesDemand(goal,catalog=[]){
- const text=String(goal||'').normalize('NFKC').slice(0,1200);
+ const text=String(goal||'').normalize('NFKC').slice(0,4000);
  const breeds=[...new Set(catalog.map(c=>c.breed).filter(Boolean))],colors=[...new Set(catalog.map(c=>c.color).filter(Boolean))];
  const excludedBreeds=breeds.filter(b=>breedForms(b).some(form=>negative(text,form)));
  const positiveBreeds=breeds.filter(b=>breedForms(b).some(form=>text.includes(form))).filter(b=>!excludedBreeds.includes(b));

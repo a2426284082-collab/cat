@@ -172,7 +172,8 @@ function Workspace(){
           // The server has already selected and verified the exact replacement.
           // Never let the browser randomly change it a second time.
           const original=current.cat_ids||[];
-          if(!exactReplacementAllowed(original,ids,params.replaceIndex,poolIds))
+          const availableIds=new Set(cats.filter(c=>(!c.status||c.status==='在售')&&c.image).map(c=>normalizeId(c.id)));
+          if(!exactReplacementAllowed(original,ids,params.replaceIndex,availableIds))
             return {ok:false,text:'替换方案与上次拼图不一致，已停止操作，其余猫咪保持不变。'};
         }else{
           const alternatives=pool.filter(c=>!ids.includes(normalizeId(c.id)));
@@ -180,9 +181,9 @@ function Workspace(){
           ids=[...ids];ids[params.replaceIndex]=normalizeId(alternatives[Math.floor(Math.random()*alternatives.length)].id);
         }
       }
-      let chosen=ids.map(find).filter(c=>c?.image&&poolIds.has(normalizeId(c.id))).slice(0,count);
+      let chosen=ids.map(find).filter(c=>c?.image&&(replacing&&verifyRender||poolIds.has(normalizeId(c.id)))).slice(0,count);
       if(replacing&&verifyRender&&chosen.length!==ids.length)return {ok:false,text:'替换后的猫咪未通过库存或原筛选条件校验，原拼图未修改。'};
-      if(chosen.length<count){const used=new Set(chosen.map(c=>normalizeId(c.id)));chosen=[...chosen,...pickMarketingCats(pool).filter(c=>!used.has(normalizeId(c.id))).slice(0,count-chosen.length)];}
+      if(!replacing&&chosen.length<count){const used=new Set(chosen.map(c=>normalizeId(c.id)));chosen=[...chosen,...pickMarketingCats(pool).filter(c=>!used.has(normalizeId(c.id))).slice(0,count-chosen.length)];}
       if(chosen.length<2)return {ok:false,text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
       settings.count=chosen.length;const control={id:crypto.randomUUID(),params:settings,cats:chosen,caption};
       const quotes=continuing?{...(current.quotes||{})}:{};if(settings.quoteTarget)quotes[settings.quoteTarget]=params.quote;

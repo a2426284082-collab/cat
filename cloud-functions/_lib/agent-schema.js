@@ -29,7 +29,7 @@ export function cleanAgentContext(value={}){
  if(!object(value)||Object.keys(value).some(k=>!['task','cat_ids','reference_ids','focus_id','quotes','need','recent_users','params'].includes(k)))fail();
  const task=value.task??'help';if(!AGENT_TOOLS.includes(task))fail();
  const plan=validateAgentPlan({tool:task,cat_ids:value.cat_ids??[],params:value.params??{}});
- const need=typeof value.need==='string'?value.need.slice(0,1200):'';
+ const need=typeof value.need==='string'?value.need.slice(0,4000):'';
  const recent=value.recent_users??[];if(!Array.isArray(recent)||recent.length>4||recent.some(s=>typeof s!=='string'||[...s].length>120))fail();
  const references=validateAgentPlan({tool:task,cat_ids:value.reference_ids??[]}).cat_ids;
  const focus=value.focus_id??null;if(focus!==null&&(!plan.cat_ids.includes(focus)))fail();

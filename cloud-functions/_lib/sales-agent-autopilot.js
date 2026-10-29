@@ -173,18 +173,25 @@ export async function decideAndPrepare(env,state,stock){
  const replaced=state.edit&&state.history.some(e=>e.status==='success'&&e.operation==='replace');
  const captioned=state.history.some(e=>e.status==='success'&&e.operation==='generate');
  const compared=state.history.some(e=>e.status==='success'&&e.tool==='compare');
- if(replaced&&(!needsCopy||captioned)&&(!needsCompare||compared)){
-  state.summary=`已更换指定位置${needsCopy?'、更新推荐文案':''}${needsCompare?'、生成前两只猫的对比':''}；未验证的外观特征请人工核对图片。`;return {status:'done'};
+ const needsQuote=state.edit&&/(?:报价|核算|报价分析|售价)/.test(state.goal);
+ const quoted=state.history.some(e=>e.status==='success'&&e.tool==='calculator');
+ if(replaced&&(!needsCopy||captioned)&&(!needsCompare||compared)&&(!needsQuote||quoted)){
+  state.summary=`已更换指定位置${needsCopy?'、更新推荐文案':''}${needsCompare?'、生成前两只猫的对比':''}${needsQuote?'、更新内部参考报价':''}；未验证的外观特征请人工核对图片。`;return {status:'done'};
  }
  if(state.actions>=MAX_ACTIONS||state.decisions>=MAX_DECISIONS){state.summary=managerGoals?managerSummary(managerGoals):'任务已到安全执行上限，已完成的结果保留，可提交新需求继续。';return {status:'blocked'};}
  const known=new Set([...stock.keys()].filter(id=>state.context.cat_ids.includes(id)||state.context.reference_ids.includes(id)));
  let decision;
- if(state.edit&&state.actions===0){
+ if(state.edit&&!replaced&&state.failures>=2){
+  state.summary='指定位置替换连续失败，原四只猫和原图已保留。最后一次错误：'+summary(state.feedback);return {status:'blocked'};
+ }
+ if(state.edit&&!replaced){
   decision={action:'tool',plan:validateAgentPlan({tool:'poster',cat_ids:state.context.cat_ids,params:{operation:'replace',replaceIndex:state.edit.index},query:''},known)};
  }else if(replaced&&needsCopy&&!captioned){
   decision={action:'tool',plan:validateAgentPlan({tool:'poster',params:{operation:'generate'},query:''},known)};
  }else if(replaced&&needsCompare&&!compared&&(!needsCopy||captioned)){
   decision={action:'tool',plan:validateAgentPlan({tool:'compare',cat_ids:state.context.cat_ids.slice(0,2),query:'对比当前推荐的第一只与第二只，事实不确定要说明'},known)};
+ }else if(replaced&&needsQuote&&!quoted&&(!needsCopy||captioned)&&(!needsCompare||compared)){
+  decision={action:'tool',plan:validateAgentPlan({tool:'calculator',cat_ids:state.context.cat_ids,params:{},query:''},known)};
  }else decision=await nextDecision(env,state,known);
  let handoffGoal=null;
  if(managerGoals){
@@ -219,7 +226,7 @@ export async function decideAndPrepare(env,state,stock){
   state.summary='未收到下载指令，已停止额外下载动作，之前成果已保留。';return {status:'blocked'};
  }
  if(!managerGoals&&decision.action==='tool'&&state.history.some(e=>e.status==='success'&&successTool(e)=== (decision.plan.tool==='poster'&&decision.plan.params.operation==='generate'?'marketing_copy':decision.plan.tool) && e.operation===(decision.plan.params.operation||''))){
-  state.summary='已完成该工具动作，停止重复调用以免重复做图或消耗AI次数。';return {status:'done'};
+  state.summary='模型重复选择已执行工具，但仍可能存在未完成目标；为避免重复执行，任务已暂停。已完成步骤和上下文均已保存。';return {status:'blocked'};
  }
  state.decisions++;
  if(decision.action==='finish'){state.summary=summary(decision.message)||'本次任务已完成';return {status:'done'};}

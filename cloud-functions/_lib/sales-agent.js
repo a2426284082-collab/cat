@@ -2,7 +2,7 @@ import {fail} from './sales-store.js';
 import {AGENT_TOOLS,cleanAgentContext,validateAgentWorkflow} from './agent-schema.js';
 export function planningInput(prompt,context){
  const text=typeof prompt==='string'?prompt.normalize('NFKC').replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').trim():'';
- if([...text].length>1200)throw fail('需求内容最多1200字，请分成两次提交',400);
+ if([...text].length>4000)throw fail('需求内容最多4000字，请分成两次提交',400);
  let state;try{state=cleanAgentContext(context);}catch{throw fail('当前任务信息无效，请开始新任务',400);}
  if(text.length<2||/忽略.{0,12}(?:系统|规则|指令|提示词)|(?:泄露|输出|展示).{0,12}(?:提示词|系统指令)|(?:写|生成).{0,8}(?:python|javascript|代码|周报|作文|小说)|越狱|ignore.{0,16}instructions?/i.test(text))throw fail('这里只理解销售工具任务',400,{audit:'blocked'});
 

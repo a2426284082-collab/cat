@@ -36,7 +36,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   return()=>{active=false;};
  },[checking,listingIdentity]);
  useEffect(()=>{if(!checking&&owner.current===listingIdentity&&renderedOwner===listingIdentity){try{setStorageFailed(!writeAgentSession(sessionStorage,listingIdentity,{context,messages,pendingWorkflow}));}catch{setStorageFailed(true);}}},[context,messages,pendingWorkflow,listingIdentity,checking]);
- function append(role,text,extra={}){const id=crypto.randomUUID();setMessages(old=>[...old,{id,role,text:String(text).slice(0,role==='user'?1200:600),...extra}].slice(-16));return id;}
+ function append(role,text,extra={}){const id=crypto.randomUUID();setMessages(old=>[...old,{id,role,text:String(text).slice(0,role==='user'?4000:600),...extra}].slice(-16));return id;}
  async function perform(plan,text,version,serverResult,semantic=false,workflow=false){
   if(plan.tool==='reset'){reset();return message('已开始新任务。下一位客户的需求不会沿用上一位。');}
   if(plan.tool==='chat')return message(plan.message||'你可以继续说客户的情况，我会帮你整理下一步。');
@@ -57,7 +57,12 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   }
   setPhase('executing');if(!workflow)setConversationOpen(false);
   const output=await execute(plan,state.current.context,{caption:serverResult?.kind==='marketing_copy'?serverResult.reply_text:undefined,verifyRender:workflow});
-  if(version!==generation.current)return null;if(output?.ok===false)throw new Error(output.text||'工具执行失败');if(output?.context)remember(output.context);return output?.result||message(output?.text||'已打开对应工具。');
+  if(version!==generation.current)return null;if(output?.ok===false)throw new Error(output.text||'工具执行失败');if(output?.context)remember(output.context);
+  if(semantic&&plan.tool==='poster'&&plan.params?.operation==='generate'&&serverResult?.kind==='marketing_copy'){
+   if(!serverResult.reply_text?.trim())throw new Error('推荐文案为空，无法交付给销售');
+   return {...serverResult,reply_text:`推荐文案已生成并放进当前拼图。\n\n【可直接复制的推荐话术】\n${serverResult.reply_text}`};
+  }
+  return output?.result||message(output?.text||'已打开对应工具。');
  }
  const workflowLabels={match:'筛选在售猫',poster:'制作拼图/文案',praise:'生成推荐话术',price:'生成保价话术',compare:'对比猫咪',handbook:'核对销售手册',details:'查看资料',downloads:'打开下载',single_poster:'单猫海报',calculator:'核算报价',order:'查库核实',catalog:'筛选猫源',client_view:'对客模式'};
  function normalizeWorkflow(rows){
@@ -176,7 +181,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   finally{lock.current=false;setPending(false);}
  }
  async function run(text,{source='free',tool}={}){
-  text=String(text||'').trim().slice(0,1200);if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
+  text=String(text||'').trim();if([...text].length>4000){setResult(message('任务描述最多4000字，请删除不必要的内容后再发送。'));return;}if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
   try{
    let plan,serverResult;const quick=source==='quick'&&tool==='match'&&isQuickTemplate(text);
    if(quick){if(/【\s*(?:#\s*)?】/.test(text))plan={tool:'clarify',cat_ids:[],params:{},message:'填好模板中的客户信息后再发送，也可以自由描述需求。'};else plan={tool:'inventory',cat_ids:[],params:{},query:text};}

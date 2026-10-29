@@ -19,11 +19,14 @@ export function createManagerGoals(goal,context={}){
  const picture=withoutNegation(s,/(?:做图|作图|拼图|海报|宣传图|朋友圈图|合成图片|制作图片|出图)/,/(?:不要|不做|无需|不用)(?:再)?(?:做图|作图|拼图|海报)/);
  const caption=withoutNegation(s,/(?:话术|文案|推荐语|介绍词)/,/(?:不要|不写|无需|不用)(?:再)?(?:话术|文案|推荐语)/);
  const comparison=has(s,/(?:比较|对比).{0,18}(?:猫|只|第一|第二)|(?:猫|前两只|两只).{0,18}(?:比较|对比)/);
- const quote=has(s,/(?:核算|计算|算算).{0,10}(?:报价|售价|利润|差价)|(?:整理|生成|给出|做).{0,10}(?:报价|报价单)|(?:内部报价|报价建议)/);
+ const quote=has(s,/(?:核算|计算|算算).{0,16}(?:报价|售价|利润|差价)|(?:整理|生成|给出|做).{0,24}(?:报价|报价单|价格分析)|(?:内部报价|报价建议|报价分析|售价分析|报价核对)/);
  // Existing edit-specific state machine ensures exact position preservation.
  if(has(s,/(?:只换|替换|换掉|换成).{0,10}第[一二三四五六七八九1-9][只个]|第[一二三四五六七八九1-9][只个].{0,10}(?:换掉|替换|换成|只换)/))return [];
  // Never hide an objective handled by the general tool coordinator.
- if(has(s,/(?:手册|售后|退款|锁猫|订单|发货|物流|运输|下载|保存到本地|视频|发微信|提醒|跟进|客户档案|审批|发票|开票|备忘|联系人|分享|群发|发布|上架|下架|支付|收款|定金|合同|订金|审核)/))return [];
+ // Only an actual unsupported *requested action* falls back to the legacy
+ // coordinator. A mention of '下载' in a warning or acceptance criterion
+ // must not make the manager forget the supported quote/compare/copy goals.
+ if(has(s,/(?:查(?:询|看|阅)?|打开|核对).{0,8}(?:手册|售后|退款|物流|运输)|(?:帮我|替我|现在|直接|请)(?:发送|发布|发微信|下载|锁猫|报单|发货|收款|支付|提醒|跟进|群发)|(?:下载|发送|发布|锁猫|发货|收款|支付|提醒)(?:给我|到微信|给客户|到手机|到本地|这张|图片|拼图|文件)/))return [];
  const expectsCats=picture||caption||comparison||quote;
  const mustFind=selection||expectsCats&&!(context.cat_ids?.length>=2);
  const goals=[];const add=(specialist,operation,deps=[],label='')=>{
