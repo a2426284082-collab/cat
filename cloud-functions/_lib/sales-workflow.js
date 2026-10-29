@@ -28,11 +28,30 @@ export function filterSalesCats(cats,need=''){
   return true;
  });
 }
-export function chooseSalesCats(cats,need,count=2,{requireImage=false}={}){
+// Very small wholesale figures (e.g. ¥50/¥150) are commonly placeholder,
+// test or mis-entered records. Never promote them automatically as a confirmed
+// retail recommendation. Review the source row rather than silently changing it.
+export const MIN_UNVERIFIED_STOCK_PRICE = 200;
+export const requiresPriceReview = cat => {
+ const amount = Number(cat?.price);
+ return !Number.isFinite(amount) || amount < MIN_UNVERIFIED_STOCK_PRICE;
+};
+export function chooseSalesCats(cats,need,count=2,{requireImage=false,markup=0}={}){
  const limit=Math.max(1,Math.min(9,Number(count)||2));
- return filterSalesCats(cats,need).filter(c=>!requireImage||!!c.image)
-  .sort((a,b)=>(a.price==null?Infinity:Number(a.price))-(b.price==null?Infinity:Number(b.price))||normalizeId(a.id).localeCompare(normalizeId(b.id)))
-  .slice(0,limit);
+ const filtered=filterSalesCats(cats,need)
+  .filter(c=>(!requireImage||!!c.image)&&!requiresPriceReview(c));
+ const filters=parseDemandLocally(String(need||'')).filters;
+ const budget=Number(filters.max);
+ const withinBudget=filters.max&&Number.isFinite(budget)&&budget>0;
+ const cheapFirst=/(?:越便宜越好|最便宜|低价优先|价格越低|省钱优先)/.test(String(need||''));
+ // "2000块的猫" is not a request for the cheapest possible cat. After
+ // enforcing the upper bound, recommend credible quotes nearest the budget.
+ filtered.sort((a,b)=>{
+  const pa=Number(a.price)+Number(markup||0),pb=Number(b.price)+Number(markup||0);
+  const byPrice=withinBudget&&!cheapFirst?pb-pa:pa-pb;
+  return byPrice||normalizeId(a.id).localeCompare(normalizeId(b.id));
+ });
+ return filtered.slice(0,limit);
 }
 export function selectionSummary(cats,count,need,{hidePrices=false,markup=800}={}){
  const ageLabel=value=>{

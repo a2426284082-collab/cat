@@ -114,7 +114,7 @@ export async function nextDecision(env,state,ids){
 
 async function executeDataStep(state,plan,env,stock){
  const controls=await readWorkbench(env.SALES_DB,{fresh:true});
- const prepared=await prepareWorkflowSteps({steps:[plan],catalog:[...stock.values()],context:{...state.context,editGoal:state.edit?state.goal:''},
+ const prepared=await prepareWorkflowSteps({steps:[plan],catalog:[...stock.values()],context:{...state.context,originalGoal:state.goal,editGoal:state.edit?state.goal:''},
   env,hidePrices:state.hidePrices,controls,allowed:async()=>{}});
  const step=prepared.prepared[0];
  if(!step||step.status!=='ready')return {blocked:step?.reason||'工具无法执行，原任务已保留。',result:step?.result||null};
