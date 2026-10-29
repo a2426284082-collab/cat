@@ -4,7 +4,7 @@ import {selectInventory} from './specialist-inventory.js';
 import {designBrief,validateDesignSelection} from './specialist-design.js';
 import {copyBrief,verifyCopyResult} from './specialist-copy.js';
 import {annotateStep,createSpecialistBriefs} from './sales-specialists.js';
-import {quoteOne} from './specialist-quote.js';
+import {quoteOne,quoteBatch} from './specialist-quote.js';
 import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
 // One bounded conversational task: prepare data steps, dispatch UI steps, charge one sales quota.
@@ -127,16 +127,20 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
    }
   }else if(plan.tool==='handbook'){
    result=answerHandbook(plan.query||'合作售后政策')||toolResult('没有找到对应条款，请在手册中核实。');
-  }else if(['details','downloads','single_poster','calculator','order'].includes(plan.tool)){
-   if(fallbackIds.length!==1){status='blocked';reason='请指明要处理的猫咪编号，不能猜是哪一只。';}
+  }else if(plan.tool==='calculator'){
+   if(hidePrices){status='blocked';reason='对客模式不可展示内部合作底价，请先关闭对客模式。';}
+   else if(!controls.calculatorEnabled){status='blocked';reason='管理员暂时关闭了报价工具。';}
+   else if(!fallbackIds.length||fallbackIds.some(id=>!stock.has(id))){status='blocked';reason='报价缺少已核实的猫咪编号。';}
    else {
     plan.cat_ids=[...fallbackIds];
-    if(plan.tool==='calculator'){
-     try{const priced=quoteOne(stock.get(fallbackIds[0]),{markup:posterSettings.markup??0});
-      result={kind:'tool',used_ai:false,matched_ids:['#'+fallbackIds[0]],reply_text:`网站合作基准价¥${priced.basePrice}，当前加价¥${priced.markup}，参考对客售价¥${priced.customerPrice}；运费及最终报价待确认。`,verification:{specialist:'quote',verified:true}};
-     }catch(e){status='blocked';reason=e.message;}
-    }
+    try{
+     const prices=quoteBatch(fallbackIds.map(id=>stock.get(id)),{markup:posterSettings.markup??0});
+     result={kind:'quote_summary',used_ai:false,matched_ids:prices.map(p=>'#'+p.id),quotes:prices,verification:{specialist:'quote',verified:true},reply_text:prices.map(p=>`#${p.id} 网站合作基准价¥${p.basePrice}，销售加价¥${p.markup}，参考客户价¥${p.customerPrice}`).join('\n')+'\n运费、最终成交售价及库存状态需在微信成交前核实；未自动报价或收款。'};
+    }catch(e){status='blocked';reason=e.message;}
    }
+  }else if(['details','downloads','single_poster','order'].includes(plan.tool)){
+   if(fallbackIds.length!==1){status='blocked';reason='请指明要处理的猫咪编号，不能猜是哪一只。';}
+   else plan.cat_ids=[...fallbackIds];
   }
   prepared.push({plan,result,status,specialist:annotateStep(plan).specialist,...(reason?{reason}:{})});
   if(status==='blocked')break;

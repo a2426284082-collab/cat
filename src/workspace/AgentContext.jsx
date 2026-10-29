@@ -43,6 +43,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   if(plan.tool==='help'&&plan.message)return message(plan.message);
   if(plan.tool==='help')return message('我能挑猫、做2至9图拼图、写单猫或双猫话术、看资料、准备素材下载、算报价和查手册。可以接着说“换成四只”“不要价格”“看第二只”；说“新任务”清空这次上下文。');
   if(plan.tool==='clarify')return message(plan.message||'请补充需要操作的猫咪编号或具体任务。');
+  if(semantic&&plan.tool==='calculator'&&serverResult?.kind==='quote_summary'){if(serverResult.verification?.verified!==true)throw new Error('报价结果未通过后端核对');return serverResult;}
   if(plan.tool==='handbook'&&!/打开.*手册|去.*手册|查看手册/.test(plan.query||text)){const answer=answerHandbook(plan.query||text);if(answer){remember({task:'handbook'});return answer;}}
   if(plan.tool==='inventory'){setPhase('executing');const output=await ask({mode:'match',action:'catalog_match',prompt:plan.query,hide_prices:session.hidePrices});if(version!==generation.current)return null;await execute({tool:'show_matches'},state.current.context);remember({task:'match',cat_ids:(output.matched_ids||[]).map(normalizeId),need:plan.query,params:{},focus_id:null});setConversationOpen(false);return output;}
   if(paid.has(plan.tool)){
@@ -111,7 +112,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   let count=0;
   while(alive.current&&version===generation.current&&count++<15){
    setDurableTask(task);
-   setWorkflowProgress([...task.history.map((h,i)=>({label:workflowLabels[h.tool]||h.tool,state:h.status==='success'?'done':'failed',index:i})),...(task.step?[{label:workflowLabels[task.step.plan.tool]||task.step.plan.tool,state:'waiting',index:task.history.length}]:[])]);
+   setWorkflowProgress(task.goals?.length?task.goals.map((g,i)=>({label:g.label,state:g.status==='done'?'done':task.step?.goal_id===g.id?'waiting':g.attempts>0?'failed':'waiting',index:i})): [...task.history.map((h,i)=>({label:workflowLabels[h.tool]||h.tool,state:h.status==='success'?'done':'failed',index:i})),...(task.step?[{label:workflowLabels[task.step.plan.tool]||task.step.plan.tool,state:'waiting',index:task.history.length}]:[])]);
    if(task.context)remember(task.context);
    if(task.status==='done'||task.status==='blocked'){
     setPhase(task.status==='done'?'done':'blocked');
@@ -125,7 +126,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
    }
    if(task.status!=='waiting'||!task.step){setPhase('paused');return;}
    const {id,plan,result:serverResult}=task.step;
-   setPhase('executing');setWorkflowProgress(old=>old.map((p,i)=>i===old.length-1?{...p,state:'running'}:p));
+   setPhase('executing');setWorkflowProgress(old=>old.map((p,i)=>(task.goals?.length?task.goals[i]?.id===task.step.goal_id:i===old.length-1)?{...p,state:'running'}:p));
    const receiptKey=AGENT_STORAGE+'receipt:'+listingIdentity;
    let receipt=null;
    try{const saved=JSON.parse(sessionStorage.getItem(receiptKey)||'null');if(saved?.task_id===task.task_id&&saved?.receipt?.step_id===id&&Date.now()-saved.at<AGENT_TTL)receipt=saved.receipt;}catch{}
@@ -155,7 +156,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   try{const task=await taskRead(id);if(!task)return;
    setDurableTask(task);setConversationOpen(true);
    if(['waiting','paused','thinking'].includes(task.status)){setPhase('paused');setResult(message('云端任务已找回，请点击恢复任务继续执行。'));}
-   else{setPhase(task.status==='done'?'done':'blocked');setWorkflowProgress(task.history.map((h,i)=>({label:workflowLabels[h.tool]||h.tool,state:h.status==='success'?'done':'failed',index:i})));setResult(message(task.summary||'该任务已结束，历史执行记录已找回。'));}
+   else{setPhase(task.status==='done'?'done':'blocked');setWorkflowProgress(task.goals?.length?task.goals.map((g,i)=>({label:g.label,state:g.status==='done'?'done':g.attempts>0?'failed':'waiting',index:i})):task.history.map((h,i)=>({label:workflowLabels[h.tool]||h.tool,state:h.status==='success'?'done':'failed',index:i}))); setResult(message(task.summary||'该任务已结束，历史执行记录已找回。'));}
   }catch(error){setResult(message(error.message||'读取历史任务失败'));}
  }
  async function resumeDurableTask(){

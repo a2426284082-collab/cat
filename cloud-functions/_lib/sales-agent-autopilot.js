@@ -7,7 +7,8 @@ import {prepareWorkflowSteps} from './sales-agent-run.js';
 import {resolveSalesDemand,salesIntentConflicts} from './sales-demand.js';
 import {inventoryBrief} from './specialist-inventory.js';
 import {designBrief} from './specialist-design.js';
-import {specialistFor} from './sales-specialists.js';
+import {specialistFor,specialistForPlan} from './sales-specialists.js';
+import {createManagerGoals,managerProgress,nextManagerGoal,validateDelegation,specialistHandoff,recordManagerReceipt,managerSummary} from './sales-manager.js';
 import {normalizeId} from './sales-engine.js';
 import {getCatalog} from './feishu.js';
 import {readWorkbench} from './workbench-control.js';
@@ -20,18 +21,19 @@ const summary=v=>String(v||'').slice(0,MAX_TEXT);
 const asJSON=v=>JSON.stringify(v);
 const parse=row=>{try{return JSON.parse(row.state_json);}catch{throw fail('任务记录无法读取，请联系管理员',503);}};
 const now=()=>nowSeconds();
-const pendingStep=state=>state.pending?{id:state.pending.id,plan:state.pending.plan,result:state.pending.result,specialist:state.pending.specialist||specialistFor(state.pending.plan.tool),status:'ready'}:null;
+const pendingStep=state=>state.pending?{id:state.pending.id,goal_id:state.pending.goal_id||null,plan:state.pending.plan,result:state.pending.result,specialist:state.pending.specialist||specialistFor(state.pending.plan.tool),status:'ready'}:null;
 const stockMap=cats=>new Map(cats.filter(c=>!c.status||c.status==='在售').map(c=>[normalizeId(c.id),c]));
 
 export function publicTask(row){
  const state=parse(row);
  return {kind:'agent_task',task_id:row.id,status:row.status,revision:row.revision,step:pendingStep(state),
   history:state.history.map(e=>({specialist:e.specialist||specialistFor(e.tool),tool:e.tool,status:e.status,text:e.text,cat_ids:e.cat_ids||[]})),context:state.context,
-  goal:state.goal,demand:state.demand||null,summary:state.summary||'',error:state.error||'',actions:state.actions,
+  goal:state.goal,demand:state.demand||null,goals:(state.goals||[]).map(g=>({id:g.id,specialist:g.specialist,operation:g.operation,label:g.label,status:g.status,attempts:g.attempts})),summary:state.summary||'',error:state.error||'',actions:state.actions,
   remaining_actions:Math.max(0,MAX_ACTIONS-state.actions)};
 }
 
-function validateChoice(raw,ids){
+function validateChoice(raw,ids,goals=[]){
+ if(raw?.action==='delegate')return validateDelegation(raw,goals);
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('invalid_decision');
  if(raw.action==='finish'||raw.action==='clarify'){
   if(Object.keys(raw).some(k=>!['action','message'].includes(k)))throw new Error('invalid_decision');
@@ -73,6 +75,11 @@ export function isReplacementIntent(goal){
 }
 const successTool=e=>e.tool==='poster'&&e.operation==='generate'?'marketing_copy':e.tool;
 export function decisionMessages(state){
+ if(state.goals?.length){
+  const outstanding=state.goals.filter(g=>g.status!=='done');
+  return [{role:'system',content:'你是销售任务总控 Manager，只负责把未完成目标委派给对应专业模块，不解析猫咪毛色或图片版式细节，不直接填写低层工具名称。每次只输出一个JSON：{"action":"delegate","goal_id":"g1","specialist":"inventory","params":{}}。goal_id 必须来自待办清单，specialist必须与目标一致，且依赖任务已经完成。可委派 inventory、design、copy、quote；任何专业模块只能使用自己的参数。工具返回真实执行回执之后才可宣布目标完成。任务无剩余目标时可回复 {"action":"finish","message":"全部目标已完成"}。不要重新解释整段原话的专业参数，不得额外新增用户未要求的任务。'},
+   {role:'user',content:asJSON({goal:state.goal,goals:outstanding,context:{cat_ids:state.context.cat_ids,params:state.context.params},last_feedback:state.feedback,completed:state.goals.filter(g=>g.status==='done')})}];
+ }
  const allowed='match,poster,praise,price,compare,handbook,details,downloads,single_poster,calculator,order,catalog,help,chat,clarify';
  const reminder=state.edit?[]:pendingRequirements(state.goal,state.history);
  const modelContext=state.hidePrices?{...state.context,quotes:{}}:state.context;
@@ -96,19 +103,22 @@ export async function nextDecision(env,state,ids){
   try{
    if(data.choices?.[0]?.finish_reason!=='stop')throw Error('truncated');
    const raw=JSON.parse(data.choices[0].message.content);
-   const choice=validateChoice(raw,ids);
-   if(choice.action==='finish'&&!state.edit&&pendingRequirements(state.goal,state.history).length)throw Error('incomplete');
+   const choice=validateChoice(raw,ids,state.goals||[]);
+   if(choice.action==='finish'&&!state.edit&&(state.goals?.length?!managerProgress(state.goals).complete:pendingRequirements(state.goal,state.history).length))throw Error('incomplete');
    if(choice.action==='finish'&&state.history.at(-1)?.status==='error')return {action:'clarify',message:'上一步工具执行失败，原任务未完成。'+summary(choice.message).slice(0,100)};
    // Avoid a second prompt that mutates hard filters: the original goal remains
    // available for each independent match/poster selection.
-   if(choice.action==='tool'&&!state.edit&&['match','poster'].includes(choice.plan.tool)&&choice.plan.params.operation!=='generate'&&salesFallbackPlan(state.goal)){
+   if(choice.action==='tool'&&!state.goals?.length&&!state.edit&&['match','poster'].includes(choice.plan.tool)&&choice.plan.params.operation!=='generate'&&salesFallbackPlan(state.goal)){
     choice.plan.query=state.goal.slice(0,200);
    }
    return choice;
   }catch(e){diagnostic=e.message==='incomplete'?'INCOMPLETE_PLAN':'SCHEMA_INVALID';}
  }
+ // Model syntax/provider JSON can fail; a verified goal ledger still supplies a
+ // bounded next specialist (not a fabricated completed result).
+ if(state.goals?.length){const goal=nextManagerGoal(state.goals);if(goal)return {action:'delegate',goal_id:goal.id,specialist:goal.specialist,params:{},source:'manager_safe_handoff'};}
  // A conservative fallback for clear standard sales jobs, not a general illusion of autonomy.
- const safe=state.edit?null:salesFallbackPlan(state.goal);
+ const safe=state.edit||state.goals?.length?null:salesFallbackPlan(state.goal);
  if(safe){const required=pendingRequirements(state.goal,state.history);
   const step=safe.steps.find(s=>(s.tool==='poster'&&s.params.operation==='generate'?'marketing_copy':s.tool)===required[0]);
   if(step)return {action:'tool',plan:validateAgentPlan(step,ids),source:'limited_fallback'};
@@ -152,8 +162,10 @@ function updateContext(state,plan,result,receipt){
 function receiptSummary(receipt,result){return summary(receipt?.text||result?.reply_text||'工具已返回执行结果');}
 
 export async function decideAndPrepare(env,state,stock){
+ const managerGoals=!state.edit&&state.goals?.length?state.goals:null;
+ if(managerGoals&&managerProgress(managerGoals).complete){state.summary=managerSummary(managerGoals);return {status:'done'};}
  // Deterministic completion prevents repetitive marketing_copy/download calls.
- if(!state.edit&&state.history.length&&pendingRequirements(state.goal,[]).length&&pendingRequirements(state.goal,state.history).length===0){
+ if(!managerGoals&&!state.edit&&state.history.length&&pendingRequirements(state.goal,[]).length&&pendingRequirements(state.goal,state.history).length===0){
   state.summary='已完成选猫、拼图准备和推荐文案；图片是否保存到本机仍需销售核对。';return {status:'done'};
  }
  const needsCopy=state.edit&&/(话术|文案|介绍|推荐)/.test(state.goal);
@@ -164,7 +176,7 @@ export async function decideAndPrepare(env,state,stock){
  if(replaced&&(!needsCopy||captioned)&&(!needsCompare||compared)){
   state.summary=`已更换指定位置${needsCopy?'、更新推荐文案':''}${needsCompare?'、生成前两只猫的对比':''}；未验证的外观特征请人工核对图片。`;return {status:'done'};
  }
- if(state.actions>=MAX_ACTIONS||state.decisions>=MAX_DECISIONS){state.summary='任务已到安全执行上限，已完成的结果保留，可提交新需求继续。';return {status:'blocked'};}
+ if(state.actions>=MAX_ACTIONS||state.decisions>=MAX_DECISIONS){state.summary=managerGoals?managerSummary(managerGoals):'任务已到安全执行上限，已完成的结果保留，可提交新需求继续。';return {status:'blocked'};}
  const known=new Set([...stock.keys()].filter(id=>state.context.cat_ids.includes(id)||state.context.reference_ids.includes(id)));
  let decision;
  if(state.edit&&state.actions===0){
@@ -174,10 +186,21 @@ export async function decideAndPrepare(env,state,stock){
  }else if(replaced&&needsCompare&&!compared&&(!needsCopy||captioned)){
   decision={action:'tool',plan:validateAgentPlan({tool:'compare',cat_ids:state.context.cat_ids.slice(0,2),query:'对比当前推荐的第一只与第二只，事实不确定要说明'},known)};
  }else decision=await nextDecision(env,state,known);
+ let handoffGoal=null;
+ if(managerGoals){
+  handoffGoal=nextManagerGoal(managerGoals);
+  if(!handoffGoal){state.summary=managerSummary(managerGoals);return {status:'blocked'};}
+  // The Manager chooses a specialist goal, but the contract validates its
+  // identity and dependencies. Legacy tool JSON is accepted for compatibility
+  // and adapted to the next verified goal; it cannot skip other objectives.
+  const chosen=decision.action==='delegate'&&decision.goal_id===handoffGoal.id&&decision.specialist===handoffGoal.specialist?decision.params:{};
+  try{decision={action:'tool',plan:specialistHandoff(handoffGoal,state,known,chosen)};}
+  catch(error){state.summary=`${error.message}。${managerSummary(managerGoals)}`;return {status:'blocked'};}
+ }
  // A clear multi-part order has a completion ledger. The planner must not
  // substitute a second collage/caption/download for an unfinished requirement.
  // Other, less structured requests still use the dynamic model planner.
- const standard=state.edit?null:salesFallbackPlan(state.goal);
+ const standard=state.edit||managerGoals?null:salesFallbackPlan(state.goal);
  const outstanding=standard?pendingRequirements(state.goal,state.history):[];
  if(outstanding.length){
   const wanted=outstanding[0],actual=decision.action==='tool'
@@ -195,7 +218,7 @@ export async function decideAndPrepare(env,state,stock){
  if(decision.action==='tool'&&decision.plan.tool==='poster'&&decision.plan.params.operation==='download'&&!/(下载|保存(?:图片|拼图|海报|到手机|到本地))/.test(state.goal)){
   state.summary='未收到下载指令，已停止额外下载动作，之前成果已保留。';return {status:'blocked'};
  }
- if(decision.action==='tool'&&state.history.some(e=>e.status==='success'&&successTool(e)=== (decision.plan.tool==='poster'&&decision.plan.params.operation==='generate'?'marketing_copy':decision.plan.tool) && e.operation===(decision.plan.params.operation||''))){
+ if(!managerGoals&&decision.action==='tool'&&state.history.some(e=>e.status==='success'&&successTool(e)=== (decision.plan.tool==='poster'&&decision.plan.params.operation==='generate'?'marketing_copy':decision.plan.tool) && e.operation===(decision.plan.params.operation||''))){
   state.summary='已完成该工具动作，停止重复调用以免重复做图或消耗AI次数。';return {status:'done'};
  }
  state.decisions++;
@@ -219,7 +242,7 @@ export async function decideAndPrepare(env,state,stock){
  const prepared=await executeDataStep(state,plan,env,stock);
  if(prepared.blocked){state.summary=prepared.blocked;return {status:'blocked'};}
  state.actions++;
- state.pending={id:crypto.randomUUID(),plan:prepared.plan||plan,result:prepared.result,specialist:specialistFor(plan.tool)};
+ state.pending={id:crypto.randomUUID(),plan:prepared.plan||plan,result:prepared.result,specialist:handoffGoal?.specialist||specialistForPlan(plan),goal_id:handoffGoal?.id||null};
  state.feedback='';return {status:'waiting'};
 }
 
@@ -278,7 +301,7 @@ export async function startTask(db,env,request,body,key){
  }
  if([...c.cat_ids,...c.reference_ids].some(id=>!stock.has(id)))throw fail('猫咪库存发生变化，请刷新后重试',409);
  const reservation=await reserve(db,key,'match',`[agent_task] ${input.prompt}`);
- const state={goal:input.prompt,context:c,demand:priorDemand||inventoryBrief({goal:isReplacementIntent(input.prompt)?c.need:input.prompt,catalog:[...stock.values()]}).demand,edit:replacementRequest(input.prompt,c),history:[],pending:null,feedback:'',summary:'',error:'',actions:0,decisions:0,failures:0,hidePrices:body.hide_prices===true};
+ const state={goal:input.prompt,context:c,goals:createManagerGoals(input.prompt,c),demand:priorDemand||inventoryBrief({goal:isReplacementIntent(input.prompt)?c.need:input.prompt,catalog:[...stock.values()]}).demand,edit:replacementRequest(input.prompt,c),history:[],pending:null,feedback:'',summary:'',error:'',actions:0,decisions:0,failures:0,hidePrices:body.hide_prices===true};
  let created=false;
  try{
   // Permission is revalidated before the first model call.
@@ -319,10 +342,11 @@ export async function advanceTask(db,env,request,body,key){
  if(!claimed.meta?.changes)throw fail('任务正在另一窗口执行，请刷新查看',409);
  if(receipt){
   const step=state.pending,ok=receipt.status==='success';
-  const event={step_id:step.id,specialist:specialistFor(step.plan.tool),tool:step.plan.tool,operation:step.plan.params.operation||'',status:ok?'success':'error',text:receiptSummary(receipt,step.result),cat_ids:step.plan.cat_ids};
+  const event={step_id:step.id,goal_id:step.goal_id||null,specialist:step.specialist||specialistForPlan(step.plan),tool:step.plan.tool,operation:step.plan.params.operation||'',status:ok?'success':'error',text:receiptSummary(receipt,step.result),cat_ids:step.plan.cat_ids};
   state.history=[...state.history,event].slice(-MAX_HISTORY);
   if(ok){state.failures=0;updateContext(state,step.plan,step.result,receipt);}
   else state.failures++;
+  if(step.goal_id)recordManagerReceipt(state.goals,step.goal_id,receipt.status,event.text);
   state.feedback=`${step.plan.tool} ${ok?'成功':'失败'}：${event.text}`;
   state.pending=null;
  }
