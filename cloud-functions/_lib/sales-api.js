@@ -2,8 +2,8 @@ import {inventoryResult,inventoryQuery} from './sales-engine.js';
 // ADMIN_CONTROL_PATCH_V1
 import {readWorkbench,ensureControlTables,decorateKeys,encryptSalesCode,vaultStatement,adminEventStatement,checkKeyExpiry} from './workbench-control.js';
 import {handleWorkbenchAdmin} from './workbench-admin.js';
-import {runAgentTask} from './sales-agent-run.js';
-import {startTask,advanceTask,readTask,listTasks,cancelTask} from './sales-agent-autopilot.js';
+import {runCatOnly} from './cat-only-agent.js';
+import {readTask,listTasks,cancelTask} from './sales-agent-autopilot.js';
 import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
 import { diagnoseSalesInventory } from './sales-inventory-diagnostics.js';
@@ -18,15 +18,15 @@ function originCheck(request) {
   if (request.headers.get('origin') !== new URL(request.url).origin) throw fail('请求来源无效',403);
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw fail('请使用 JSON 请求',415);
 }
-async function bodyJson(request) {
-  if (Number(request.headers.get('content-length'))>8192) throw fail('请求内容过长',413);
+async function bodyJson(request, limit=8192) {
+  if (Number(request.headers.get('content-length'))>limit) throw fail('请求内容过长',413);
   const reader=request.body?.getReader();
   if (!reader) throw fail('请求内容无效');
   let size=0;const chunks=[];
   while(true) {
     const {value,done}=await reader.read();if(done)break;
     size+=value.byteLength;
-    if(size>8192){await reader.cancel();throw fail('请求内容过长',413);}
+    if(size>limit){await reader.cancel();throw fail('请求内容过长',413);}
     chunks.push(value);
   }
   const bytes=new Uint8Array(size);let pos=0;
@@ -57,7 +57,8 @@ async function ask(db,env,request,body) {
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
   if(body.action==='catalog_match'){const query=validatePrompt(inventoryQuery(body.prompt));const catalog=await getCatalog(env);const data=inventoryResult(catalog.cats,query);await auditLocal(db,key,'match',query,'inventory',data.reply_text);return json({success:true,data,user:accountView(key),catalog_updated_at:catalog.updatedAt});}
-  if(body.action==='agent_run')return json({success:true,...await runAgentTask(db,env,request,body,key)});
+  if(body.action==='cat_only')return json({success:true,...await runCatOnly(db,env,request,body,key)});
+  if(body.action==='agent_run'||body.action==='agent_plan')throw fail('旧版跨工具规划 Agent 已冻结，请刷新网页使用智能找猫助手。',410);
   const action=body.action,planning=action==='agent_plan';
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
   if(action!=null&&!structured&&!planning&&action!=='handbook')throw fail('操作类型无效');
@@ -227,7 +228,7 @@ export async function handleSales({request,env}) {
     if(adminPath&&!requireAdmin(request,env))throw fail('请先登录管理员账号',401);
     if(isWrite(request))originCheck(request);
     const db=database(env);
-    const body=isWrite(request)?await bodyJson(request):{};
+    const body=isWrite(request)?await bodyJson(request,path==='/api/ai/ask'?32768:8192):{};
     if(adminPath)return await admin(db,env,request,path,body);
     await userIpLimit(db,request,path==='/api/ai/activate');
     if(path==='/api/ai/activate'){
@@ -250,8 +251,8 @@ export async function handleSales({request,env}) {
       if(request.method==='GET'){const key=await userSession(db,request);const query=new URL(request.url).searchParams;return json({success:true,data:query.get('list')==='1'?await listTasks(db,key):await readTask(db,key,query.get('task_id'))});}
       if(!body.device_id)throw fail('设备标识不能为空');
       const key=await userSession(db,request,body,body.action==='next');
-      if(body.action==='start')return json({success:true,...await startTask(db,env,request,body,key)});
-      if(body.action==='next')return json({success:true,...await advanceTask(db,env,request,body,key)});
+      if(body.action==='start'||body.action==='next')throw fail('旧版复杂任务 Agent 已冻结；历史任务保留但不再自动执行。',410);
+      // Old task data may still be read or cancelled, but cannot resume.
       if(body.action==='cancel')return json({success:true,...await cancelTask(db,body,key)});
       throw fail('任务操作无效');
     }
