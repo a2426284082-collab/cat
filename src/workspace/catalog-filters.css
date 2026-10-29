@@ -1,0 +1,44 @@
+/* Common filters stay visible. Extra fields retain their values when folded. */
+.workflow-workspace .catalog-filters.catalog-filters-always{display:block;padding:12px 14px;margin-bottom:10px;background:#fff;border:1px solid #e8ded1;border-radius:12px}
+.catalog-basic-filters{display:grid;grid-template-columns:minmax(110px,1fr) minmax(200px,1.65fr) minmax(85px,.75fr) minmax(160px,1.25fr);gap:12px;align-items:end}
+.workflow-workspace .catalog-filters-always .catalog-filter-field{display:block;min-width:0;margin:0;padding:0;border:0;grid-column:auto}
+.catalog-filter-field>span:first-child,.catalog-filters-always .catalog-filter-field legend{display:block;padding:0;margin:0 0 5px;font-size:11px;color:#7b6854;line-height:1.4}
+.catalog-filters-always .catalog-filter-field :is(input,select){width:100%;min-width:0;min-height:36px;box-sizing:border-box}
+.catalog-range-inputs{display:flex;align-items:center;gap:5px;min-width:0}
+.catalog-range-inputs input{flex:1;width:0!important}
+.catalog-range-inputs>span{flex:none;font-size:11px}
+.catalog-extra-filters{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #f0e8df}
+.catalog-extra-filters[hidden]{display:none}
+.catalog-filters-always .catalog-search{display:block;position:relative;margin:0!important}
+.catalog-filters-always .catalog-search svg{top:10px;left:9px}
+.catalog-filters-always .catalog-search input{padding-left:30px}
+.catalog-filter-footer{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin-top:10px}
+.catalog-more-filters{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#805a36;min-height:32px}
+.catalog-filters-always .catalog-reset{font-size:11px;min-height:32px;margin-left:auto;color:#90633c}
+.catalog-filters-always .catalog-reset:disabled{opacity:.4;cursor:default}
+.catalog-price-basis{display:flex;align-items:center;gap:6px;font-size:10px;color:#867562;min-width:0}
+.workflow-workspace .catalog-price-basis select{width:auto;min-height:30px;font-size:11px;padding:4px 6px}
+.catalog-filter-hint{font-size:10px;color:#8c7a66;line-height:1.5;margin:5px 0 0}
+.catalog-filter-error{font-size:11px;color:#b43d2a;line-height:1.5;margin:6px 0 0}
+.workflow-workspace .catalog-filter-summary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:11px;color:#826950;margin:0 0 12px}
+.catalog-filter-summary>b{font-weight:600;white-space:nowrap}
+.catalog-filter-chips{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.catalog-filter-chips button{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 7px;background:#f5eee5;border:1px solid #e7d9c8;border-radius:6px;font-size:10px;overflow-wrap:anywhere;text-align:left}
+.catalog-filter-chips svg{flex:none}
+.workflow-workspace .sales-ai-heading .sales-ai-filter-guide{font-size:11px;line-height:1.5;font-weight:400;color:#93816d;margin:5px 0 0}
+@media(min-width:761px) and (max-width:1100px){.catalog-basic-filters{grid-template-columns:minmax(110px,1fr) minmax(170px,1.5fr)}}
+@media(max-width:760px){
+ .workflow-workspace .catalog-filters.catalog-filters-always{padding:10px;margin-bottom:9px}
+ .catalog-basic-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+ .catalog-filter-breed{order:0}.catalog-filter-gender{order:1}
+ .workflow-workspace .catalog-filters-always .catalog-filter-min{order:2;grid-column:1/-1}
+ .workflow-workspace .catalog-filters-always .catalog-filter-minAge{order:3;grid-column:1/-1}
+ .catalog-filters-always:not(.advanced-open) .catalog-filter-minAge{display:none!important}
+ .catalog-filter-field>span:first-child,.catalog-filters-always .catalog-filter-field legend{font-size:10px;margin-bottom:4px}
+ .catalog-extra-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:8px;padding-top:8px}
+ .catalog-filter-footer{gap:5px 9px;margin-top:6px}
+ .catalog-price-basis{font-size:9px;gap:4px}
+ .workflow-workspace .catalog-price-basis select{font-size:16px;max-width:155px}
+ .catalog-filter-hint{font-size:9px}
+ .workflow-workspace .sales-ai-heading .sales-ai-filter-guide{font-size:10px;text-align:left}
+}

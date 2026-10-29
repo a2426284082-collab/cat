@@ -3,6 +3,8 @@ import {Check,ChevronLeft,ChevronRight,Eye,EyeOff,ImageOff,Maximize2,PlayCircle,
 import {catalogOrder,salesDate,readShuffleRound,saveShuffleRound,orderKey,ORDER_STORAGE_KEY} from './workspace/distribution.js';
 import SmartImage from './workspace/SmartImage.jsx';
 import {useFollowups} from './workspace/followups.jsx';
+import {parseAgeMonths} from '../cloud-functions/_lib/sales-demand.js';
+import './workspace/catalog-filters.css';
 import {parseDemandLocally} from '../cloud-functions/_lib/smart-search.js';
 import {WORKSPACE_FEATURES} from './workspace/features.js';
 import CatVideoPlayer from './components/CatVideoPlayer.jsx';
@@ -12,20 +14,63 @@ import {displayText,money,normalizeId,shortIdMap,displayedPrice} from './workspa
 const blank={query:'',breed:'',color:'',gender:'',min:'',max:'',minAge:'',maxAge:''};
 const age=value=>/^\d+(?:\.\d+)?$/.test(String(value||''))?value+'个月':value||'月龄待确认';
 export default function App({onAsk,onCompare,compareIds=[],onDetail,hidePrices=false,customerDisplay={enabled:hidePrices,markup:0},onCustomerDisplay,agentCommand}){
- const {cats,loading,error,lastUpdated,refresh}=useCatalog(),{busy,checking,listingIdentity}=useSalesSession();const [filters,setFilters]=useState(blank),[open,setOpen]=useState(false),[count,setCount]=useState(12),[video,setVideo]=useState(null),[photo,setPhoto]=useState(null);const more=useRef(null),followups=useFollowups();
+ const {cats,loading,error,lastUpdated,refresh}=useCatalog(),{busy,checking,listingIdentity,user}=useSalesSession();const [filters,setFilters]=useState(blank),[open,setOpen]=useState(false),[priceBasis,setPriceBasis]=useState('customer'),[count,setCount]=useState(12),[video,setVideo]=useState(null),[photo,setPhoto]=useState(null);const more=useRef(null),followups=useFollowups();
  const [day,setDay]=useState(()=>salesDate()),[manual,setManual]=useState(null),[orderRevision,setOrderRevision]=useState(0);
  const currentOrderKey=orderKey(listingIdentity,day),round=manual?.key===currentOrderKey?manual.round:readShuffleRound(listingIdentity,day);
  useEffect(()=>{const updateDay=()=>setDay(salesDate()),storage=e=>{if(e.key===ORDER_STORAGE_KEY){setManual(null);setOrderRevision(v=>v+1);}};const timer=setInterval(updateDay,30000);window.addEventListener('focus',updateDay);window.addEventListener('storage',storage);return()=>{clearInterval(timer);window.removeEventListener('focus',updateDay);window.removeEventListener('storage',storage);};},[]);
  const orderedCats=useMemo(()=>catalogOrder(cats,listingIdentity,day,round),[cats,listingIdentity,day,round,orderRevision]);
  const labels=useMemo(()=>shortIdMap(cats),[cats]),breeds=[...new Set(cats.map(c=>c.breed).filter(Boolean))].sort(),colors=[...new Set(cats.map(c=>c.color).filter(Boolean))].sort();
- const filtered=useMemo(()=>orderedCats.filter(c=>{const q=filters.query.trim().toLowerCase(),months=parseFloat(c.age);return(!q||[c.id,c.breed,c.color,labels.get(normalizeId(c.id))].some(x=>String(x||'').toLowerCase().includes(q)))&&(!filters.breed||c.breed===filters.breed)&&(!filters.color||c.color===filters.color)&&(!filters.gender||c.gender===filters.gender)&&(filters.min===''||(c.price!=null&&c.price>=+filters.min))&&(filters.max===''||(c.price!=null&&c.price<=+filters.max))&&(filters.minAge===''||months>=+filters.minAge)&&(filters.maxAge===''||months<=+filters.maxAge);}),[orderedCats,filters,labels]);
- useEffect(()=>setCount(12),[filters,listingIdentity,day,round]);useEffect(()=>{if(!more.current||count>=filtered.length||!('IntersectionObserver' in window))return;const observer=new IntersectionObserver(entries=>{if(entries[0]?.isIntersecting)setCount(v=>Math.min(v+12,filtered.length));},{rootMargin:'120px'});observer.observe(more.current);return()=>observer.disconnect();},[count,filtered.length]);
+ const allowWholesale=Boolean(user&&!user.is_guest&&!hidePrices),basis=allowWholesale?priceBasis:'customer';
+ const markup=user?.is_guest?0:Number(customerDisplay.markup??0);
+ const rangeError=(()=>{
+  for(const [low,high,name] of [['min','max','预算'],['minAge','maxAge','月龄']]){
+   if([low,high].some(key=>filters[key]!==''&&(!Number.isFinite(Number(filters[key]))||Number(filters[key])<0)))return name+'请输入不小于0的数字';
+   if(filters[low]!==''&&filters[high]!==''&&Number(filters[low])>Number(filters[high]))return name+'下限不能高于上限';
+  }
+  return '';
+ })();
+ const filtered=useMemo(()=>rangeError?[]:orderedCats.filter(c=>{
+  const q=filters.query.trim().toLowerCase(),months=parseAgeMonths(c.age);
+  const base=c.price!==null&&c.price!==undefined&&c.price!==''?Number(c.price):NaN;
+  const price=Number.isFinite(base)&&base>=0?base+(basis==='customer'?markup:0):null;
+  return (!q||[c.id,c.breed,c.color,labels.get(normalizeId(c.id))].some(x=>String(x||'').toLowerCase().includes(q)))
+   &&(!filters.breed||c.breed===filters.breed)&&(!filters.color||c.color===filters.color)&&(!filters.gender||c.gender===filters.gender)
+   &&(filters.min===''||(price!==null&&price>=Number(filters.min)))&&(filters.max===''||(price!==null&&price<=Number(filters.max)))
+   &&(filters.minAge===''||(months!==null&&months>=Number(filters.minAge)))&&(filters.maxAge===''||(months!==null&&months<=Number(filters.maxAge)));
+ }),[orderedCats,filters,labels,basis,markup,rangeError]);
+ useEffect(()=>setCount(12),[filters,listingIdentity,day,round,basis,markup]);useEffect(()=>{if(!more.current||count>=filtered.length||!('IntersectionObserver' in window))return;const observer=new IntersectionObserver(entries=>{if(entries[0]?.isIntersecting)setCount(v=>Math.min(v+12,filtered.length));},{rootMargin:'120px'});observer.observe(more.current);return()=>observer.disconnect();},[count,filtered.length]);
  function reshuffle(){let next=round+1;const old=filtered.map(c=>c.id).join('|'),visible=new Set(filtered.map(c=>c.id));for(let attempt=0;attempt<12;attempt++,next++){const changed=catalogOrder(cats,listingIdentity,day,next).filter(c=>visible.has(c.id)).map(c=>c.id).join('|');if(changed!==old)break;}saveShuffleRound(listingIdentity,day,next);setManual({key:currentOrderKey,round:next});}
  useEffect(()=>{if(!agentCommand?.id)return;if(agentCommand.clear)setFilters(blank);else if(agentCommand.query){const parsed=parseDemandLocally(agentCommand.query,{breeds,colors}).filters;if(Object.values(parsed).some(Boolean)){setFilters(old=>{const next={...old};for(const key of Object.keys(blank))if(parsed[key]!==''&&parsed[key]!=null)next[key]=parsed[key];return next;});setOpen(true);}}if(agentCommand.shuffle)reshuffle();},[agentCommand?.id]);
- const field=(key,value)=>setFilters(old=>({...old,[key]:value})),hasFilters=Object.values(filters).some(Boolean);
- return <div className="workspace-catalog"><div className="workspace-catalog-main"><div className="catalog-status"><span><i className={error?'warning':''}/><b>{cats.length}只在售</b><span> · 每5分钟同步</span><small>{lastUpdated?' · '+new Intl.DateTimeFormat('zh-CN',{hour:'2-digit',minute:'2-digit'}).format(new Date(lastUpdated)):''}</small></span><button onClick={()=>refresh({manual:true})} disabled={loading}><RefreshCw size={14} className={loading?'animate-spin':''}/>刷新</button><div className="catalog-tools"><button disabled={checking||filtered.length<2} onClick={reshuffle}>🔀 随机换一批</button><button aria-expanded={open} onClick={()=>setOpen(v=>!v)}><SlidersHorizontal size={15}/>筛选条件{hasFilters?' · 已设置':''}</button></div></div>
- {open&&<section className="catalog-filters" aria-label="猫源筛选"><label className="catalog-search"><Search size={15}/><input value={filters.query} onChange={e=>field('query',e.target.value)} placeholder="短编号、品种、花色"/></label>{[['breed','全部品种',breeds],['color','全部花色',colors],['gender','不限性别',['公','母']]].map(([key,label,items])=><select key={key} aria-label={label} value={filters[key]} onChange={e=>field(key,e.target.value)}><option value="">{label}</option>{items.map(v=><option key={v}>{v}</option>)}</select>)}<fieldset><legend>预算范围（元）</legend><input type="number" min="0" value={filters.min} onChange={e=>field('min',e.target.value)} placeholder="最低价格"/><span>—</span><input type="number" min="0" value={filters.max} onChange={e=>field('max',e.target.value)} placeholder="最高价格"/></fieldset><fieldset><legend>月龄范围（月）</legend><input type="number" min="0" value={filters.minAge} onChange={e=>field('minAge',e.target.value)} placeholder="最小月龄"/><span>—</span><input type="number" min="0" value={filters.maxAge} onChange={e=>field('maxAge',e.target.value)} placeholder="最大月龄"/></fieldset><button className="catalog-reset" onClick={()=>setFilters(blank)}>清空筛选</button></section>}
- {error&&<p className="sales-ai-error" role="alert">{error}</p>}{hasFilters&&<p className="catalog-filter-summary">找到 {filtered.length} 只猫咪 · 筛选条件已保留</p>}
+ const field=(key,value)=>setFilters(old=>({...old,[key]:value})),hasFilters=Object.values(filters).some(value=>value!=='');
+ const interval=(low,high,unit)=>low!==''&&high!==''?`${low}–${high}${unit}`:low!==''?`≥${low}${unit}`:`≤${high}${unit}`;
+ const chips=[...['breed','gender','color','query'].filter(key=>filters[key]!=='').map(key=>({keys:[key],text:({breed:'品种',gender:'性别',color:'花色',query:'关键词'})[key]+'：'+filters[key]})),
+  ...(filters.min!==''||filters.max!==''?[{keys:['min','max'],text:(basis==='customer'?'对客预算':'供货预算')+'：'+interval(filters.min,filters.max,'元')}]:[]),
+  ...(filters.minAge!==''||filters.maxAge!==''?[{keys:['minAge','maxAge'],text:'月龄：'+interval(filters.minAge,filters.maxAge,'个月')}]:[])];
+ const advancedCount=['query','color','minAge','maxAge'].filter(key=>filters[key]!=='').length;
+ const selector=(key,label,items)=><label className={'catalog-filter-field catalog-filter-'+key}><span>{label}</span><select aria-label={label} value={filters[key]} onChange={e=>field(key,e.target.value)}><option value="">{label==='性别'?'不限性别':'全部'+label}</option>{items.map(v=><option key={v} value={v}>{v}</option>)}</select></label>;
+ const range=(low,high,label,placeholders)=><fieldset className={'catalog-filter-field catalog-filter-'+low}><legend>{label}</legend><div className="catalog-range-inputs"><input type="number" min="0" step="any" aria-label={placeholders[0]} value={filters[low]} onChange={e=>field(low,e.target.value)} placeholder={placeholders[0]}/><span aria-hidden="true">—</span><input type="number" min="0" step="any" aria-label={placeholders[1]} value={filters[high]} onChange={e=>field(high,e.target.value)} placeholder={placeholders[1]}/></div></fieldset>;
+ return <div className="workspace-catalog"><div className="workspace-catalog-main"><div className="catalog-status"><span><i className={error?'warning':''}/><b>{cats.length}只在售</b><span> · 每5分钟同步</span><small>{lastUpdated?' · '+new Intl.DateTimeFormat('zh-CN',{hour:'2-digit',minute:'2-digit'}).format(new Date(lastUpdated)):''}</small></span><button onClick={()=>refresh({manual:true})} disabled={loading}><RefreshCw size={14} className={loading?'animate-spin':''}/>刷新</button><div className="catalog-tools"><button disabled={checking||filtered.length<2} onClick={reshuffle}>🔀 随机换一批</button></div></div>
+ <section className={'catalog-filters catalog-filters-always'+(open?' advanced-open':'')} aria-label="猫源筛选">
+  <div className="catalog-basic-filters">
+   {selector('breed','品种',breeds)}
+   {range('min','max','预算范围（元）',['最低价格','最高价格'])}
+   {selector('gender','性别',['公','母'])}
+   {range('minAge','maxAge','月龄范围（月）',['最小月龄','最大月龄'])}
+  </div>
+  <div className="catalog-extra-filters" id="catalog-extra-filters" hidden={!open}>
+   <label className="catalog-filter-field catalog-search-field"><span>编号 / 关键词</span><span className="catalog-search"><Search size={15}/><input aria-label="编号或关键词" value={filters.query} onChange={e=>field('query',e.target.value)} placeholder="短编号、品种、花色"/></span></label>
+   {selector('color','花色',colors)}
+  </div>
+  <div className="catalog-filter-footer">
+   <button className="catalog-more-filters" aria-expanded={open} aria-controls="catalog-extra-filters" onClick={()=>setOpen(v=>!v)}><SlidersHorizontal size={14}/>{open?'收起更多筛选':'更多筛选'}{!open&&advancedCount>0?' · 已设置':''}</button>
+   {allowWholesale&&<label className="catalog-price-basis">预算口径<select aria-label="预算价格口径" value={basis} onChange={e=>setPriceBasis(e.target.value)}><option value="customer">对客价（含加价）</option><option value="wholesale">供货价</option></select></label>}
+   <button className="catalog-reset" disabled={!hasFilters} onClick={()=>setFilters(blank)}>清空筛选</button>
+  </div>
+  <p className="catalog-filter-hint">{basis==='wholesale'?'按供货价筛选':allowWholesale?'按对客价筛选，已计入加价 '+money(markup):'按对客预算筛选'} · 直接更新结果，不消耗AI次数</p>
+  {rangeError&&<p className="catalog-filter-error" role="alert">{rangeError}</p>}
+ </section>
+ {error&&<p className="sales-ai-error" role="alert">{error}</p>}
+ <div className="catalog-filter-summary" aria-live="polite"><b>找到 {filtered.length} 只猫咪</b>{chips.length>0&&<div className="catalog-filter-chips">{chips.map(chip=><button key={chip.keys[0]} aria-label={'移除筛选：'+chip.text} onClick={()=>setFilters(old=>{const next={...old};for(const key of chip.keys)next[key]='';return next;})}>{chip.text}<X size={12} aria-hidden="true"/></button>)}</div>}</div>
  {(loading&&!cats.length||checking)?<div className="catalog-card-grid" role="status" aria-label="正在加载猫咪">{Array.from({length:8},(_,i)=><div key={i} className="catalog-skeleton"/>)}</div>:filtered.length?<div className="catalog-card-grid">{filtered.slice(0,count).map((cat,index)=><CatCard key={cat.id} cat={cat} label={labels.get(normalizeId(cat.id))} allCats={cats} onBookmark={()=>followups.bookmark(cat,cat.price==null?null:Number(cat.price)+(customerDisplay.markup??0))} bookmarked={followups.entries.some(r=>normalizeId(r.catId)===normalizeId(cat.id))} priority={index<4} hidePrices={hidePrices} customerDisplay={customerDisplay} busy={busy} comparing={compareIds.includes(cat.id)} onAsk={action=>onAsk?.(cat,action)} onCompare={()=>onCompare?.(cat)} onDetail={()=>onDetail?.(cat)} onPlay={()=>setVideo(cat)} onPhoto={()=>setPhoto(cat)}/>)}</div>:<div className="workspace-empty">没有符合这些条件的在售猫咪，请调整筛选条件。</div>}
  {count<filtered.length&&<div className="catalog-more" ref={more}><button onClick={()=>setCount(v=>v+12)}>加载更多猫咪（已显示{Math.min(count,filtered.length)}只）</button></div>}
  </div>{video&&<Video cat={video} close={()=>setVideo(null)}/>} {photo&&<Photo cat={photo} close={()=>setPhoto(null)}/>}</div>;

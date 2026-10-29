@@ -13,7 +13,7 @@ test('mobile keeps two destinations and the tools drawer, two-line demand entry 
  await expect(page.locator('#sales-ai-prompt')).toHaveAttribute('rows','2');await page.getByRole('button',{name:'做图与设置'}).click();await expect(page.getByRole('button',{name:'一键生成引流拼图 & 文案'})).toBeVisible();await expect(page.getByRole('spinbutton',{name:'对客加价金额'})).toBeVisible();await page.getByRole('button',{name:'做图与设置'}).click();await page.getByRole('article',{name:'#A01 布偶猫'}).getByRole('button',{name:'写话术'}).click();await expect(page.getByRole('button',{name:'夸这只猫骨相甜美'})).toBeVisible();await page.getByRole('button',{name:'客户嫌贵保价逼单'}).click();await expect(page.getByRole('dialog',{name:'猫咪推荐话术'})).toContainText('免费体验仅开放智能找猫功能');await page.getByRole('button',{name:'关闭结果窗口'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 test('sales navigation preserves the document, expanded filters and top draft',async({page})=>{
- await page.goto('/cats/');await page.getByRole('button',{name:'筛选条件'}).click();await page.getByPlaceholder('短编号、品种、花色').fill('A01');await page.locator('#sales-ai-prompt').fill('预算3000元，客户喜欢圆脸');await page.evaluate(()=>window.__workspaceDocumentMarker='same-document');
+ await page.goto('/cats/');await page.getByRole('button',{name:'更多筛选'}).click();await page.getByPlaceholder('短编号、品种、花色').fill('A01');await page.locator('#sales-ai-prompt').fill('预算3000元，客户喜欢圆脸');await page.evaluate(()=>window.__workspaceDocumentMarker='same-document');
  await page.getByRole('navigation',{name:'销售工作台主导航'}).getByRole('link',{name:/销冠手册与售后/}).click();await expect(page.getByRole('heading',{name:'销冠手册与售后'})).toBeVisible();await expect(page.locator('.workspace-tool')).toHaveCount(2);await page.goBack();await expect(page.getByPlaceholder('短编号、品种、花色')).toHaveValue('A01');await expect(page.locator('#sales-ai-prompt')).toHaveValue('预算3000元，客户喜欢圆脸');expect(await page.evaluate(()=>window.__workspaceDocumentMarker)).toBe('same-document');
 });
 
@@ -72,4 +72,13 @@ test('artwork request remains in the finder conversation and never automatically
  });
  await page.goto('/cats/');await page.getByLabel('客户选猫需求').fill('帮我生成图片和朋友圈文案');await page.getByRole('button',{name:'发送客户需求'}).click();
  await expect(page.getByRole('dialog',{name:'智能找猫 · 对话'})).toContainText('手动工具');await expect(page.getByRole('dialog',{name:'营销拼图与文案'})).toHaveCount(0);expect(calls).toBe(1);
+});
+
+
+test('mobile exposes breed, budget and gender while extra age and keyword fields fold',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await page.goto('/cats/');const filters=page.getByRole('region',{name:'猫源筛选'});
+ await expect(filters.getByRole('combobox',{name:'品种',exact:true})).toBeVisible();await expect(filters.getByRole('combobox',{name:'性别',exact:true})).toBeVisible();await expect(filters.getByRole('spinbutton',{name:'最高价格'})).toBeVisible();
+ await expect(filters.getByRole('spinbutton',{name:'最大月龄'})).toBeHidden();await expect(filters.getByRole('textbox',{name:'编号或关键词'})).toBeHidden();
+ await filters.getByRole('button',{name:'更多筛选',exact:true}).click();await expect(filters.getByRole('spinbutton',{name:'最大月龄'})).toBeVisible();await expect(filters.getByRole('textbox',{name:'编号或关键词'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'发送客户需求'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
