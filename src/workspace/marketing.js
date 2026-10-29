@@ -45,11 +45,12 @@ export function coverCrop(imageWidth,imageHeight,cellWidth,cellHeight,{zoom=1,dx
  if(height>imageHeight){height=imageHeight;width=height*ratio;}width/=zoom;height/=zoom;
  return [Math.max(0,Math.min(imageWidth-width,(imageWidth-width)/2+dx)),Math.max(0,Math.min(imageHeight-height,(imageHeight-height)/2+dy)),width,height];
 }
-export function marketingDraft(cats,{template,city='',shop='同城靠谱猫舍',prices,platform='xhs',points=DEFAULT_SELLING_POINTS,bannerEnabled=false,bannerText=''}){
- const breeds=[...new Set(cats.map(c=>c.breed).filter(Boolean))].join(' / ');
- const title=template==='sign'?`🐾 ${city}${shop}｜来看看今天在售的小猫`:'🐾 今日猫咪图鉴｜把心动的小猫带回家';
- const quote=template==='price'?cats.map((c,i)=>`${i+1}. ${c.breed||'猫咪'} ${prices[c.id]==null?'私聊确认价格':'¥'+prices[c.id]}`).join('\n'):points.map(p=>'✅ '+p).join('\n');
- return `${title}${bannerEnabled&&bannerText?'\n'+bannerText:''}\n\n${breeds}\n${quote}\n\n喜欢哪只可以私信我，发你对应照片和视频，库存与最终费用下单前确认。${platform==='xhs'?`\n\n#猫咪 #选猫日记 #猫咪日常${city?' #'+city+'猫咪':''}`:''}`;
+export function marketingDraft(cats,{city='',shop='同城靠谱猫舍',platform='xhs'}={}){
+ const breeds=[...new Set(cats.map(c=>c.breed).filter(Boolean))].slice(0,5).join('、');
+ const name=`${city}${shop}`;
+ const title=`🐾 ${name}｜店里有小猫，欢迎来了解`;
+ const detail=breeds?`最近在售的猫咪有${breeds}等，想了解哪种类型可以告诉我～`:'店里有不同的小猫可以了解，欢迎来聊聊你的喜好～';
+ return `${title}\n\n${detail}\n\n欢迎私信了解猫咪的已录入资料，感兴趣的可以再确认库存和照片。${platform==='xhs'?`\n\n#猫咪 #选猫日记 #猫咪日常${city?' #'+city+'猫咪':''}`:''}`;
 }
 function abortError(){return new DOMException('已取消','AbortError');}
 export function loadCanvasImage(src,{signal}={}){

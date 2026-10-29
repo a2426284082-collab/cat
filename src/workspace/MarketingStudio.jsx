@@ -13,7 +13,7 @@ import AgentFollowup from './AgentFollowup.jsx';
 export default function MarketingStudio({initialCats,initialTemplate='price',initialSettings={},control,onStateChange,onPreviewReady,onRenderStatus,onOperationStatus,allCats,close}){
  const {config:workbenchConfig}=useWorkbenchConfig();
  const {ask,busy,cooldown,user,epoch}=useSalesSession();
- const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??initialTemplate!=='sign');
+ const [cats,setCats]=useState(initialCats),[design,setDesign]=useState(()=>generateDesign(initialSettings.designSeed)),[includePrices,setIncludePrices]=useState(initialSettings.includePrices??false);
  const [borderless,setBorderless]=useState(initialSettings.borderless===true),[bannerEnabled,setBannerEnabled]=useState(initialSettings.bannerEnabled??initialTemplate==='sign'),[customBanner,setCustomBanner]=useState(initialSettings.bannerText??null),[mirrorEnabled,setMirrorEnabled]=useState(initialSettings.mirrorEnabled??true);
  const [height,setHeight]=useState(initialSettings.height||workbenchConfig.defaultPosterHeight),[markup,setMarkup]=useState(initialSettings.markup??800),[overrides,setOverrides]=useState(initialSettings.overrides||{}),[shop,setShop]=useState(initialSettings.shop||'同城靠谱猫舍'),[city,setCity]=useState(initialSettings.city||''),[platform,setPlatform]=useState(initialSettings.platform||'xhs');
  const [renderState,setRenderState]=useState('loading'),[renderError,setRenderError]=useState(''),[renderRetry,setRenderRetry]=useState(0);
@@ -27,7 +27,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  const prices=useMemo(()=>Object.fromEntries(cats.map(c=>[c.id,Object.hasOwn(overrides,c.id)?(validPrice(overrides[c.id])?Math.round(Number(overrides[c.id])):null):retailPrice(c,markup)])),[cats,overrides,markup]);
  const options=useMemo(()=>({template,includePrices,design,borderless,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform}),[template,includePrices,design,borderless,mirrorEnabled,bannerEnabled,bannerText,height,prices,shop,city,platform]);
  const fingerprint=JSON.stringify([cats.map(c=>[c.id,c.image,c.price,c.description]),options]);revision.current=fingerprint;
- const captionKey=JSON.stringify([cats.map(c=>c.id),template,prices,shop,city,platform,bannerEnabled,bannerEnabled?bannerText:'']);
+ const captionKey=JSON.stringify([cats.map(c=>c.id),shop,city,platform]);
  const captionRevision=useRef(captionKey);captionRevision.current=captionKey;
  const draft=useMemo(()=>marketingDraft(cats,options),[cats,options]),currentCaption=caption?.key===captionKey?caption.text:draft;
  const valid=validPrice(markup)&&Number.isInteger(Number(markup))&&Number(markup)<=100000&&(!includePrices||cats.every(c=>validPrice(prices[c.id])&&(c.price==null||prices[c.id]>=Number(c.price))))&&(!bannerEnabled||Boolean(bannerText.trim()));
@@ -122,7 +122,7 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
     <label className="marketing-caption-label" htmlFor="marketing-caption">{caption?.key===captionKey&&caption.ai?'AI种草文案':'基础文案 · 可编辑'}</label>
     <textarea id="marketing-caption" value={currentCaption} onChange={e=>{setCaption({key:captionKey,text:e.target.value,ai:caption?.ai});setCopied(false);}} rows={10} maxLength={1600}/>
     <div className="marketing-copy-actions"><button className="workspace-primary" disabled={busy||generating||cooldown>0||!valid||user?.remaining===0} onClick={generate}><Sparkles size={15}/>{generating?'正在生成…':cooldown?`等待${cooldown}秒`:'AI生成文案（1次）'}</button><button onClick={copy}><Copy size={15}/>{copied?'已复制文案':'复制文案'}</button></div>
-    {aiError&&<p role="alert" className="sales-ai-error">{aiError}</p>}<small>改猫咪、改价或改店名后，文案会同步回到基础版；AI生成需再次点击。图片与文案均可先预览，再自行发布。</small>
+    {aiError&&<p role="alert" className="sales-ai-error">{aiError}</p>}<small>文案以宣传店内有猫可选为主，不自动列出单只售价。改猫咪或改店名后可重新生成；图片与文案均请先预览再发布。</small>
     <CommentTips/>
    </section>
   </section></div>

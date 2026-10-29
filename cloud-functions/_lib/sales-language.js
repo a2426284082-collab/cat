@@ -55,7 +55,7 @@ export function extractGenderIntent(text){
  if(required)return {hard:asGender(required[1]),prefer:null};
  if(noMale)return {hard:'母',prefer:null};
  if(noFemale)return {hard:'公',prefer:null};
- const prefix=[...s.matchAll(/(?:优先|最好|尽量|更喜欢|偏好|首选)\s*(?:是|选|考虑)?[^，。；,;]{0,5}(母猫|妹妹|女孩|公猫|弟弟|男孩)/g)].map(m=>({index:m.index,gender:asGender(m[1])}));
+ const prefix=[...s.matchAll(/(?:优先|最好|尽量|更喜欢|比较喜欢|偏好|偏爱|倾向|偏向|更偏向|首选)\s*(?:是|选|考虑)?[^，。；,;]{0,5}(母猫|妹妹|女孩|公猫|弟弟|男孩)/g)].map(m=>({index:m.index,gender:asGender(m[1])}));
  const suffix=[...s.matchAll(/(母猫|妹妹|女孩|公猫|弟弟|男孩)\s*(?:优先(?:考虑)?|更好|更合适|为主|首选|最好)/g)].map(m=>({index:m.index,gender:asGender(m[1])}));
  const preferred=[...prefix,...suffix].sort((a,b)=>a.index-b.index).at(-1)?.gender||null;
  if(preferred)return {hard:null,prefer:preferred};
