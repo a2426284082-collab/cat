@@ -97,3 +97,12 @@ export function intentConflicts(text,breeds=[]){
  if(hard&&preferred&&/母|妹|女/.test(hard[1])!==/母|妹|女/.test(preferred[1]))issues.push('性别硬条件和偏好互相矛盾');
  return [...new Set(issues)];
 }
+
+// Answer follow-up questions about the last inventory screening, rather than
+// treating the word “比较” in “母猫比较少吗” as a two-cat comparison.
+export function isSalesStatsQuestion(input){
+ const t=String(input||'').normalize('NFKC');
+ const dimension=/(?:母猫|公猫|公母|性别|品种|合格|符合条件|筛选|候选|库存|入选)/.test(t);
+ const question=/(?:多少|几只|数量|占比|比例|为什么|为何|是不是|是否|原因|很少|偏少|太少|不多|这么少|较少|比较少|没有入选|没选上|都是|全是)/.test(t);
+ return dimension&&question;
+}

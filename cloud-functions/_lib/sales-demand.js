@@ -101,7 +101,17 @@ export function inferSalesDemand(goal,catalog=[]){
  const text=String(goal||'').normalize('NFKC').slice(0,4000);
  const breeds=[...new Set(catalog.map(c=>c.breed).filter(Boolean))],colors=[...new Set(catalog.map(c=>c.color).filter(Boolean))];
  const excludedBreeds=breeds.filter(b=>breedForms(b).some(form=>negative(text,form)));
- const positiveBreeds=breeds.filter(b=>breedForms(b).some(form=>text.includes(form))).filter(b=>!excludedBreeds.includes(b));
+ // A permissible breed is NOT a mandatory breed. For example,
+ // '不要英短，但英长可以' must not restrict the entire search to 英长.
+ const permissibleOnly=(form)=>{
+  const escaped=escape(form);
+  const mentions=[...text.matchAll(new RegExp(escaped,'g'))];
+  return mentions.length>0&&mentions.every(m=>{
+   const after=text.slice(m.index+form.length,m.index+form.length+14);
+   return /^\s*(?:猫\s*)?(?:(?:也|还|都|同样)\s*)?(?:可以|可考虑|可以考虑|可接受|接受|也行|都行|没问题|不排斥|不排除|不限)(?![^，。；,;]{0,6}(?:必须|只要))/.test(after);
+  });
+ };
+ const positiveBreeds=breeds.filter(b=>breedForms(b).some(form=>text.includes(form)&&!permissibleOnly(form))).filter(b=>!excludedBreeds.includes(b));
  const positiveColors=colors.filter(c=>coatMentionedAsCat(text,c)&&!negative(coatEvidence(text),c));
  const excludedColors=colors.filter(c=>coatMentionedAsCat(text,c)&&negative(coatEvidence(text),c));
  const age=extractAgeIntent(text),sex=extractGenderIntent(text);

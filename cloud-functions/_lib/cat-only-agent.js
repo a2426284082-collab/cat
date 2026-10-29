@@ -4,6 +4,7 @@ import {getCatalog} from './feishu.js';
 import {accountView,auditLocal,fail,finish,preflight,reserve,resolveSession} from './sales-store.js';
 import {inferSalesDemand,resolveSalesDemand,validateSalesDemand,evaluateSalesCandidates,inspectSalesCandidate,parseAgeMonths,priceOfCat,salesIntentConflicts} from './sales-demand.js';
 import {inventoryOnlyText} from './specialist-inventory.js';
+import {isSalesStatsQuestion} from './sales-language.js';
 
 const id=x=>String(x||'').replace(/^#+/,'').trim().toUpperCase();
 const ord={一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10};
@@ -33,6 +34,7 @@ export function recognizeCatAction(prompt,model={}){
  const text=String(prompt||'').normalize('NFKC').trim();
  if(isReset(text))return {action:'reset'};
  if(isHelp(text))return {action:'help'};
+ if(isSalesStatsQuestion(text))return {action:'stats'};
  if(!hasCatNeed.test(text)&&!outOfScope.test(text))return {action:'unsupported'};
  // A request only to produce artwork/copy is never mapped onto inventory.
  if(outOfScope.test(text)&&!/(?:找|挑|选|推荐|对比|比较|换一只|替换|换掉|查询|查找).{0,24}猫/.test(text)&&!/(?:找|挑|选|推荐).{0,15}\d{1,2}只/.test(text))return {action:'unsupported'};
@@ -103,6 +105,15 @@ export function executeCatOnly({prompt,context={},catalog,model={},hidePrices=fa
  if(local.action==='unsupported')return scope('智能找猫助手目前只负责库存找猫、换猫与猫咪对比。拼图、海报、文案、下载等请使用旁边的手动工具；本次没有调用那些工具。');
  if(salesIntentConflicts(text,cats).length)throw fail('找猫条件存在冲突，请确认后再搜索',400);
  const action=local.action;
+ if(action==='stats'){
+  if(!need)return scope('当前没有上一轮找猫筛选结果。请先输入找猫要求，我再说明合格候选中母猫和公猫各有多少。');
+  const previous=mergeCatDemand('',need,cats);
+  const assessed=evaluateSalesCandidates(cats,previous,{markup,requireImage:previous.hard.requirePhoto});
+  const counts=assessed.cats.reduce((v,c)=>(v[c.gender==='母'?'female':c.gender==='公'?'male':'unknown']++,v),{female:0,male:0,unknown:0});
+  const allFemale=cats.filter(c=>c.gender==='母').length;
+  const textResult=`重新按上一轮找猫条件核对：在售库存${cats.length}只，其中登记为母猫${allFemale}只；符合全部找猫硬条件${assessed.stats.eligible}只，其中母猫${counts.female}只、公猫${counts.male}只、性别未知${counts.unknown}只。这是筛选后的数量，不等于整个库存中的母猫数量。${previous.preferences.gender==='母'?'母猫优先只是排序偏好，不能把公猫直接排除。':'本轮没有设置必须为母猫的条件。'}如果你看到库存里有母猫但未进入候选，仍要逐只核对其品种、月龄、照片和客户价。`;
+  return {kind:'cat_only',used_ai:false,matched_ids:current.map(v=>'#'+v),reply_text:textResult,stats:{...assessed.stats,...counts},cat_context:{need,cat_ids:current,excluded_ids:history}};
+ }
  // A clearly different customer must not inherit the previous customer's hard filters.
  const saved=/(?:新客户|另一个客户|另外一个客户|换个客户|换一位客户)/.test(text)?'':need||'';
  const effectiveNeed=action==='replace'||action==='compare'||action==='details'?saved||text:text;
@@ -159,7 +170,7 @@ export async function runCatOnly(db,env,request,body,key){
  // Validate context and requests before spending quota or calling the model.
  accountContext(body.cat_context,cats.filter(c=>!c.status||c.status==='在售'));
  const local=recognizeCatAction(prompt);
- if(['help','unsupported','reset'].includes(local.action)){
+ if(['help','unsupported','reset','stats'].includes(local.action)){
   const result=executeCatOnly({prompt,context:body.cat_context,catalog:cats,hidePrices:body.hide_prices===true});
   await auditLocal(db,key,'match',prompt.slice(0,200),'cat_only_local',result.reply_text.slice(0,300));
   return {data:result,user:accountView(key),catalog_updated_at:catalog.updatedAt};
