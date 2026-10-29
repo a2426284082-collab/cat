@@ -1,3 +1,4 @@
+import {validateSalesDemand} from './sales-demand.js';
 // Shared data-only tool contract. Models never return executable code, arbitrary URLs or administrator actions.
 export const AGENT_TOOLS=['poster','match','praise','price','compare','handbook','details','downloads','single_poster','calculator','order','client_view','catalog','help','chat','clarify','reset'];
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o&&typeof o==='object'&&!Array.isArray(o);
@@ -16,10 +17,11 @@ export function agentParams(value={}){
  return out;
 }
 export function validateAgentPlan(value,allowedIds){
- if(!object(value)||Object.keys(value).some(k=>!['tool','cat_ids','params','query','message'].includes(k))||!AGENT_TOOLS.includes(value.tool))fail();
+ if(!object(value)||Object.keys(value).some(k=>!['tool','cat_ids','params','query','message','demand'].includes(k))||!AGENT_TOOLS.includes(value.tool))fail();
  const ids=value.cat_ids??[];if(!Array.isArray(ids)||ids.length>9||ids.some(id=>typeof id!=='string'||!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(id)))fail();
  const clean=[...new Set(ids.map(id=>id.toUpperCase()))];if(clean.length!==ids.length||allowedIds&&clean.some(id=>!allowedIds.has(id)))fail();
  const out={tool:value.tool,cat_ids:clean,params:agentParams(value.params??{})};
+ if(own(value,'demand'))out.demand=validateSalesDemand(value.demand);
  for(const key of ['query','message'])if(own(value,key)){const max=key==='query'?200:180;if(typeof value[key]!=='string'||[...value[key]].length>max||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value[key]))fail();out[key]=value[key].trim();}
  return out;
 }

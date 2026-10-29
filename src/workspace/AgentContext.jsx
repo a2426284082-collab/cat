@@ -175,7 +175,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   finally{lock.current=false;setPending(false);}
  }
  async function run(text,{source='free',tool}={}){
-  text=String(text||'').trim().slice(0,200);if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
+  text=String(text||'').trim().slice(0,1200);if(lock.current||!text)return;if(Date.now()-lastTouch.current>AGENT_TTL){reset();state.current={context:empty(),messages:[]};}lastTouch.current=Date.now();lock.current=true;setPending(true);setPhase('understanding');setWorkflowProgress([]);setPendingWorkflow(null);setDurableTask(null);const version=generation.current;append('user',text);
   try{
    let plan,serverResult;const quick=source==='quick'&&tool==='match'&&isQuickTemplate(text);
    if(quick){if(/【\s*(?:#\s*)?】/.test(text))plan={tool:'clarify',cat_ids:[],params:{},message:'填好模板中的客户信息后再发送，也可以自由描述需求。'};else plan={tool:'inventory',cat_ids:[],params:{},query:text};}

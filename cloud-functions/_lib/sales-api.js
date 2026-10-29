@@ -18,14 +18,14 @@ function originCheck(request) {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw fail('请使用 JSON 请求',415);
 }
 async function bodyJson(request) {
-  if (Number(request.headers.get('content-length'))>4096) throw fail('请求内容过长',413);
+  if (Number(request.headers.get('content-length'))>8192) throw fail('请求内容过长',413);
   const reader=request.body?.getReader();
   if (!reader) throw fail('请求内容无效');
   let size=0;const chunks=[];
   while(true) {
     const {value,done}=await reader.read();if(done)break;
     size+=value.byteLength;
-    if(size>4096){await reader.cancel();throw fail('请求内容过长',413);}
+    if(size>8192){await reader.cancel();throw fail('请求内容过长',413);}
     chunks.push(value);
   }
   const bytes=new Uint8Array(size);let pos=0;
@@ -70,7 +70,7 @@ async function ask(db,env,request,body) {
     selectedIds=body.cat_ids.map(id=>id.toUpperCase());if(new Set(selectedIds).size!==selectedIds.length)throw fail('请选择不同的猫咪');
   }
   // Paid checks remain before any inventory/model call. Local handbook answers are free.
-  const effectiveInput=typeof body.prompt==='string'?normalizePrompt(body.prompt):body.prompt;
+  const effectiveInput=typeof body.prompt==='string'?(planning?body.prompt:normalizePrompt(body.prompt)):body.prompt;
   const handbook=!planning&&(action==='handbook'||(!structured&&isHandbookQuestion(effectiveInput)));
   if(!handbook)await preflight(db,key.id);
   let prompt,agentContext;

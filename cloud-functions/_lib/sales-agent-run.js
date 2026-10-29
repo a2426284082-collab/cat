@@ -1,6 +1,5 @@
-import {inventoryResult} from './sales-engine.js';
-import {parseDemandLocally} from './smart-search.js';
-import {chooseSalesCats,filterSalesCats,selectionSummary,requiresPriceReview} from './sales-workflow.js';
+import {selectionSummary} from './sales-workflow.js';
+import {resolveSalesDemand,evaluateSalesCandidates,verifySalesSelection} from './sales-demand.js';
 import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
 // One bounded conversational task: prepare data steps, dispatch UI steps, charge one sales quota.
@@ -15,27 +14,13 @@ const toolResult=text=>({kind:'tool',used_ai:false,matched_ids:[],reply_text:tex
 // A blocked step stops the workflow; no fallback quietly widens a client's filters.
 export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices=false,allowed,controls}){
  const stock=new Map(catalog.map(c=>[normalizeId(c.id),c]));
- // '2000块的猫' describes the buyer's budget, not an internal wholesale
- // price. Exclude candidates whose default customer quote exceeds it.
- const customerAffordable=(list,need,markup)=>{
-  if(/(?:合作底价|成本价|拿货价|进价)/.test(need))return list;
-  const {filters}=parseDemandLocally(need);const budget=Number(filters.max);
-  if(!Number.isFinite(budget)||budget<=0)return list;
-  return list.filter(cat=>cat.price!=null&&Number.isFinite(Number(cat.price))&&Number(cat.price)+Number(markup)<=budget);
- };
-
- // When a sale quote is a hard ceiling, expose the actual inventory funnel.
- // This distinguishes a sort bug from a real lack of affordable stock.
- const stockDiagnostics=(need,markup,requireImage)=>{
-  const filtered=filterSalesCats(catalog,need);
-  const affordable=customerAffordable(filtered,need,markup);
-  const photoReady=affordable.filter(c=>!requireImage||!!c.image);
-  const review=photoReady.filter(requiresPriceReview);
-  return {total:catalog.length,matched:filtered.length,affordable:affordable.length,
-   photoReady:photoReady.length,review:review.length,usable:photoReady.length-review.length};
- };
- const stockMessage=(info)=>`库存核对：读取在售${info.total}只；符合品种/月龄等条件${info.matched}只；预算范围内${info.affordable}只；${info.photoReady}只满足图片要求；其中${info.review}只价格异常待核实，可自动推荐${info.usable}只。`;
- const countIsExplicit=/(?:[2-9]|[二两三四五六七八九])\s*只/.test(context.originalGoal||'');
+ // A typed demand is authoritative for the entire workflow. Never re-parse a
+ // different, shortened query in each tool. Existing tasks can infer it safely.
+ const originalNeed=context.originalGoal||context.need||steps[0]?.query||'';
+ const demand=resolveSalesDemand(originalNeed,context.demand||steps[0]?.demand||null,catalog);
+ const countIsExplicit=demand.quantity.exact;
+ const evaluate=(need,markup,requireImage)=>evaluateSalesCandidates(catalog,demand,{markup,requireImage});
+ const stockMessage=(info,interpretation)=>`库存核对：读取${info.total}只，实际在售${info.active}只；满足品种、性别、月龄等硬条件${info.hard}只；其中通过照片条件${info.photo}只、价格有效${info.priced}只；符合价格条件${info.eligible}只。价格策略：${interpretation}。`;
  let ids=context.reference_ids.length?context.reference_ids:context.cat_ids;
  const prepared=[],usage={input_tokens:0,output_tokens:0};
  let currentNeed=context.need||'',posterSettings={...context.params},quotes={...context.quotes};
@@ -47,18 +32,20 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
    const need=plan.query||currentNeed;
    if(!need){status='blocked';reason='没有可用于找猫的客户要求，请补充预算、品种或性别。';}
    else{
-    const amount=plan.params.count||2;
+    const amount=demand.quantity.exact?demand.quantity.count:(plan.params.count||demand.quantity.count||2);
+    plan.params.count=amount;
     const needsPoster=steps.slice(index+1).some(step=>step.tool==='poster')||/(?:做图|作图|拼图|海报|图片|照片|朋友圈图)/.test(context.originalGoal||need);
-    const markup=posterSettings.markup??800;
-    const info=stockDiagnostics(need,markup,needsPoster);
-    const selected=chooseSalesCats(customerAffordable(catalog,need,markup),need,amount,{requireImage:needsPoster,markup});
+    const markup=posterSettings.markup??0;
+    const {cats:qualified,stats:info,interpretation}=evaluate(need,markup,needsPoster);
+    const selected=qualified.slice(0,amount);
+    verifySalesSelection(selected,catalog,demand,{markup,requireImage:needsPoster});
     ids=selected.map(cat=>normalizeId(cat.id));currentNeed=need;
-    result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:`${stockMessage(info)}\n${selectionSummary(selected,amount,need,{hidePrices,markup})}`};
+    result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:`${stockMessage(info,interpretation)}\n${selectionSummary(selected,amount,need,{hidePrices,markup,demand})}`};
     if(selected.length<amount){
      if(!countIsExplicit&&selected.length>=2){
       plan.params.count=selected.length;
-      result.reply_text+='\n销售未指定硬性数量，已按实际可用数量继续，不拿异常低价记录凑数。';
-     }else {status='blocked';reason=`${stockMessage(info)}\n仅有${selected.length}/${amount}只通过核验，不能拿异常低价记录凑数；若库存确实很多，请核对飞书【状态】【价格】字段及对客加价设置。`;}
+      result.reply_text+='\n销售未指定硬性数量，按实际符合条件的数量继续。';
+     }else {status='blocked';reason=`${stockMessage(info,interpretation)}\n仅找到${selected.length}/${amount}只符合约束的猫，没有擅自放宽条件。`;}
     }
    }
   }else if(plan.tool==='poster'){
@@ -70,14 +57,13 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     const need=context.need||'',oldCat=stock.get(oldIds[index]);
     if(!oldCat||oldIds.length<2||!Number.isInteger(index)||index<0||index>=oldIds.length){status='blocked';reason='之前的拼图位置或猫咪编号无法确认，原图未修改。';}
     else{
-     const markup=Number(context.params?.markup??800);
-     const pool=filterSalesCats(customerAffordable(catalog,need,markup),need).filter(c=>c.image&&!requiresPriceReview(c)&&!oldIds.includes(normalizeId(c.id)));
+     const markup=Number(context.params?.markup??0);
+     const pool=evaluate(need,markup,true).cats.filter(c=>!oldIds.includes(normalizeId(c.id)));
      const cheaper=/便宜|更低|更省|降价/.test(context.editGoal||'');
      const preferred=pool.filter(c=>!cheaper||Number(c.price)<Number(oldCat.price))
-      // For a "cheaper" edit, pick the closest credible reduction; do not
-      // jump from ¥1800 to a suspicious ¥50 inventory row.
+      // 'Cheaper' is relative to the original cat, regardless of the actual price.
       .sort((a,b)=>Number(b.price)-Number(a.price)||normalizeId(a.id).localeCompare(normalizeId(b.id)));
-     if(!preferred.length){status='blocked';reason=requiresPriceReview(oldCat)?'原来第2只的价格明显异常，不能以该价格为基准寻找更便宜的猫。请先核对飞书价格或重新筛选；原图不变。':'没有符合原预算、原硬条件和更低售价要求的替代猫；原图和另外三只猫保持不变。';}
+     if(!preferred.length){status='blocked';reason='没有符合原价格要求、原硬条件和更低售价要求的替代猫；原图和另外三只猫保持不变。';}
      else{
       const candidate=preferred[0],replacementIds=[...oldIds];replacementIds[index]=normalizeId(candidate.id);
       plan.cat_ids=replacementIds;plan.query=need;
@@ -92,7 +78,7 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
      const setting={...posterSettings,...plan.params},prices=selected.map(cat=>{
        const floor=Number(cat.price);
        const quoted=quotes[normalizeId(cat.id)];
-       return Number.isFinite(quoted)&&quoted>=floor?quoted:Math.max(0,Math.round(floor+(setting.markup??800)));
+       return Number.isFinite(quoted)&&quoted>=floor?quoted:Math.max(0,Math.round(floor+(setting.markup??0)));
      });
      const options=marketingOptions({marketing:{template:setting.includePrices===false?'sign':'price',platform:setting.platform||'xhs',city:setting.city||'',shop:setting.shop||'同城靠谱猫舍',prices}},selected);
      await allowed();
@@ -105,14 +91,15 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     }
    }else{
     const need=plan.query||currentNeed||'';
-    const pool=filterSalesCats(customerAffordable(catalog,need,posterSettings.markup??800),need).filter(c=>c.image&&!requiresPriceReview(c));
+    const pool=evaluate(need,posterSettings.markup??0,true).cats;
     const allowedPool=new Set(pool.map(cat=>normalizeId(cat.id)));
     let selected=fallbackIds.filter(id=>allowedPool.has(id));
     const followingMatch=prepared.some(step=>step.plan.tool==='match');
-    const requested=plan.params.count||selected.length||Math.min(4,pool.length);
+    const requested=demand.quantity.exact?demand.quantity.count:(plan.params.count||demand.quantity.count||selected.length||Math.min(4,pool.length));
     const expected=countIsExplicit?requested:Math.min(requested,pool.length);
     selected=selected.slice(0,expected);
     if(!followingMatch)for(const cat of pool)if(selected.length<expected&&!selected.includes(normalizeId(cat.id)))selected.push(normalizeId(cat.id));
+    verifySalesSelection(selected.map(id=>stock.get(id)).filter(Boolean),catalog,demand,{markup:posterSettings.markup??0,requireImage:true});
     if(selected.length<2||countIsExplicit&&selected.length<requested){status='blocked';reason=`符合条件且有照片的在售猫只有${selected.length}只，无法满足本次拼图要求（需要${requested}只）。`;}
     else{
      ids=selected;currentNeed=need;posterSettings={...posterSettings,...plan.params,count:selected.length};
@@ -167,7 +154,13 @@ export async function runAgentTask(db,env,request,body,key){
   const ids=plan.cat_ids.length?plan.cat_ids:c.reference_ids.length?c.reference_ids:c.focus_id?[c.focus_id]:c.cat_ids;
   if(paid.has(plan.tool)){
    let chosen;
-   if(plan.tool==='match')result=inventoryResult([...stock.values()],plan.query||input.prompt);
+   if(plan.tool==='match'){
+    // Legacy single-tool requests use the same typed intent/stock verifier as
+    // the durable autonomous planner. Never fall back to wholesale-price order.
+    const one=await prepareWorkflowSteps({steps:[plan],catalog:[...stock.values()],context:{...c,originalGoal:input.prompt,demand:plan.demand||null},env,hidePrices:body.hide_prices===true,allowed,controls});
+    const step=one.prepared[0];result=step?.result||toolResult(step?.reason||'未找到可推荐的在售猫');
+    if(step?.status==='blocked'&&step.reason)result={...result,reply_text:`${result.reply_text||''}\n${step.reason}`};
+   }
    else if(ids.length!==(plan.tool==='compare'?2:1))result=toolResult(plan.tool==='compare'?'要对比哪两只？可以点选两只，或告诉我卡片上的编号。':'你想处理哪一只？可以告诉我编号，或说“刚才第二只”。');
    else chosen={cats:ids.map(id=>stock.get(id))};
    if(chosen&&!chosen.cats.length)result=toolResult(chosen.message||'当前没有符合需求的在售猫，可以调整条件后继续。');
