@@ -12,6 +12,7 @@ import { accountView, activate, auditLocal, cleanCode, cookie, database, digest,
 import { generateReply, selectCandidates, validatePrompt, normalizePrompt, marketingOptions } from './sales-engine.js';
 import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
 import {planningInput,generateAgentPlan} from './sales-agent.js';
+import {generateMarketingLabPlan} from './marketing-lab.js';
 
 const isWrite = request => !['GET','HEAD'].includes(request.method);
 function originCheck(request) {
@@ -133,6 +134,34 @@ async function ask(db,env,request,body) {
     throw fail(dispatched?`未取得可执行的 AI 任务计划（${error.reason_code||'SERVICE_ERROR'}）。${refund?'本次未扣销售配额。':'本次已计入1次。'}`:error.message,error.status||502,{user:current?accountView(current):undefined});
   }
 }
+
+async function marketingLab(db,env,request,body){
+  if(request.method==='GET')return json({success:true,data:{ready:Boolean(env.DEEPSEEK_API_KEY),enabled:Boolean((await readWorkbench(db)).marketingLabEnabled)}});
+  if(request.method!=='POST')throw fail('请求方法不支持',405,{allow:'GET, POST'});
+  if(!body.device_id)throw fail('设备标识不能为空');
+  const key=await userSession(db,request,body,true);
+  if(isGuest(key))throw fail('免费体验暂不开放 AI 营销出图实验室',403);
+  const config=await readWorkbench(db);
+  if(!config.marketingLabEnabled)throw fail('AI营销出图实验室已被管理员关闭',403);
+  const prompt=String(body.prompt||'').trim();
+  if(prompt.length<2||prompt.length>1200)throw fail('请输入2到1200字的出图要求',400);
+  const template=typeof body.template==='string'?body.template.trim():'xhs_cover';
+  if(!['xhs_cover','grid_4','cat_profile','douyin_cover'].includes(template))throw fail('模板类型无效',400);
+  if(!Array.isArray(body.cat_ids)||body.cat_ids.length<1||body.cat_ids.length>4||body.cat_ids.some(v=>typeof v!=='string'))throw fail('请选择1到4只带照片的在售猫咪',400);
+  const normalized=[...new Set(body.cat_ids.map(id=>String(id).replace(/^#+/,'').trim().toUpperCase()))];
+  const catalog=await getCatalog(env);
+  const pool=new Map();
+  for(const cat of catalog.cats){
+    if(cat.status&&cat.status!=='在售')continue;
+    const id=String(cat.id).replace(/^#+/,'').trim().toUpperCase();
+    if(cat.image&&!pool.has(id))pool.set(id,cat);
+  }
+  const cats=normalized.map(id=>pool.get(id)).filter(Boolean);
+  if(cats.length!==normalized.length)throw fail('所选猫咪已变化，或有猫咪缺少照片，请刷新后重试',409);
+  const result=await generateMarketingLabPlan(env,{prompt,template,photoCount:cats.length});
+  return json({success:true,data:{...result,cats:cats.map(cat=>({id:cat.id,breed:cat.breed,color:cat.color,gender:cat.gender,age:cat.age,image:cat.image,images:Array.isArray(cat.images)?cat.images:[cat.image].filter(Boolean)}))},user:accountView(await resolveSession(db,request,body.device_id))});
+}
+
 async function admin(db,env,request,path,body) {
   if(!requireAdmin(request,env))throw fail('请先登录管理员账号',401);
   const now=nowSeconds(),day=salesDay(now);
@@ -271,6 +300,10 @@ export async function handleSales({request,env}) {
       // Old task data may still be read or cancelled, but cannot resume.
       if(body.action==='cancel')return json({success:true,...await cancelTask(db,body,key)});
       throw fail('任务操作无效');
+    }
+    if(path==='/api/marketing-lab'){
+      methodCheck(request,['GET','POST']);
+      return await marketingLab(db,env,request,body);
     }
     if(path==='/api/ai/ask'){
       methodCheck(request,['POST']);

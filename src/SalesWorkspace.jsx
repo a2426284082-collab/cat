@@ -20,6 +20,7 @@ import CatTools from './workspace/CatTools.jsx';
 import SmartImage from './workspace/SmartImage.jsx';
 import './workspace/practical.css';
 import SidebarUtilities from './workspace/SidebarUtilities.jsx';
+import DeepseekMarketingLab from './workspace/DeepseekMarketingLab.jsx';
 import {WORKSPACE_FEATURES} from './workspace/features.js';
 import './workspace/layout.css';
 import {AgentContext,useWorkspaceAgent} from './workspace/AgentContext.jsx';
@@ -39,6 +40,7 @@ const pages=[['/cats/',Catalog],['/manuals/',Support],['/guide/',Basics],['/guid
 const nav=[{to:'/cats/',label:'在售猫源库',hint:'输入需求挑猫，卡片直接写话术',icon:LayoutGrid},{to:'/manuals/',label:'销冠手册与售后',hint:'合作规则、销路教程与售后',icon:BookOpen},{to:'/training/',label:'新手模拟带练',hint:'用模拟客户练一遍接单流程',icon:GraduationCap}].filter(item=>WORKSPACE_FEATURES.training||item.to!=='/training/');
 const titles={'/cats/':'在售猫源库','/manuals/':'销冠手册与售后','/guide/':'基础与成交手册','/guide-sales/':'销路实操手册','/training/':'新手模拟带练'};
 const primaryRoute=path=>['/guide/','/guide-sales/'].includes(path)?'/manuals/':path;
+const candidatesWithImage=cats=>cats.filter(cat=>cat.image);
 function preload(path){if(navigator.connection?.saveData||(!WORKSPACE_FEATURES.training&&path==='/training/'))return;loaders[path]?.().catch(()=>{});}
 class PageBoundary extends React.Component{
   constructor(props){super(props);this.state={failed:false};}
@@ -55,14 +57,21 @@ function Workspace(){
   const [detailTool,setDetailTool]=useState(null),[catalogCommand,setCatalogCommand]=useState(null);
   const [compare,setCompare]=useState([]),[notice,setNotice]=useState(''),[detail,setDetail]=useState(null),[job,setJob]=useState(null);
   const [customerDisplay,setCustomerDisplay]=useState(()=>{try{const saved=localStorage.getItem('sales-customer-display');return saved?priceSettings(JSON.parse(saved)):priceSettings({enabled:localStorage.getItem('sales-hide-prices')==='1',markup:localStorage.getItem('sales-hide-prices')==='1'?0:800});}catch{return priceSettings({});}});
-  const [marketing,setMarketing]=useState(null),[utilitiesOpen,setUtilitiesOpen]=useState(false);
+  const [marketing,setMarketing]=useState(null),[marketingLab,setMarketingLab]=useState(null),[utilitiesOpen,setUtilitiesOpen]=useState(false);
   const configDefaults=useRef(false);useEffect(()=>{if(configReady&&!configDefaults.current){configDefaults.current=true;try{if(!localStorage.getItem('sales-customer-display')&&!localStorage.getItem('sales-hide-prices'))setCustomerDisplay(old=>({...old,markup:workbenchConfig.defaultMarkup}));}catch{}}},[configReady]);
   const hidePrices=customerDisplay.enabled,priorSalesIdentity=useRef(salesSession.listingIdentity);
-  useEffect(()=>{const prior=priorSalesIdentity.current;priorSalesIdentity.current=salesSession.listingIdentity;if(prior.startsWith('sales:')&&prior!==salesSession.listingIdentity){headlessAbort.current?.abort();setMarketing(null);setDetail(null);setJob(null);setCompare([]);}},[salesSession.listingIdentity]);
+  useEffect(()=>{const prior=priorSalesIdentity.current;priorSalesIdentity.current=salesSession.listingIdentity;if(prior.startsWith('sales:')&&prior!==salesSession.listingIdentity){headlessAbort.current?.abort();setMarketing(null);setMarketingLab(null);setDetail(null);setJob(null);setCompare([]);}},[salesSession.listingIdentity]);
   const panel=useRef(null),positions=useRef({}),active=useRef(path),restorePending=useRef(false);
   useEffect(()=>{if(rawPath==='/assistant/'||(!WORKSPACE_FEATURES.training&&rawPath==='/training/'))navigate('/cats/'+location.search+location.hash,{replace:true});},[rawPath]);
   useEffect(()=>{setJob(null);setDetail(null);setCompare([]);},[epoch]);
   function privacy(value){const next=priceSettings(value);setCustomerDisplay(next);if(next.enabled&&!customerDisplay.enabled){setJob(null);}try{localStorage.setItem('sales-customer-display',JSON.stringify(next));localStorage.removeItem('sales-hide-prices');}catch{}}
+
+  function openMarketingLab(ids){
+    if(!workbenchConfig.marketingLabEnabled){setNotice('AI营销出图实验室已被管理员关闭');return;}
+    const selected=(ids&&ids.length?ids:candidatesWithImage(cats).slice(0,4).map(cat=>cat.id)).slice(0,4);
+    if(!selected.length){setNotice('当前没有可用于出图的猫咪照片');return;}
+    setMarketingLab({ids:selected,key:crypto.randomUUID()});setUtilitiesOpen(false);
+  }
   function openMarketing(template='price',ids){
     if(!workbenchConfig.posterEnabled){setNotice('营销拼图功能已被管理员暂停');return;}
     const selected=ids?ids.map(id=>cats.find(c=>c.id===id)).filter(Boolean):pickMarketingCats(cats).slice(0,workbenchConfig.defaultPosterCount);
@@ -232,10 +241,10 @@ function Workspace(){
     }
     return {ok:false,text:'当前没有可执行的对应操作，请说具体的选猫或素材任务。'};
   }
-  const agent=useWorkspaceAgent({cats,session:{...salesSession,hidePrices,markup:customerDisplay.markup},execute:executeAgent,onReset:()=>{headlessAbort.current?.abort();setMarketing(null);setDetail(null);setJob(null);setCompare([]);}});
+  const agent=useWorkspaceAgent({cats,session:{...salesSession,hidePrices,markup:customerDisplay.markup},execute:executeAgent,onReset:()=>{headlessAbort.current?.abort();setMarketing(null);setMarketingLab(null);setDetail(null);setJob(null);setCompare([]);}});
   return <AgentContext.Provider value={agent}><div className={`sales-workspace workflow-workspace${hidePrices?' customer-view':''}`} onClickCapture={event=>{const anchor=event.target.closest?.('a[href]');if(eligibleClick(event,anchor)&&workspaceDestination(anchor.getAttribute('href'),routeBase))remember();}} onClick={routeClick} onPointerOver={event=>{const href=event.target.closest?.('a[href]')?.getAttribute('href');if(href){const destination=workspaceDestination(href,routeBase);if(destination)preload(canonicalPath(new URL(destination,routeBase).pathname));}}}>
     <header className="workspace-header"><Link className="workspace-brand" to="/cats/"><span><Cat size={24}/></span><div><b>{workbenchConfig.brandName}</b><small>{workbenchConfig.brandSubtitle}</small></div></Link><div className="workspace-breadcrumb"><span>销售工作台</span><ChevronRight size={14}/><b>{titles[path]||'工作区'}</b></div></header>
-    <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}<button className="workspace-utilities-toggle" aria-expanded={utilitiesOpen} aria-controls="workspace-sidebar-utilities" onClick={()=>setUtilitiesOpen(v=>!v)}><Sparkles size={19}/><b>做图与设置</b></button></nav><div id="workspace-sidebar-utilities" className={`workspace-sidebar-utilities${utilitiesOpen?' is-open':''}`}><SidebarUtilities customerDisplay={customerDisplay} onCustomerDisplay={privacy} onMarketing={openMarketing}/></div></aside>
+    <div className="workspace-layout"><aside className="workspace-sidebar"><div className="workspace-nav-label">工作区</div><nav aria-label="销售工作台主导航">{nav.map(({to,label,hint,icon:Icon})=><Link key={to} to={to} onFocus={()=>preload(to)} aria-current={primaryRoute(path)===to?'page':undefined}><span className="workspace-nav-icon"><Icon size={19}/></span><span><b>{label}</b><small>{hint}</small></span></Link>)}<button className="workspace-utilities-toggle" aria-expanded={utilitiesOpen} aria-controls="workspace-sidebar-utilities" onClick={()=>setUtilitiesOpen(v=>!v)}><Sparkles size={19}/><b>做图与设置</b></button></nav><div id="workspace-sidebar-utilities" className={`workspace-sidebar-utilities${utilitiesOpen?' is-open':''}`}><SidebarUtilities customerDisplay={customerDisplay} onCustomerDisplay={privacy} onMarketing={openMarketing} onMarketingLab={()=>openMarketingLab(compare.length?compare:undefined)} marketingLabEnabled={workbenchConfig.marketingLabEnabled}/></div></aside>
     <main className="workspace-content" ref={panel}>
       {visited.current.has('/cats/')&&<div className="workspace-ai-pane" hidden={path!=='/cats/'}><SalesAI cats={cats} onDetail={showDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onCustomerDisplay={privacy}/></div>}
       {pages.map(([route,Component])=>visited.current.has(route)&&<section key={route} className="workspace-pane" data-route={route} data-active={path===route?'true':undefined} hidden={path!==route} aria-label={titles[route]}><PageBoundary><Suspense fallback={<PageSkeleton/>}><Component embedded onAsk={(cat,action)=>runScript([cat.id],action)} onCompare={toggleCompare} compareIds={compare} onDetail={showDetail} hidePrices={hidePrices} customerDisplay={customerDisplay} onCustomerDisplay={privacy} agentCommand={catalogCommand}/></Suspense></PageBoundary></section>)}
@@ -243,6 +252,7 @@ function Workspace(){
       <WorkbenchNotice/><footer className="workspace-footer"><span>合作销售专用 · 成交前请确认库存与最终费用</span></footer>
     </main></div>
     {compare.length>=1&&path==='/cats/'&&!hidePrices&&<div className="workspace-compare" aria-label="选猫操作台"><span className="workspace-compare-label">已选{compare.length}只 · {compare.map(id=>labels.get(normalizeId(id))).join(' 与 ')}</span><div className="workspace-compare-items">{compare.map(id=><button key={id} aria-label={`移除${labels.get(normalizeId(id))}`} onClick={()=>setCompare(items=>items.filter(x=>x!==id))}><X size={13}/>{labels.get(normalizeId(id))}</button>)}</div>{compare.length===2&&<button disabled={busy} onClick={()=>runScript(compare,'compare')}>⚖️ AI生成双猫对比逼单话术</button>}{compare.length>=2&&compare.length<=9?<button data-workbench-tool="poster" onClick={()=>openMarketing('price',compare)}>🖼️ 一键合成为报价拼图/小红书海报</button>:<span className="compare-hint">选2只可对比，2至9只均可拼图</span>}<button className="basket-clear" onClick={()=>setCompare([])}>清空</button></div>}
+    {marketingLab&&<DeepseekMarketingLab key={marketingLab.key} allCats={cats} initialCatIds={marketingLab.ids} close={()=>setMarketingLab(null)}/>}
     {marketing&&<MarketingStudio key={marketing.key} initialCats={marketing.cats} initialTemplate={marketing.template} initialSettings={marketing.settings} control={marketing.control} onStateChange={snapshot=>agent.remember(snapshot)} onPreviewReady={agent.capturePreview} onRenderStatus={settlePosterRender} onOperationStatus={settlePosterOperation} allCats={cats} close={()=>{settlePosterRender({status:'error',text:'拼图编辑器已关闭'});if(posterOperationReceipt.current)settlePosterOperation({operation:posterOperationReceipt.current.operation,status:'error',text:'拼图编辑器已关闭'});setMarketing(null);}}/>}
     {WORKSPACE_FEATURES.followups&&followups.open&&!hidePrices&&<FollowupDrawer cats={cats} onDetail={showDetail}/>}
     {notice&&<div className="workspace-notice" role="status"><Check size={16}/>{notice}</div>}
