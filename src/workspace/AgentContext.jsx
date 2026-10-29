@@ -46,7 +46,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   if(plan.tool==='handbook'&&!/打开.*手册|去.*手册|查看手册/.test(plan.query||text)){const answer=answerHandbook(plan.query||text);if(answer){remember({task:'handbook'});return answer;}}
   if(plan.tool==='inventory'){setPhase('executing');const output=await ask({mode:'match',action:'catalog_match',prompt:plan.query,hide_prices:session.hidePrices});if(version!==generation.current)return null;await execute({tool:'show_matches'},state.current.context);remember({task:'match',cat_ids:(output.matched_ids||[]).map(normalizeId),need:plan.query,params:{},focus_id:null});setConversationOpen(false);return output;}
   if(paid.has(plan.tool)){
-   if(semantic){if(plan.tool==='match'){await execute({tool:'show_matches'},state.current.context);if(!workflow)setConversationOpen(false);}if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai||serverResult.kind==='inventory')remember({task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
+   if(semantic){if(plan.tool==='match'){await execute({tool:'show_matches'},state.current.context);if(!workflow)setConversationOpen(false);}if(!serverResult)throw new Error('任务结果不完整，未重复调用AI。');if(serverResult.used_ai||serverResult.kind==='inventory')remember(workflow&&plan.tool!=='match'?{task:state.current.context.task}:{task:plan.tool,cat_ids:(serverResult.matched_ids||[]).map(normalizeId),need:plan.tool==='match'?(plan.query||text):state.current.context.need,params:{},focus_id:null});return serverResult;}
    const refs=plan.cat_ids?.length?plan.cat_ids:state.current.context.focus_id?[state.current.context.focus_id]:state.current.context.cat_ids,need=mergeMatchNeed(state.current.context.need,plan.query||text,cats,state.current.context.cat_ids);
    if(plan.tool!=='match'&&refs.length!==(plan.tool==='compare'?2:1))return message(plan.tool==='compare'?'请明确选择两只猫，或输入两个短编号。':'请明确是哪一只猫，例如“给 #017 写保价话术”。');
    const payload=plan.tool==='match'?{mode:'match',prompt:need,hide_prices:session.hidePrices}:{mode:'script',action:plan.tool,cat_ids:refs,hide_prices:session.hidePrices};
@@ -183,7 +183,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
     const c=state.current.context,refs=resolveCatReferences(text,cats,c);
     {
      const fingerprint=JSON.stringify(c),agent_context={task:c.task||'help',cat_ids:c.cat_ids||[],reference_ids:refs.ids,focus_id:c.focus_id||null,quotes:c.quotes||{},need:c.need||'',params:{markup:session.markup??800,...(c.params||{})},recent_users:state.current.messages.filter(r=>r.role==='user').slice(-2).map(r=>r.text.slice(0,80))};
-     const response=await ask({mode:'match',action:'agent_autopilot',prompt:text,agent_context,hide_prices:session.hidePrices});if(version!==generation.current||!alive.current)return;
+     const response=await ask({mode:'match',action:'agent_autopilot',prompt:text,agent_context,previous_task_id:durableTask?.task_id,hide_prices:session.hidePrices});if(version!==generation.current||!alive.current)return;
      if(JSON.stringify(state.current.context)!==fingerprint){const output=message('操作期间任务已变化，原指令未覆盖当前内容。请按现在的预览继续；本次计次以工号显示为准。');setResult(output);append('assistant',output.reply_text);return;}
      if(response.kind==='agent_task'){await followAutopilot(response,version);return;}
      if(response.kind!=='agent_run')throw new Error('助手接口版本不一致，请确认前后端已一起更新。');

@@ -21,7 +21,7 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
   if(/(?:合作底价|成本价|拿货价|进价)/.test(need))return list;
   const {filters}=parseDemandLocally(need);const budget=Number(filters.max);
   if(!Number.isFinite(budget)||budget<=0)return list;
-  return list.filter(cat=>Number.isFinite(Number(cat.price))&&Number(cat.price)+Number(markup)<=budget);
+  return list.filter(cat=>cat.price!=null&&Number.isFinite(Number(cat.price))&&Number(cat.price)+Number(markup)<=budget);
  };
 
  let ids=context.reference_ids.length?context.reference_ids:context.cat_ids;
@@ -39,12 +39,31 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     const needsPoster=steps.slice(index+1).some(step=>step.tool==='poster');
     const selected=chooseSalesCats(customerAffordable(catalog,need,posterSettings.markup??800),need,amount,{requireImage:needsPoster});
     ids=selected.map(cat=>normalizeId(cat.id));currentNeed=need;
-    result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:selectionSummary(selected,amount,need,{hidePrices})};
+    result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:selectionSummary(selected,amount,need,{hidePrices,markup:posterSettings.markup??800})};
     if(selected.length<amount){status='blocked';reason=`按客户预算和当前销售加价，可用的猫只有${selected.length}/${amount}只。原条件未放宽，请调整要求后继续。`;}
    }
   }else if(plan.tool==='poster'){
    if(!controls.posterEnabled){status='blocked';reason='管理员暂时关闭了拼图工具。';}
-   else if(plan.params.operation==='replace'){status='blocked';reason='多步骤任务暂不自动替换某个位置的猫，以免后续文案引用替换前的猫。请先完成替换，再单独生成文案。';}
+   else if(plan.params.operation==='replace'){
+    // Preserve every untouched position. Replacement selection happens on the
+    // server against the ORIGINAL hard filters, not the follow-up's free text.
+    const oldIds=context.cat_ids||[],index=plan.params.replaceIndex;
+    const need=context.need||'',oldCat=stock.get(oldIds[index]);
+    if(!oldCat||oldIds.length<2||!Number.isInteger(index)||index<0||index>=oldIds.length){status='blocked';reason='之前的拼图位置或猫咪编号无法确认，原图未修改。';}
+    else{
+     const markup=Number(context.params?.markup??800);
+     const pool=filterSalesCats(customerAffordable(catalog,need,markup),need).filter(c=>c.image&&!oldIds.includes(normalizeId(c.id)));
+     const cheaper=/便宜|更低|更省|降价/.test(context.editGoal||'');
+     const preferred=pool.filter(c=>!cheaper||Number(c.price)<Number(oldCat.price))
+      .sort((a,b)=>Number(a.price)-Number(b.price)||normalizeId(a.id).localeCompare(normalizeId(b.id)));
+     if(!preferred.length){status='blocked';reason='没有符合原预算、原硬条件和更低售价要求的替代猫；原图和另外三只猫保持不变。';}
+     else{
+      const candidate=preferred[0],replacementIds=[...oldIds];replacementIds[index]=normalizeId(candidate.id);
+      plan.cat_ids=replacementIds;plan.query=need;
+      result={kind:'tool',matched_ids:replacementIds.map(id=>'#'+id),used_ai:false,reply_text:`仅将第${index+1}只 #${normalizeId(oldCat.id)} 替换为 #${normalizeId(candidate.id)}。其余${oldIds.length-1}只未变；“圆脸”等主观外观需要人工看照片核实。`};
+     }
+    }
+   }
    else if(plan.params.operation==='generate'){
     const selected=fallbackIds.map(id=>stock.get(id)).filter(Boolean);
     if(selected.length<2){status='blocked';reason='文案生成需要至少2只已经确认的猫，尚未找到足够猫咪。';}

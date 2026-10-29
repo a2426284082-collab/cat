@@ -34,7 +34,21 @@ export function chooseSalesCats(cats,need,count=2,{requireImage=false}={}){
   .sort((a,b)=>(a.price==null?Infinity:Number(a.price))-(b.price==null?Infinity:Number(b.price))||normalizeId(a.id).localeCompare(normalizeId(b.id)))
   .slice(0,limit);
 }
-export function selectionSummary(cats,count,need,{hidePrices=false}={}){
- const list=cats.map(c=>`#${normalizeId(c.id)} · ${c.breed||'品种待确认'} · ${c.gender||'性别待确认'} · ${c.age||'月龄待确认'}个月 · ${hidePrices?'售价不显示':c.price==null?'合作底价待核对':'内部合作底价¥'+c.price}`).join('\n');
+export function selectionSummary(cats,count,need,{hidePrices=false,markup=800}={}){
+ const ageLabel=value=>{
+  const v=String(value??'').trim();
+  if(!v||/待确认|未知/.test(v))return '月龄待确认';
+  if(/^\d+(?:\.\d+)?$/.test(v))return `${v}个月`;
+  if(/个月个月/.test(v))return `${v.replace(/(?:个月){2,}/g,'个月')}（源数据写法异常，请核对）`;
+  if(/岁.*个月/.test(v))return `${v}（请核对源数据的月龄单位）`;
+  return v;
+ };
+ const list=cats.map(c=>{
+  const floor=c.price==null?null:Number(c.price);
+  const quoted=Number.isFinite(floor)&&Number.isFinite(Number(markup))?floor+Number(markup):null;
+  const pricing=hidePrices?'售价不显示（对客报价待核对）':quoted==null?'价格待核对':
+   `内部合作底价¥${floor} · 按当前加价参考客户价¥${quoted}（成交前核实）${floor<200?' · 价格明显偏低，请核对库存录入':''}`;
+  return `#${normalizeId(c.id)} · ${c.breed||'品种待确认'} · ${c.gender||'性别待确认'} · ${ageLabel(c.age)} · ${pricing}`;
+ }).join('\n');
  return `${cats.length<count?`只找到${cats.length}/${count}只符合条件的猫，未放宽客户要求。`:`已从在售库找到${cats.length}只符合条件的猫。`}\n${list}${list?'\n成交前请再次核实库存。':''}`;
 }

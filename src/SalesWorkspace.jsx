@@ -23,7 +23,7 @@ import SidebarUtilities from './workspace/SidebarUtilities.jsx';
 import {WORKSPACE_FEATURES} from './workspace/features.js';
 import './workspace/layout.css';
 import {AgentContext,useWorkspaceAgent} from './workspace/AgentContext.jsx';
-import {filterAgentCats,agentParams,mergeMatchNeed} from './workspace/agent.js';
+import {filterAgentCats,agentParams,mergeMatchNeed,exactReplacementAllowed} from './workspace/agent.js';
 import {orderCommand,provinces} from './workspace/sales-tools.js';
 import {clearPreviewCache} from './workspace/media.js';
 import './workspace/agent.css';
@@ -157,14 +157,31 @@ function Workspace(){
     }
     if(plan.tool==='poster'){
       const continuing=current.task==='poster',base=continuing?current.params:{markup:customerDisplay.markup,includePrices:true,bannerEnabled:false,platform:'xhs',height:1080,mirrorEnabled:true};
-      const settings={...base,...params};if(caption)delete settings.operation;const query=continuing?mergeMatchNeed(current.need,plan.query||'',cats):plan.query||'',pool=filterAgentCats(cats,query).filter(c=>c.image),poolIds=new Set(pool.map(c=>normalizeId(c.id)));
+      const settings={...base,...params};if(caption)delete settings.operation;
+      // A precise edit is checked against the ORIGINAL hard requirements,
+      // not re-parsed as a new four-cat search with the customer's follow-up.
+      const query=continuing?(params.operation==='replace'?current.need:mergeMatchNeed(current.need,plan.query||'',cats)):plan.query||'';
+      const pool=filterAgentCats(cats,query).filter(c=>c.image),poolIds=new Set(pool.map(c=>normalizeId(c.id)));
       let ids=plan.cat_ids?.length>=2?plan.cat_ids:continuing?current.cat_ids:[];
       if(params.quote!=null){const target=plan.cat_ids?.length?plan.cat_ids:current.focus_id?[current.focus_id]:current.cat_ids;if(target?.length!==1||!find(target[0]))return {ok:false,text:'单只改价请带编号，例如“#017 的价格改成1400”。'};if(Number(find(target[0]).price)>params.quote)return {ok:false,text:'海报报价不能低于当前合作底价，请重新核对。'};settings.quoteTarget=target[0];}
       const count=settings.count||((plan.cat_ids?.length>=2)?plan.cat_ids.length:ids.length||9);
       if(params.operation==='batch')ids=[];
       const replacing=params.operation==='replace';if(replacing&&(!continuing||!Number.isInteger(params.replaceIndex)||params.replaceIndex>=ids.length))return {ok:false,text:'要替换哪一只？请先生成拼图，再说“换掉第二只”。'};
-      if(replacing){const alternatives=pool.filter(c=>!ids.includes(normalizeId(c.id)));if(!alternatives.length)return {ok:false,text:'当前没有其他符合条件且有照片的猫，原拼图已保留。'};ids=[...ids];ids[params.replaceIndex]=normalizeId(alternatives[Math.floor(Math.random()*alternatives.length)].id);}
+      if(replacing){
+        if(verifyRender){
+          // The server has already selected and verified the exact replacement.
+          // Never let the browser randomly change it a second time.
+          const original=current.cat_ids||[];
+          if(!exactReplacementAllowed(original,ids,params.replaceIndex,poolIds))
+            return {ok:false,text:'替换方案与上次拼图不一致，已停止操作，其余猫咪保持不变。'};
+        }else{
+          const alternatives=pool.filter(c=>!ids.includes(normalizeId(c.id)));
+          if(!alternatives.length)return {ok:false,text:'当前没有其他符合条件且有照片的猫，原拼图已保留。'};
+          ids=[...ids];ids[params.replaceIndex]=normalizeId(alternatives[Math.floor(Math.random()*alternatives.length)].id);
+        }
+      }
       let chosen=ids.map(find).filter(c=>c?.image&&poolIds.has(normalizeId(c.id))).slice(0,count);
+      if(replacing&&verifyRender&&chosen.length!==ids.length)return {ok:false,text:'替换后的猫咪未通过库存或原筛选条件校验，原拼图未修改。'};
       if(chosen.length<count){const used=new Set(chosen.map(c=>normalizeId(c.id)));chosen=[...chosen,...pickMarketingCats(pool).filter(c=>!used.has(normalizeId(c.id))).slice(0,count-chosen.length)];}
       if(chosen.length<2)return {ok:false,text:'符合条件且有照片的在售猫不足2只，当前拼图保持原样，请放宽条件后再试。'};
       settings.count=chosen.length;const control={id:crypto.randomUUID(),params:settings,cats:chosen,caption};

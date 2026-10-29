@@ -82,6 +82,15 @@ export function mergeMatchNeed(previous,text,cats,currentIds=[]){
 }
 export function filterAgentCats(cats,query=''){return filterSalesCats(cats,query);}
 
+// An AI-approved edit may touch one position only. Never accept a replacement
+// batch that silently rewrites the other cats or reuses an existing cat.
+export function exactReplacementAllowed(original,planned,index,allowedIds){
+ if(!Array.isArray(original)||!Array.isArray(planned)||original.length<2||planned.length!==original.length||
+  !Number.isInteger(index)||index<0||index>=original.length||new Set(planned).size!==planned.length)return false;
+ return planned[index]!==original[index]&&allowedIds.has(planned[index])&&
+  planned.every((id,i)=>i===index||id===original[i]);
+}
+
 function cleanTask(value={}){
  const task=value.task||'help',params=agentParams(value.params||{}),ids=(value.cat_ids||[]).map(normalizeId);validateAgentPlan({tool:task,cat_ids:ids,params});
  const context={task,cat_ids:ids,params,need:String(value.need||'').slice(0,200)};
