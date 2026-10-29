@@ -3,3 +3,11 @@
 @keyframes sales-ai-spin{to{transform:rotate(360deg)}}@keyframes sales-ai-reveal{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}@keyframes sales-ai-aura{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
 @media(max-width:600px){.sales-ai textarea{padding:14px 14px 8px;min-height:86px}.sales-ai-toolbar{padding:0 11px 11px}.sales-ai-cats{grid-template-columns:1fr}.sales-ai-result{padding:16px}.sales-ai-result-title>button{font-size:10px}.sales-ai-modal{padding:27px}}
 @media(prefers-reduced-motion:reduce){.sales-ai *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* The cat finder always exposes the same markup used by inventory filtering. */
+.sales-ai-markup-control{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;margin:8px 0;color:inherit}
+.sales-ai-markup-control label{display:flex;align-items:center;gap:6px}
+.sales-ai-markup-control input{width:88px;min-width:72px;height:34px;border:1px solid var(--border,#d1d5db);border-radius:8px;padding:4px 8px;color:inherit;background:transparent;font-size:16px}
+.sales-ai-markup-control button{border:1px solid var(--border,#d1d5db);border-radius:8px;padding:6px 10px;background:transparent;color:inherit;cursor:pointer}
+.sales-ai-markup-control button:disabled{opacity:.5;cursor:default}
+.agent-conversation .sales-ai-markup-control{padding:0 12px}

@@ -57,8 +57,10 @@ export function useWorkspaceAgent({cats,session}){
    const response=await ask({mode:'match',action:'cat_only',prompt:text,hide_prices:hidePrices===true,
     cat_context:{cat_ids:old.cat_ids||[],need:old.need||'',excluded_ids:old.excluded_ids||[],markup:Number(markup??0)}});
    if(version!==generation.current||!live.current)return;
+   // Record the exact quoted markup, so later price changes cannot make old selections appear current.
+   const pricedResponse={...response,applied_markup:Number(markup??0)};
    if(response.cat_context){const next={task:'match',cat_ids:cleanIds(response.cat_context.cat_ids),need:String(response.cat_context.need||'').slice(0,4000),excluded_ids:Array.isArray(response.cat_context.excluded_ids)?cleanIds(response.cat_context.excluded_ids,32):[]};current.current={...current.current,context:next};setContext(next);}
-   setResult(response);append('assistant',response.reply_text,{result:response,action:response.matched_ids?.length?{tool:'match',context:{task:'match',cat_ids:cleanIds(response.matched_ids),need:response.cat_context?.need||old.need,params:{}}}:undefined});setPhase('done');
+   setResult(pricedResponse);append('assistant',response.reply_text,{result:pricedResponse,action:response.matched_ids?.length?{tool:'match',context:{task:'match',cat_ids:cleanIds(response.matched_ids),need:response.cat_context?.need||old.need,params:{}}}:undefined});setPhase('done');
   }catch(e){if(version===generation.current&&live.current&&!e.cancelled){const output=msg(e.message||'找猫失败，请重新试一次。');setResult(output);append('assistant',output.reply_text);setPhase('error');}}
   finally{if(version===generation.current&&live.current){lock.current=false;setPending(false);}}
  }
