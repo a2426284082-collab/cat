@@ -247,21 +247,39 @@ export async function getCatalog(envInput,{fresh=false}={}) {
   return catalogCache.pending;
 }
 
-export async function getImage(envInput, fileToken) {
-  const env = config(envInput);
-  const token = await accessToken(env);
-  const response = await fetch(`${FEISHU}/drive/v1/medias/${encodeURIComponent(fileToken)}/download`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error('Feishu media error');
-  const type = response.headers.get('content-type')?.split(';')[0]?.toLowerCase();
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-  if (!allowed.includes(type)) throw new Error('unsupported image');
-  if (Number(response.headers.get('content-length')) > 10 * 1024 * 1024) throw new Error('image too large');
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > 10 * 1024 * 1024) throw new Error('image too large');
-  return { bytes, type };
+// Attachment downloads have inconsistent response MIME types on some Feishu uploads.
+// Validate unknown MIME by its binary signature; do not reject valid JPEG/WebP etc.
+function imageMagic(bytes){
+ const b=new Uint8Array(bytes);
+ if(b.length>=3&&b[0]===0xff&&b[1]===0xd8&&b[2]===0xff)return 'image/jpeg';
+ if(b.length>=8&&[137,80,78,71,13,10,26,10].every((n,i)=>b[i]===n))return 'image/png';
+ if(b.length>=6&&String.fromCharCode(...b.slice(0,6)).match(/^GIF8[79]a$/))return 'image/gif';
+ if(b.length>=12&&String.fromCharCode(...b.slice(0,4))==='RIFF'&&String.fromCharCode(...b.slice(8,12))==='WEBP')return 'image/webp';
+ if(b.length>=12&&String.fromCharCode(...b.slice(4,8))==='ftyp'&&['avif','avis'].includes(String.fromCharCode(...b.slice(8,12))))return 'image/avif';
+ return null;
+}
+function mediaFailure(code){return Object.assign(new Error('Image source unavailable'),{code});}
+export async function getImage(envInput,fileToken){
+ const env=config(envInput),token=await accessToken(env);
+ let response;
+ try{response=await fetch(`${FEISHU}/drive/v1/medias/${encodeURIComponent(fileToken)}/download`,{
+  headers:{Authorization:`Bearer ${token}`,'Accept-Encoding':'identity'},
+  signal:AbortSignal.timeout(22500),
+ });}
+ catch(error){throw mediaFailure(['AbortError','TimeoutError'].includes(error?.name)?'IMAGE_TIMEOUT':'IMAGE_NETWORK');}
+ if(response.status===404||response.status===410)throw mediaFailure('IMAGE_UPSTREAM_NOT_FOUND');
+ if(!response.ok)throw mediaFailure('IMAGE_UPSTREAM_FAILED');
+ const length=Number(response.headers.get('content-length'));
+ if(length>10*1024*1024)throw mediaFailure('IMAGE_TOO_LARGE');
+ let bytes;
+ try{bytes=await response.arrayBuffer();}
+ catch(error){throw mediaFailure(['AbortError','TimeoutError'].includes(error?.name)?'IMAGE_TIMEOUT':'IMAGE_NETWORK');}
+ if(!bytes.byteLength||bytes.byteLength>10*1024*1024)throw mediaFailure('IMAGE_TOO_LARGE');
+ const declared=response.headers.get('content-type')?.split(';')[0]?.toLowerCase();
+ const allowed=['image/jpeg','image/png','image/webp','image/gif','image/avif'];
+ const type=allowed.includes(declared)?declared:imageMagic(bytes);
+ if(!type)throw mediaFailure('IMAGE_UNSUPPORTED');
+ return{bytes,type};
 }
 
 export async function getMediaDownloadLink(envInput, fileToken) {

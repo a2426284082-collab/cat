@@ -35,14 +35,16 @@ export default function MarketingStudio({initialCats,initialTemplate='price',ini
  useEffect(()=>{alive.current=true;const display=visible.current;return()=>{releaseCanvas(display);alive.current=false;exportController.current?.abort();clearTimeout(timer.current);releaseCanvas(readyCanvas.current?.canvas);};},[]);
  useEffect(()=>{if(!download)return;return()=>URL.revokeObjectURL(download.url);},[download]);
  useEffect(()=>{
-  const abort=new AbortController();exportController.current?.abort();releaseCanvas(readyCanvas.current?.canvas);readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setExportError('');setCopied(false);
+  const abort=new AbortController();exportController.current?.abort();releaseCanvas(readyCanvas.current?.canvas);readyCanvas.current=null;setDownload(null);setRenderState('loading');setRenderError('');setProgress('');setExportError('');setCopied(false);
   if(!workbenchConfig.posterEnabled){setRenderState('error');setRenderError('营销拼图已被管理员暂停');onRenderStatus?.({status:'error',text:'营销拼图已被管理员暂停'});return()=>abort.abort();}
   if(!valid){setRenderState('error');setRenderError('请核对整数加价、各只猫咪售价与招牌文字；售价不能低于合作底价。');onRenderStatus?.({status:'error',text:'海报售价或配置校验失败'});return()=>abort.abort();}
   const wait=setTimeout(()=>{
    const run=async()=>{if(abort.signal.aborted)return;let stage;
+    const slowNotice=setTimeout(()=>{if(!abort.signal.aborted)setProgress(value=>value?`${value} · 图片服务器较慢，正在自动尝试恢复`:'图片服务器较慢，正在自动尝试恢复');},12000);
     try{stage=document.createElement('canvas');const seed=randomSeed();await renderMarketingCanvas(stage,cats,{...options,seed},{signal:abort.signal,onProgress:(done,total)=>{if(!abort.signal.aborted)setProgress(`照片 ${done}/${total}`);}});if(abort.signal.aborted){releaseCanvas(stage);return;}
      const canvas=visible.current,ctx=canvas?.getContext('2d');if(!ctx)throw new Error('当前浏览器暂不支持图片预览');canvas.width=stage.width;canvas.height=stage.height;ctx.drawImage(stage,0,0);readyCanvas.current={canvas:stage,key:fingerprint,seed};setHasPreview(true);setRenderState('ready');setProgress('');onRenderStatus?.({status:'ready',text:'图片已在浏览器真实渲染完成，但尚未下载或发送'});try{const thumb=document.createElement('canvas');thumb.width=240;thumb.height=Math.round(240*stage.height/stage.width);thumb.getContext('2d').drawImage(stage,0,0,thumb.width,thumb.height);onPreviewReady?.(thumb.toDataURL('image/jpeg',0.65));releaseCanvas(thumb);}catch{}
     }catch(e){releaseCanvas(stage);if(!abort.signal.aborted){setRenderState('error');setRenderError(e.message||'拼图生成失败，请重试');setProgress('');onRenderStatus?.({status:'error',text:e.message||'拼图生成失败'});}}
+    finally{clearTimeout(slowNotice);}
    };
    renderTail.current=renderTail.current.catch(()=>{}).then(run);
   },450);

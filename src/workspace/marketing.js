@@ -109,7 +109,16 @@ export async function renderMarketingCanvas(canvas,cats,options,{signal,loadImag
  for(let i=0;i<cats.length;i++){
   onProgress?.(i,cats.length);
   if(signal?.aborted)throw abortError();
-  const image=await loadImage(cats[i].image,{signal});if(signal?.aborted){image.close?.();throw abortError();}
+  // Use only attachments of this cat. If the first Feishu image is missing,
+  // fall back to its next photo without changing cat ID or the selection order.
+  const photos=[...new Set([cats[i].image,...(Array.isArray(cats[i].images)?cats[i].images:[])].filter(Boolean))].slice(0,8);
+  let image,lastImageError;
+  for(const photo of photos){
+   try{image=await loadImage(photo,{signal});break;}
+   catch(error){if(signal?.aborted)throw abortError();lastImageError=error;}
+  }
+  if(!image)throw new Error(`第${i+1}只猫的照片均无法读取：${lastImageError?.message||'请联系管理员核对飞书附件'}`);
+  if(signal?.aborted){image.close?.();throw abortError();}
   try{const cell=cells[i],v=variation.photos[i],photo=includePrices&&design.tagShape===1?{...cell,height:cell.height-Math.min(68,cell.height*.23)}:cell;
    imageTile(ctx,image,photo,v,design.radius,options.mirrorEnabled!==false&&mirroredPhoto(cats[i].id,design.seed));
    if(includePrices)priceTag(ctx,cats[i],options.prices[cats[i].id],cell,design,v);
