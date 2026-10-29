@@ -4,7 +4,10 @@
 import {validateAgentPlan,cleanAgentContext} from './agent-schema.js';
 import {planningInput,salesFallbackPlan} from './sales-agent.js';
 import {prepareWorkflowSteps} from './sales-agent-run.js';
-import {inferSalesDemand,resolveSalesDemand,salesIntentConflicts} from './sales-demand.js';
+import {resolveSalesDemand,salesIntentConflicts} from './sales-demand.js';
+import {inventoryBrief} from './specialist-inventory.js';
+import {designBrief} from './specialist-design.js';
+import {specialistFor} from './sales-specialists.js';
 import {normalizeId} from './sales-engine.js';
 import {getCatalog} from './feishu.js';
 import {readWorkbench} from './workbench-control.js';
@@ -17,13 +20,13 @@ const summary=v=>String(v||'').slice(0,MAX_TEXT);
 const asJSON=v=>JSON.stringify(v);
 const parse=row=>{try{return JSON.parse(row.state_json);}catch{throw fail('任务记录无法读取，请联系管理员',503);}};
 const now=()=>nowSeconds();
-const pendingStep=state=>state.pending?{id:state.pending.id,plan:state.pending.plan,result:state.pending.result,status:'ready'}:null;
+const pendingStep=state=>state.pending?{id:state.pending.id,plan:state.pending.plan,result:state.pending.result,specialist:state.pending.specialist||specialistFor(state.pending.plan.tool),status:'ready'}:null;
 const stockMap=cats=>new Map(cats.filter(c=>!c.status||c.status==='在售').map(c=>[normalizeId(c.id),c]));
 
 export function publicTask(row){
  const state=parse(row);
  return {kind:'agent_task',task_id:row.id,status:row.status,revision:row.revision,step:pendingStep(state),
-  history:state.history.map(e=>({tool:e.tool,status:e.status,text:e.text,cat_ids:e.cat_ids||[]})),context:state.context,
+  history:state.history.map(e=>({specialist:e.specialist||specialistFor(e.tool),tool:e.tool,status:e.status,text:e.text,cat_ids:e.cat_ids||[]})),context:state.context,
   goal:state.goal,demand:state.demand||null,summary:state.summary||'',error:state.error||'',actions:state.actions,
   remaining_actions:Math.max(0,MAX_ACTIONS-state.actions)};
 }
@@ -202,7 +205,7 @@ export async function decideAndPrepare(env,state,stock){
  // AI may refine soft/ambiguous intent; explicit price limits, exclusions and
  // other hard rules are enforced from the original user message.
  if(plan.demand&&!state.edit&&!state.history.some(e=>e.tool==='match'&&e.status==='success')){
-  state.demand=resolveSalesDemand(state.goal,plan.demand,[...stock.values()]);
+  state.demand=inventoryBrief({goal:state.goal,modelDemand:plan.demand,catalog:[...stock.values()]}).demand;
  }
  // User hard requirements (including image styling) outrank incomplete model
  // parameters; enforce them using a validated, bounded representation.
@@ -212,10 +215,11 @@ export async function decideAndPrepare(env,state,stock){
   if(expected){for(const field of ['borderless','includePrices'])if(Object.hasOwn(expected.params,field))plan.params[field]=expected.params[field];}
  }
  // Full inventory is reread at every decision; no stale stock IDs may advance.
+ if(plan.tool==='poster')plan.params=designBrief({goal:state.goal,params:plan.params}).settings;
  const prepared=await executeDataStep(state,plan,env,stock);
  if(prepared.blocked){state.summary=prepared.blocked;return {status:'blocked'};}
  state.actions++;
- state.pending={id:crypto.randomUUID(),plan:prepared.plan||plan,result:prepared.result};
+ state.pending={id:crypto.randomUUID(),plan:prepared.plan||plan,result:prepared.result,specialist:specialistFor(plan.tool)};
  state.feedback='';return {status:'waiting'};
 }
 
@@ -274,7 +278,7 @@ export async function startTask(db,env,request,body,key){
  }
  if([...c.cat_ids,...c.reference_ids].some(id=>!stock.has(id)))throw fail('猫咪库存发生变化，请刷新后重试',409);
  const reservation=await reserve(db,key,'match',`[agent_task] ${input.prompt}`);
- const state={goal:input.prompt,context:c,demand:priorDemand||inferSalesDemand(isReplacementIntent(input.prompt)?c.need:input.prompt,[...stock.values()]),edit:replacementRequest(input.prompt,c),history:[],pending:null,feedback:'',summary:'',error:'',actions:0,decisions:0,failures:0,hidePrices:body.hide_prices===true};
+ const state={goal:input.prompt,context:c,demand:priorDemand||inventoryBrief({goal:isReplacementIntent(input.prompt)?c.need:input.prompt,catalog:[...stock.values()]}).demand,edit:replacementRequest(input.prompt,c),history:[],pending:null,feedback:'',summary:'',error:'',actions:0,decisions:0,failures:0,hidePrices:body.hide_prices===true};
  let created=false;
  try{
   // Permission is revalidated before the first model call.
@@ -315,7 +319,7 @@ export async function advanceTask(db,env,request,body,key){
  if(!claimed.meta?.changes)throw fail('任务正在另一窗口执行，请刷新查看',409);
  if(receipt){
   const step=state.pending,ok=receipt.status==='success';
-  const event={step_id:step.id,tool:step.plan.tool,operation:step.plan.params.operation||'',status:ok?'success':'error',text:receiptSummary(receipt,step.result),cat_ids:step.plan.cat_ids};
+  const event={step_id:step.id,specialist:specialistFor(step.plan.tool),tool:step.plan.tool,operation:step.plan.params.operation||'',status:ok?'success':'error',text:receiptSummary(receipt,step.result),cat_ids:step.plan.cat_ids};
   state.history=[...state.history,event].slice(-MAX_HISTORY);
   if(ok){state.failures=0;updateContext(state,step.plan,step.result,receipt);}
   else state.failures++;

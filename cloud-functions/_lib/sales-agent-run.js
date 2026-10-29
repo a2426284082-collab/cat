@@ -1,5 +1,10 @@
 import {selectionSummary} from './sales-workflow.js';
-import {resolveSalesDemand,evaluateSalesCandidates,verifySalesSelection,salesIntentConflicts} from './sales-demand.js';
+import {verifySalesSelection,evaluateSalesCandidates,salesIntentConflicts} from './sales-demand.js';
+import {selectInventory} from './specialist-inventory.js';
+import {designBrief,validateDesignSelection} from './specialist-design.js';
+import {copyBrief,verifyCopyResult} from './specialist-copy.js';
+import {annotateStep,createSpecialistBriefs} from './sales-specialists.js';
+import {quoteOne} from './specialist-quote.js';
 import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
 // One bounded conversational task: prepare data steps, dispatch UI steps, charge one sales quota.
@@ -17,7 +22,8 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
  // A typed demand is authoritative for the entire workflow. Never re-parse a
  // different, shortened query in each tool. Existing tasks can infer it safely.
  const originalNeed=context.originalGoal||context.need||steps[0]?.query||'';
- const demand=resolveSalesDemand(originalNeed,context.demand||steps[0]?.demand||null,catalog);
+ const inventory=createSpecialistBriefs(originalNeed,catalog,context.demand||steps[0]?.demand||null).inventory;
+ const demand=inventory.demand;
  const countIsExplicit=demand.quantity.exact;
  const evaluate=(need,markup,requireImage)=>evaluateSalesCandidates(catalog,demand,{markup,requireImage});
  const stockMessage=(info,interpretation)=>`库存核对：读取${info.total}只，实际在售${info.active}只；满足品种、性别、月龄等硬条件${info.hard}只；其中通过照片条件${info.photo}只、价格有效${info.priced}只；符合价格条件${info.eligible}只。价格策略：${interpretation}。`;
@@ -26,6 +32,7 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
  let currentNeed=context.need||'',posterSettings={...context.params},quotes={...context.quotes};
  for(let index=0;index<steps.length;index++){
   const original=steps[index],plan={...original,params:{...original.params},cat_ids:[...original.cat_ids]};
+  if(plan.tool==='poster')plan.params=designBrief({goal:context.originalGoal||'',params:plan.params}).settings;
   let result=null,status='ready',reason='';
   const fallbackIds=plan.cat_ids.length?plan.cat_ids:ids;
   if(plan.tool==='match'){
@@ -37,9 +44,9 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     const needsPoster=steps.slice(index+1).some(step=>step.tool==='poster')||/(?:做图|作图|拼图|海报|图片|照片|朋友圈图)/.test(context.originalGoal||need);
     const markup=posterSettings.markup??0;
     const {cats:qualified,stats:info,interpretation}=evaluate(need,markup,needsPoster);
-    const selected=qualified.slice(0,amount);
-    verifySalesSelection(selected,catalog,demand,{markup,requireImage:needsPoster});
-    ids=selected.map(cat=>normalizeId(cat.id));currentNeed=need;
+    const selection=selectInventory({brief:inventory,catalog,markup,requireImage:needsPoster,count:amount});
+    const selected=selection.cats;
+    ids=selected.map(cat=>normalizeId(cat.id));plan.cat_ids=[...ids];currentNeed=need;
     result={kind:'inventory',used_ai:false,matched_ids:ids.map(id=>'#'+id),reply_text:`${stockMessage(info,interpretation)}\n${selectionSummary(selected,amount,need,{hidePrices,markup,demand})}`};
     if(selected.length<amount){
      if(!countIsExplicit&&selected.length>=2){
@@ -75,17 +82,14 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     const selected=fallbackIds.map(id=>stock.get(id)).filter(Boolean);
     if(selected.length<2){status='blocked';reason='文案生成需要至少2只已经确认的猫，尚未找到足够猫咪。';}
     else{
-     const setting={...posterSettings,...plan.params},prices=selected.map(cat=>{
-       const floor=Number(cat.price);
-       const quoted=quotes[normalizeId(cat.id)];
-       return Number.isFinite(quoted)&&quoted>=floor?quoted:Math.max(0,Math.round(floor+(setting.markup??0)));
-     });
-     const options=marketingOptions({marketing:{template:setting.includePrices===false?'sign':'price',platform:setting.platform||'xhs',city:setting.city||'',shop:setting.shop||'同城靠谱猫舍',prices}},selected);
+     const setting={...posterSettings,...plan.params};
+     const brief=copyBrief({cats:selected,settings:setting,quotes,hidePrices});
      await allowed();
      try{
-      const out=await generateReply(env,selected,'根据当前选猫和宣传图设置生成对客文案','script',{marketing:options});
+      const out=await generateReply(env,selected,'根据当前选猫和宣传图设置生成对客文案','script',{marketing:brief.marketing});
+      const verified=verifyCopyResult(out,brief);
       usage.input_tokens+=out.input_tokens;usage.output_tokens+=out.output_tokens;
-      result={kind:'marketing_copy',reply_text:out.reply_text,matched_ids:out.matched_ids,used_ai:true};
+      result={kind:'marketing_copy',reply_text:out.reply_text,matched_ids:out.matched_ids,used_ai:true,verification:verified};
       plan.cat_ids=selected.map(cat=>normalizeId(cat.id));
      }catch{status='blocked';reason='文案服务未能返回合格内容，前面的选猫和拼图步骤仍可执行；本次不会自动重试生成。';}
     }
@@ -100,6 +104,7 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
     selected=selected.slice(0,expected);
     if(!followingMatch)for(const cat of pool)if(selected.length<expected&&!selected.includes(normalizeId(cat.id)))selected.push(normalizeId(cat.id));
     verifySalesSelection(selected.map(id=>stock.get(id)).filter(Boolean),catalog,demand,{markup:posterSettings.markup??0,requireImage:true});
+    if(selected.length>=2)validateDesignSelection({ids:selected,catalog,requirePhoto:true});
     if(selected.length<2||countIsExplicit&&selected.length<requested){status='blocked';reason=`符合条件且有照片的在售猫只有${selected.length}只，无法满足本次拼图要求（需要${requested}只）。`;}
     else{
      ids=selected;currentNeed=need;posterSettings={...posterSettings,...plan.params,count:selected.length};
@@ -124,9 +129,16 @@ export async function prepareWorkflowSteps({steps,catalog,context,env,hidePrices
    result=answerHandbook(plan.query||'合作售后政策')||toolResult('没有找到对应条款，请在手册中核实。');
   }else if(['details','downloads','single_poster','calculator','order'].includes(plan.tool)){
    if(fallbackIds.length!==1){status='blocked';reason='请指明要处理的猫咪编号，不能猜是哪一只。';}
-   else plan.cat_ids=[...fallbackIds];
+   else {
+    plan.cat_ids=[...fallbackIds];
+    if(plan.tool==='calculator'){
+     try{const priced=quoteOne(stock.get(fallbackIds[0]),{markup:posterSettings.markup??0});
+      result={kind:'tool',used_ai:false,matched_ids:['#'+fallbackIds[0]],reply_text:`网站合作基准价¥${priced.basePrice}，当前加价¥${priced.markup}，参考对客售价¥${priced.customerPrice}；运费及最终报价待确认。`,verification:{specialist:'quote',verified:true}};
+     }catch(e){status='blocked';reason=e.message;}
+    }
+   }
   }
-  prepared.push({plan,result,status,...(reason?{reason}:{})});
+  prepared.push({plan,result,status,specialist:annotateStep(plan).specialist,...(reason?{reason}:{})});
   if(status==='blocked')break;
  }
  return {prepared,usage,complete:prepared.length===steps.length&&prepared.every(s=>s.status==='ready')};
@@ -170,9 +182,9 @@ export async function runAgentTask(db,env,request,body,key){
   }else if(plan.tool==='poster'&&plan.params.operation==='generate'){
    // Generate only for the cats actually in the current preview, never invent a new billed batch.
    const chosen=c.task==='poster'?c.cat_ids.map(id=>stock.get(id)):[];
-   if(chosen.length>=2){const settings={...c.params,...plan.params},prices=chosen.map(cat=>settings.markup!==c.params.markup?Math.round(Number(cat.price)+(settings.markup??800)):c.quotes[normalizeId(cat.id)]??Math.round(Number(cat.price)+(settings.markup??800)));
-    const options=marketingOptions({marketing:{template:settings.includePrices===false?'sign':'price',platform:settings.platform||'xhs',city:settings.city||'',shop:settings.shop||'同城靠谱猫舍',prices}},chosen);
-    await allowed();const out=await generateReply(env,chosen,input.prompt,'script',{marketing:options});usage.input_tokens+=out.input_tokens;usage.output_tokens+=out.output_tokens;result={kind:'marketing_copy',reply_text:out.reply_text,matched_ids:out.matched_ids,used_ai:true};
+   if(chosen.length>=2){const settings=designBrief({goal:input.prompt,params:{...c.params,...plan.params}}).settings;
+    const brief=copyBrief({cats:chosen,settings,quotes:c.quotes,hidePrices:body.hide_prices===true});
+    await allowed();const out=await generateReply(env,chosen,input.prompt,'script',{marketing:brief.marketing});verifyCopyResult(out,brief);usage.input_tokens+=out.input_tokens;usage.output_tokens+=out.output_tokens;result={kind:'marketing_copy',reply_text:out.reply_text,matched_ids:out.matched_ids,used_ai:true};
    }else{delete plan.params.operation;plan.message='先为你准备拼图和基础文案，选好猫后可继续让我润色。';}
   }
   const output={...usage,status:'success',matched_ids:result?.matched_ids||[],reply_text:result?.reply_text||`[${plan.tool}] ${plan.message||''}`};await finish(db,reservation,output);
