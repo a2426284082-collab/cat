@@ -8,7 +8,7 @@ import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
 import { diagnoseSalesInventory } from './sales-inventory-diagnostics.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
-  nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay } from './sales-store.js';
+  nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay, openGuest, isGuest, GUEST_HINT } from './sales-store.js';
 import { generateReply, selectCandidates, validatePrompt, normalizePrompt, marketingOptions } from './sales-engine.js';
 import { answerHandbook, isHandbookQuestion } from './sales-handbook.js';
 import {planningInput,generateAgentPlan} from './sales-agent.js';
@@ -55,9 +55,14 @@ async function userSession(db, request, body, taskAction=false) {
 async function ask(db,env,request,body) {
   const key=await userSession(db,request,body);
   if(!['match','script'].includes(body.mode))throw fail('请选择秒配猫或写话术');
+  if(isGuest(key)&&!(body.mode==='match'&&body.action==='cat_only'))throw fail('免费体验仅开放智能找猫功能',403);
   if(body.hide_prices!=null&&typeof body.hide_prices!=='boolean')throw fail('截图模式参数无效');
   if(body.action==='catalog_match'){const query=validatePrompt(inventoryQuery(body.prompt));const catalog=await getCatalog(env);const data=inventoryResult(catalog.cats,query);await auditLocal(db,key,'match',query,'inventory',data.reply_text);return json({success:true,data,user:accountView(key),catalog_updated_at:catalog.updatedAt});}
-  if(body.action==='cat_only')return json({success:true,...await runCatOnly(db,env,request,body,key)});
+  if(body.action==='cat_only'){
+    // Guest cannot request or receive wholesale price/markup even by forging JSON.
+    const safe=isGuest(key)?{...body,hide_prices:true,cat_context:{...body.cat_context,markup:0}}:body;
+    return json({success:true,...await runCatOnly(db,env,request,safe,key,isGuest(key))});
+  }
   if(body.action==='agent_run'||body.action==='agent_plan')throw fail('旧版跨工具规划 Agent 已冻结，请刷新网页使用智能找猫助手。',410);
   const action=body.action,planning=action==='agent_plan';
   const scripts=['praise','price','compare'],marketing=action==='marketing',structured=scripts.includes(action)||marketing;
@@ -175,7 +180,7 @@ async function admin(db,env,request,path,body) {
     const rows=await db.prepare(`SELECT k.id,k.sales_name,k.key_hint,k.status,k.daily_limit,
       CASE WHEN k.last_call_date=? THEN k.used_today ELSE 0 END AS used_today,
       (SELECT COUNT(*) FROM sales_devices d WHERE d.key_id=k.id) AS device_count
-      FROM sales_keys k ORDER BY k.id DESC LIMIT 1000`).bind(day).all();
+      FROM sales_keys k WHERE k.key_hint<>? ORDER BY k.id DESC LIMIT 1000`).bind(day,GUEST_HINT).all();
     return json({success:true,data:await decorateKeys(db,rows.results)});
   }
   const match=path.match(/^\/api\/sales-admin\/keys\/(\d+)(\/logs|\/reveal)?$/);
@@ -231,6 +236,16 @@ export async function handleSales({request,env}) {
     const body=isWrite(request)?await bodyJson(request,path==='/api/ai/ask'?32768:8192):{};
     if(adminPath)return await admin(db,env,request,path,body);
     await userIpLimit(db,request,path==='/api/ai/activate');
+    if(path==='/api/ai/guest'){
+      methodCheck(request,['POST']);
+      const device=body.device_id;
+      // Avoid creating a new guest if an authenticated session exists.
+      try{const existing=await resolveSession(db,request,device);return json({success:true,user:accountView(existing)});}catch(e){if(e.status!==401)throw e;}
+      const addr=request.headers.get('CF-Connecting-IP')||'unknown';
+      await rateLimit(db,`guest-create:${digest(addr).slice(0,32)}`,15,3600);
+      const session=await openGuest(db,device);
+      return json({success:true,user:session.user},200,{'Set-Cookie':cookie(session.token)});
+    }
     if(path==='/api/ai/activate'){
       methodCheck(request,['POST']);
       const result=await activate(db,body.key_code,body.device_id);
@@ -251,6 +266,7 @@ export async function handleSales({request,env}) {
       if(request.method==='GET'){const key=await userSession(db,request);const query=new URL(request.url).searchParams;return json({success:true,data:query.get('list')==='1'?await listTasks(db,key):await readTask(db,key,query.get('task_id'))});}
       if(!body.device_id)throw fail('设备标识不能为空');
       const key=await userSession(db,request,body,body.action==='next');
+      if(isGuest(key))throw fail('免费体验不支持旧版历史任务',403);
       if(body.action==='start'||body.action==='next')throw fail('旧版复杂任务 Agent 已冻结；历史任务保留但不再自动执行。',410);
       // Old task data may still be read or cancelled, but cannot resume.
       if(body.action==='cancel')return json({success:true,...await cancelTask(db,body,key)});

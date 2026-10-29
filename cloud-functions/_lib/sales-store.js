@@ -9,6 +9,10 @@ export const digest = value => createHash('sha256').update(String(value)).digest
 export const secretToken = () => randomBytes(32).toString('base64url');
 export const fail = (message, status = 400, extra = {}) => Object.assign(new Error(message), { status, ...extra });
 export const COOKIE = 'cat_sales_session';
+export const GUEST_HINT = 'PUBLIC_GUEST_V1';
+export const GUEST_DAILY_LIMIT = 15;
+export const GUEST_IP_DAILY_LIMIT = 60;
+export const isGuest = row => row?.key_hint === GUEST_HINT;
 export const cookie = token => `${COOKIE}=${token}; Path=/api/; HttpOnly; Secure; SameSite=Strict; Max-Age=${token ? 30 * 86400 : 0}`;
 export const deviceHash = id => {
   if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw fail('设备标识无效，请刷新页面');
@@ -28,18 +32,18 @@ export async function rateLimit(db, bucket, limit, seconds, now = nowSeconds()) 
 }
 export async function resolveSession(db, request, suppliedDevice) {
   const token = (request.headers.get('cookie') || '').split(';').map(x => x.trim()).find(x => x.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
-  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw fail('请先输入内部销售激活码', 401);
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw fail('请先创建免费使用会话', 401);
   const row = await db.prepare(`SELECT k.*,s.device_hash FROM sales_sessions s JOIN sales_keys k ON k.id=s.key_id
     JOIN sales_devices d ON d.key_id=k.id AND d.device_hash=s.device_hash
     WHERE s.token_hash=? AND s.expires_at>? AND s.auth_version=k.auth_version`).bind(digest(token), nowSeconds()).first();
-  if (!row || row.status !== 1) throw fail('登录已失效或账号已封禁，请重新激活', 401);
-  if (suppliedDevice && row.device_hash !== deviceHash(suppliedDevice)) throw fail('设备登录已失效，请重新激活', 401);
+  if (!row || row.status !== 1) throw fail('使用会话已失效，请重新进入', 401);
+  if (suppliedDevice && row.device_hash !== deviceHash(suppliedDevice)) throw fail('设备会话已失效，请重新进入', 401);
   await checkKeyExpiry(db,row.id);row._cooldownSeconds=(await readWorkbench(db,{fresh:true})).cooldownSeconds;
   return row;
 }
 export function accountView(row, now = nowSeconds()) {
   const used = row.last_call_date === salesDay(now) ? row.used_today : 0;
-  return { id: row.id, sales_name: row.sales_name, daily_limit: row.daily_limit, used_today: used,
+  return { id: row.id, is_guest: isGuest(row), sales_name: row.sales_name, daily_limit: row.daily_limit, used_today: used,
     remaining: Math.max(0, row.daily_limit - used), retry_after: Math.max(0, (row._cooldownSeconds??15) - (now - row.last_call_timestamp)) };
 }
 export async function activate(db, code, device) {
@@ -64,6 +68,42 @@ export async function activate(db, code, device) {
   if (!results[2].results?.length) throw fail(`该激活码绑定设备已达上限（最多${policy.maxDevices}台），或授权已变更，请联系管理员`, 403);
   return { token, user: accountView(key) };
 }
+/** Create a server-side anonymous account backed by the existing D1 quota tables.
+ * Guest sessions have no activation code, no privileged access and no external identity.
+ * We deliberately do NOT trust a browser-supplied quota or tier.
+ */
+export async function openGuest(db, device) {
+  const hashedDevice=deviceHash(device),now=nowSeconds(),token=secretToken();
+  const hashedKey=digest('guest:'+secretToken());
+  const key=await db.prepare(`INSERT INTO sales_keys(key_hash,key_hint,sales_name,daily_limit,created_at)
+    VALUES(?,?,?,?,?) RETURNING *`).bind(hashedKey,GUEST_HINT,'访客',GUEST_DAILY_LIMIT,now).first();
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO sales_devices(key_id,device_hash,created_at) VALUES(?,?,?)').bind(key.id,hashedDevice,now),
+      db.prepare('INSERT INTO sales_sessions(token_hash,key_id,device_hash,auth_version,expires_at) VALUES(?,?,?,?,?)')
+        .bind(digest(token),key.id,hashedDevice,key.auth_version,now+30*86400),
+    ]);
+  } catch(error) {
+    await db.prepare('DELETE FROM sales_keys WHERE id=?').bind(key.id).run().catch(()=>{});
+    throw error;
+  }
+  const policy=await readWorkbench(db,{fresh:true});key._cooldownSeconds=policy.cooldownSeconds;
+  return {token,user:accountView(key)};
+}
+
+/** Bound free access by a second independent dimension: platform-reported IP.
+ * This is a risk limit, not a replacement for per-session quota. Exact CST day key.
+ */
+export async function guestIpGuard(db, request) {
+  const ip=request.headers.get('CF-Connecting-IP')||'unknown';
+  const key=`guest-ip:${salesDay()}:${digest(ip).slice(0,32)}`;
+  const now=nowSeconds();
+  const row=await db.prepare(`INSERT INTO sales_rate_limits(bucket,hits,expires_at) VALUES(?,1,?)
+    ON CONFLICT(bucket) DO UPDATE SET hits=hits+1 WHERE hits < ? RETURNING hits`)
+    .bind(key,now+2*86400,GUEST_IP_DAILY_LIMIT).first();
+  if(!row)throw fail('当前网络的免费调用次数较多，请明日再试',429,{retry_after:3600});
+}
+
 export async function preflight(db, keyId) {
   const key = await db.prepare('SELECT * FROM sales_keys WHERE id=?').bind(keyId).first();
   if (!key || key.status !== 1) throw fail('账号已被管理员封禁', 403);
@@ -135,5 +175,13 @@ export async function housekeeping(db, batchSize=500) {
     db.prepare('DELETE FROM sales_sessions WHERE token_hash IN (SELECT token_hash FROM sales_sessions WHERE expires_at<? LIMIT ?)').bind(now,batchSize),
     db.prepare('DELETE FROM ai_call_logs WHERE id IN (SELECT id FROM ai_call_logs WHERE created_at<? LIMIT ?)').bind(now-90*86400,batchSize),
     db.prepare('DELETE FROM sales_agent_tasks WHERE id IN (SELECT id FROM sales_agent_tasks WHERE expires_at<? LIMIT ?)').bind(now,batchSize),
+    // Expired anonymous accounts must not accumulate forever; never delete seller keys.
+    db.prepare(`DELETE FROM sales_devices WHERE key_id IN (SELECT k.id FROM sales_keys k
+      WHERE k.key_hint=? AND k.created_at<? AND NOT EXISTS(SELECT 1 FROM sales_sessions s WHERE s.key_id=k.id) LIMIT ?)`).bind(GUEST_HINT,now-90*86400,batchSize),
+    db.prepare(`DELETE FROM sales_keys WHERE id IN (SELECT k.id FROM sales_keys k
+      WHERE k.key_hint=? AND k.created_at<?
+      AND NOT EXISTS(SELECT 1 FROM sales_sessions s WHERE s.key_id=k.id)
+      AND NOT EXISTS(SELECT 1 FROM ai_call_logs l WHERE l.key_id=k.id)
+      AND NOT EXISTS(SELECT 1 FROM sales_devices d WHERE d.key_id=k.id) LIMIT ?)`).bind(GUEST_HINT,now-90*86400,batchSize),
   ]);
 }

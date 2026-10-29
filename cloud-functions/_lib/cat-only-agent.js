@@ -1,3 +1,4 @@
+import {guestIpGuard} from './sales-store.js';
 // Sales chat entry V1: a single inventory capability. No planner, poster,
 // marketing, downloads or browser tool dispatch. Legacy agents stay dormant.
 import {getCatalog} from './feishu.js';
@@ -163,13 +164,15 @@ export function executeCatOnly({prompt,context={},catalog,model={},hidePrices=fa
  const recommended=[...primary,...alternatives];
  return {kind:'inventory',used_ai:false,matched_ids:primary.map(c=>'#'+id(c.id)),alternative_ids:alternatives.map(c=>'#'+id(c.id)),reply_text:`${counts}\n${primary.length?`已选${primary.length}只：`:'筛选结果：'}\n${selection}${alt}${note}${outOfScope.test(text)?'\n本次仅完成找猫，做图、文案、下载等请求没有自动执行。':''}`,stats:{...total,...sexes},cat_context:{need:!saved?text:`${saved.slice(0,2600)}。${text.slice(0,1200)}`.slice(-3900),cat_ids:primary.map(c=>id(c.id)),excluded_ids:alternatives.map(c=>id(c.id))}};
 }
-export async function runCatOnly(db,env,request,body,key){
+export async function runCatOnly(db,env,request,body,key,guest=false){
  const prompt=typeof body.prompt==='string'?body.prompt.normalize('NFKC').trim():'';
  if(!prompt||[...prompt].length>4000)throw fail('请输入1到4000字的找猫需求',400);
+ const local=recognizeCatAction(prompt);
+ // Do not fetch Feishu inventory for a request already over quota/cooldown.
+ if(!['help','unsupported','reset','stats'].includes(local.action)){await preflight(db,key.id);if(guest)await guestIpGuard(db,request);}
  const catalog=await getCatalog(env);const cats=catalog.cats||[];
  // Validate context and requests before spending quota or calling the model.
  accountContext(body.cat_context,cats.filter(c=>!c.status||c.status==='在售'));
- const local=recognizeCatAction(prompt);
  if(['help','unsupported','reset','stats'].includes(local.action)){
   const result=executeCatOnly({prompt,context:body.cat_context,catalog:cats,hidePrices:body.hide_prices===true});
   await auditLocal(db,key,'match',prompt.slice(0,200),'cat_only_local',result.reply_text.slice(0,300));
@@ -179,7 +182,6 @@ export async function runCatOnly(db,env,request,body,key){
   const result=executeCatOnly({prompt,context:body.cat_context,catalog:cats,hidePrices:body.hide_prices===true});
   if(!body.cat_context?.cat_ids?.length){await auditLocal(db,key,'match',prompt.slice(0,200),'cat_only_clarify',result.reply_text);return {data:result,user:accountView(key)};}
  }
- await preflight(db,key.id);
  if(!env.DEEPSEEK_API_KEY)throw fail('AI 服务尚未配置，本次未扣次数',503);
  const reservation=await reserve(db,key,'match',`[cat_only] ${prompt}`);let usage={input_tokens:0,output_tokens:0};let sent=false;
  try{
