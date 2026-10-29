@@ -36,7 +36,7 @@ export function useWorkspaceAgent({cats,session,execute,onReset}){
   return()=>{active=false;};
  },[checking,listingIdentity]);
  useEffect(()=>{if(!checking&&owner.current===listingIdentity&&renderedOwner===listingIdentity){try{setStorageFailed(!writeAgentSession(sessionStorage,listingIdentity,{context,messages,pendingWorkflow}));}catch{setStorageFailed(true);}}},[context,messages,pendingWorkflow,listingIdentity,checking]);
- function append(role,text,extra={}){const id=crypto.randomUUID();setMessages(old=>[...old,{id,role,text:String(text).slice(0,600),...extra}].slice(-16));return id;}
+ function append(role,text,extra={}){const id=crypto.randomUUID();setMessages(old=>[...old,{id,role,text:String(text).slice(0,role==='user'?1200:600),...extra}].slice(-16));return id;}
  async function perform(plan,text,version,serverResult,semantic=false,workflow=false){
   if(plan.tool==='reset'){reset();return message('已开始新任务。下一位客户的需求不会沿用上一位。');}
   if(plan.tool==='chat')return message(plan.message||'你可以继续说客户的情况，我会帮你整理下一步。');

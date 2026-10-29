@@ -1,5 +1,5 @@
 import {selectionSummary} from './sales-workflow.js';
-import {resolveSalesDemand,evaluateSalesCandidates,verifySalesSelection} from './sales-demand.js';
+import {resolveSalesDemand,evaluateSalesCandidates,verifySalesSelection,salesIntentConflicts} from './sales-demand.js';
 import {answerHandbook} from './sales-handbook.js';
 import {readWorkbench} from './workbench-control.js';
 // One bounded conversational task: prepare data steps, dispatch UI steps, charge one sales quota.
@@ -136,6 +136,8 @@ export async function runAgentTask(db,env,request,body,key){
  await preflight(db,key.id);
  let catalog;try{catalog=await getCatalog(env);}catch{throw fail('库存暂时读取失败，本次未扣次数，请稍后重试',503);}
  const stock=new Map();for(const cat of catalog.cats){if(cat.status&&cat.status!=='在售')continue;const id=normalizeId(cat.id);if(stock.has(id))throw fail('库存编号重复，请联系运营核对',503);stock.set(id,cat);}
+ const conflicts=salesIntentConflicts(input.prompt,[...stock.values()]);
+ if(conflicts.length)throw fail(`客户要求存在冲突：${conflicts.join('；')}。请先确认，不扣销售配额。`,400,{reason_code:'CONFLICTING_INTENT'});
  const c=input.context,known=[...c.cat_ids,...c.reference_ids];if(known.some(id=>!stock.has(id)))throw fail('任务中的猫咪已不在当前在售库，请刷新或开始新任务',409);
  if(!env.DEEPSEEK_API_KEY)throw fail('AI 服务尚未配置，本次未扣次数',503);
  const reservation=await reserve(db,key,'match',`[agent_run] ${input.prompt}`);let stage='understand',dispatched=false,usage={input_tokens:0,output_tokens:0};
@@ -145,7 +147,7 @@ export async function runAgentTask(db,env,request,body,key){
   const understood=await generateAgentPlan(env,input.prompt,c,new Set(known));usage={input_tokens:understood.input_tokens,output_tokens:understood.output_tokens};
   const plan=understood.plan;let result=null;stage='tool_setup';const controls=await readWorkbench(db,{fresh:true});
   if(understood.steps.length>1){
-   stage='workflow';const workflow=await prepareWorkflowSteps({steps:understood.steps,catalog:[...stock.values()],context:c,env,hidePrices:body.hide_prices===true,allowed,controls});
+   stage='workflow';const workflow=await prepareWorkflowSteps({steps:understood.steps,catalog:[...stock.values()],context:{...c,originalGoal:input.prompt,demand:understood.steps.find(step=>step.demand)?.demand||null},env,hidePrices:body.hide_prices===true,allowed,controls});
    usage.input_tokens+=workflow.usage.input_tokens;usage.output_tokens+=workflow.usage.output_tokens;
    await finish(db,reservation,{...usage,status:'success',matched_ids:[],reply_text:`工作流准备了${workflow.prepared.length}步${workflow.complete?'':'，存在待处理的条件'}`});
    const current=await resolveSession(db,request,body.device_id);

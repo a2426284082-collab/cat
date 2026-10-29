@@ -67,7 +67,7 @@ export function localAgentPlan(raw,cats,context={}){
 }
 export function mergeMatchNeed(previous,text,cats,currentIds=[]){
  // Pure design edits must never drop earlier hard cat constraints.
- if(previous&&(!String(text||'').trim()||/^(不要价格|隐藏价格|不显示价格|显示价格|换一批|换个排版|换个样式|换个风格|改竖版|改方图|继续做图|复制文案|生成文案)$/.test(String(text).trim())))return previous.slice(0,200);
+ if(previous&&(!String(text||'').trim()||/^(不要价格|隐藏价格|不显示价格|显示价格|换一批|换个排版|换个样式|换个风格|改竖版|改方图|继续做图|复制文案|生成文案)$/.test(String(text).trim())))return previous.slice(0,1200);
  const dictionaries={breeds:[...new Set(cats.map(c=>c.breed).filter(Boolean))],colors:[...new Set(cats.map(c=>c.color).filter(Boolean))]},prior=parseDemandLocally(previous||'',dictionaries).filters,next=parseDemandLocally(text,dictionaries).filters,filters={...prior};
  for(const [k,v] of Object.entries(next))if(v!==''&&v!=null)filters[k]=v;
  const budget=text.match(/(?:预算|改成|换成)(?:到|为|约|是|\s)*[¥￥]?\s*(\d{2,7})\s*元?/);if(budget)filters.max=budget[1];
@@ -77,8 +77,8 @@ export function mergeMatchNeed(previous,text,cats,currentIds=[]){
  const negativeRules=(previous||'').match(/(?:不要|排除|别要|不想要|不考虑|避开|不选)[^，。；,;]{1,12}/g)||[];
  const chunks=[...negativeRules,filters.max?`预算${filters.max}元以内`:'',filters.min?`最低${filters.min}元`:'',filters.breed,filters.color,filters.gender==='母'?'妹妹':filters.gender==='公'?'弟弟':'',filters.minAge&&filters.maxAge?filters.minAge===filters.maxAge?`${filters.maxAge}个月`: `${filters.minAge}到${filters.maxAge}个月`:filters.maxAge?`${filters.maxAge}个月以内`:filters.minAge?`至少${filters.minAge}个月`:'',...known,/性价比|捡漏/.test(text)?'性价比高':''].filter(Boolean);
  // Full stock identifiers are resolved before this merge and passed unchanged.
- if(!chunks.length||/#|编号/.test(text))return text.slice(0,200);
- return chunks.join('，').slice(0,200);
+ if(!chunks.length||/#|编号/.test(text))return text.slice(0,1200);
+ return chunks.join('，').slice(0,1200);
 }
 export function filterAgentCats(cats,query=''){return filterSalesCats(cats,query);}
 
@@ -93,7 +93,7 @@ export function exactReplacementAllowed(original,planned,index,allowedIds){
 
 function cleanTask(value={}){
  const task=value.task||'help',params=agentParams(value.params||{}),ids=(value.cat_ids||[]).map(normalizeId);validateAgentPlan({tool:task,cat_ids:ids,params});
- const context={task,cat_ids:ids,params,need:String(value.need||'').slice(0,200)};
+ const context={task,cat_ids:ids,params,need:String(value.need||'').slice(0,1200)};
  if(ids.includes(value.focus_id))context.focus_id=value.focus_id;
  if(Number.isInteger(value.designSeed)&&value.designSeed>=0&&value.designSeed<=4294967295)context.designSeed=value.designSeed;
  if(typeof value.bannerText==='string')context.bannerText=value.bannerText.slice(0,60);
