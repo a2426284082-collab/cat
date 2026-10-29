@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('recruitment homepage cannot open or preload the business workspace', () => {
+test('recruitment homepage links directly to the catalogue without preloading business data', () => {
   const html = read('index.html');
   assert.match(html, /奶茶猫/);
   assert.match(html, /wxid_i1f7e9abeyk322/);
@@ -12,7 +12,8 @@ test('recruitment homepage cannot open or preload the business workspace', () =>
   assert.doesNotMatch(html, /\/api\/|\/src\/|rel=["'](?:modulepreload|prefetch|preload)["']/i);
   const links = [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["']/gi)].map(match => match[1]);
   assert.ok(links.length > 0);
-  assert.ok(links.every(href => href.startsWith('#')), 'homepage buttons should stay within the landing page');
+  assert.ok(links.every(href => href.startsWith('#') || href === '/cats/'), 'only explicit catalogue links may leave the landing page');
+  assert.equal(links.filter(href => href === '/cats/').length, 3, 'header, hero and mobile bar expose the catalogue');
   const images = [...html.matchAll(/<img\b[^>]*src=["']([^"']+)["']/gi)].map(match => match[1]);
   assert.ok(images.length >= 5);
   assert.ok(images.every(src => src.startsWith('data:image/') || /^\/home-assets\/screenshot-[a-f0-9]{16}\.(?:jpg|png|webp)$/.test(src)), 'homepage images should be local assets, never cat API attachments');
