@@ -7,6 +7,8 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 test('recruitment homepage links directly to the catalogue without preloading business data', () => {
   const html = read('index.html');
   assert.match(html, /奶茶猫/);
+  assert.doesNotMatch(html, /销售/);
+  assert.match(html, /猫咪代理合作/);
   assert.match(html, /wxid_i1f7e9abeyk322/);
   assert.doesNotMatch(html, /<iframe\b|<script\b[^>]*\bsrc\s*=|<script\b[^>]*type=["']module["']/i);
   assert.doesNotMatch(html, /\/api\/|\/src\/|rel=["'](?:modulepreload|prefetch|preload)["']/i);

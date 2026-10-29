@@ -1,6 +1,7 @@
 // ADMIN_CONTROL_PATCH_V1
 import test from 'node:test';import assert from 'node:assert/strict';import React from 'react';
 import {render,screen,waitFor,cleanup,within,configure,fireEvent} from '@testing-library/react';import userEvent from '@testing-library/user-event';import {MemoryRouter} from 'react-router-dom';
+import WorkbenchSettingsAdmin from '../src/components/WorkbenchSettingsAdmin.jsx';
 import {WorkspaceContent} from '../src/SalesWorkspace.jsx';import {drawSinglePoster} from '../src/workspace/CatTools.jsx';import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';import worker from '../cloudflare-worker.js';import {createSessionCookie} from '../cloud-functions/_lib/admin-auth.js';import {newKey} from '../cloud-functions/_lib/sales-store.js';import {makeDB} from './sales-db.mjs';
 configure({asyncUtilTimeout:5000});
 const cats=[{id:'CAT-2026-000017',breed:'布偶猫',color:'蓝双',gender:'母',age:'3',price:2600,description:'甜美亲人，合作底价2600元'},{id:'CAT-2026-000018',breed:'英短',color:'金渐层',gender:'公',age:'4',price:1800,description:'温顺安静'}];
@@ -136,3 +137,21 @@ test('single-cat poster includes retail price and stock facts, never prints base
 
 
 import './admin-controls.components.jsx';
+
+
+test('saved admin title and highlight render in the finder immediately and after remount',async()=>{
+ const m=fixture(),base=globalThis.fetch,db=makeDB(),u=userEvent.setup({delay:null});
+ const env={SALES_DB:db,ADMIN_USERNAME:'title-admin',ADMIN_PASSWORD_HASH:'120000.dGVzdA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',ADMIN_SESSION_SECRET:'title-settings-test-session-secret-longer-than-32'};
+ const session=createSessionCookie(env).split(';')[0];
+ globalThis.fetch=(path,options={})=>String(path).startsWith('/api/sales-admin/')?worker.fetch(new Request('https://component.example'+path,{method:options.method||'GET',headers:{Origin:'https://component.example','Content-Type':'application/json',Cookie:session},...(options.body?{body:options.body}:{})}),env,{waitUntil(){}}):base(path,options);
+ try{
+  render(<MemoryRouter initialEntries={['/cats/']}><WorkbenchSettingsAdmin/><WorkspaceContent/></MemoryRouter>);await ready();
+  const prefix=await screen.findByLabelText('AI标题前半句'),highlight=screen.getByLabelText('AI标题高亮词');
+  await u.clear(prefix);await u.type(prefix,'帮你找到');await u.clear(highlight);await u.type(highlight,'心动小猫');
+  await u.click(screen.getByRole('button',{name:'保存工作台设置'}));await screen.findByText('设置已保存。');
+  const heading=screen.getByRole('heading',{level:2,name:'帮你找到 心动小猫'});assert.equal(heading.querySelector('span').textContent.trim(),'心动小猫');
+  const saved=JSON.parse((await db.prepare('SELECT value FROM workbench_config WHERE id=1').first()).value);
+  assert.equal(saved.heroTitle,'帮你找到');assert.equal(saved.heroHighlight,'心动小猫');
+  cleanup();mount();await ready();assert.ok(screen.getByRole('heading',{level:2,name:'帮你找到 心动小猫'}));assert.equal(m.calls.length,0);
+ }finally{cleanup();m.restore();db.close();}
+});
