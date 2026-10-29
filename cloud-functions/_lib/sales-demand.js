@@ -34,6 +34,16 @@ const breedAliases={'英国短毛猫':['英短','英国短毛'],'英短':['英�
  '布偶':['布偶猫'],'布偶猫':['布偶'],'缅因猫':['缅因'],'缅因':['缅因猫'],
  '德文卷毛猫':['德文'],'德文':['德文卷毛猫']};
 const breedForms=name=>[name,name.replace(/猫$/,''),...(breedAliases[name]||[])];
+// A sales request may mix inventory requirements with artwork instructions.
+// A visual color (e.g. 无黑框, 白色背景) is NOT a cat's coat color.
+// Remove only identifiable presentation *phrases*, preserving genuine coat
+// requests such as 黑猫、黑色的猫、不要黑色猫 in the same sentence.
+// This scoped source is used for BOTH local extraction and model grounding.
+export function inventoryColorEvidence(goal){
+ return String(goal||'').normalize('NFKC')
+  .replace(/(?:无|没有|不要|不带|别带|去掉|去除|移除|取消|不显示|不加|不用|隐藏|别加)?\s*(?:(?:黑白|白黑|黑|白|灰|红|蓝|绿|金|银|粉|紫|橙)(?:色)?)?(?:的)?\s*(?:边框|外框|相框|画框|框线|边线|框边|黑框|白框|黑边|白边|背景|底色|底图|水印|横幅|标题栏|边框线)(?:的)?/gu,' ')
+  .replace(/(?:图|图片|拼图|海报|背景|底色|底图|横幅|边框|框线|相框)\s*(?:要|用|选|改成|是|设置为)\s*(?:黑|白|灰|红|蓝|绿|金|银|粉|紫|橙)色?(?!猫|毛)/gu,' ');
+}
 function explicitPrice(source){
  const text=source.normalize('NFKC');
  const number='(?:\\d{2,6}(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s*[千kK])';
@@ -53,13 +63,15 @@ function explicitPrice(source){
 export function inferSalesDemand(goal,catalog=[]){
  const text=String(goal||'').normalize('NFKC').slice(0,1200);
  const breeds=[...new Set(catalog.map(c=>c.breed).filter(Boolean))],colors=[...new Set(catalog.map(c=>c.color).filter(Boolean))];
- const {filters}=parseDemandLocally(text,{breeds,colors});
+ const colorEvidence=inventoryColorEvidence(text);
+ const {filters}=parseDemandLocally(text,{breeds,colors:[]});
+ const {filters:colorFilters}=parseDemandLocally(colorEvidence,{breeds:[],colors});
  const excludedBreeds=breeds.filter(b=>breedForms(b).some(form=>negative(text,form)));
- const excludedColors=colors.filter(c=>negative(text,c));
+ const excludedColors=colors.filter(c=>negative(colorEvidence,c));
  const positiveBreeds=breeds.filter(b=>breedForms(b).some(form=>text.includes(form))).filter(b=>!excludedBreeds.includes(b));
  if(filters.breed&&!excludedBreeds.includes(filters.breed)&&!positiveBreeds.includes(filters.breed))positiveBreeds.push(filters.breed);
- const positiveColors=colors.filter(c=>text.includes(c)).filter(c=>!excludedColors.includes(c));
- if(filters.color&&!excludedColors.includes(filters.color)&&!positiveColors.includes(filters.color))positiveColors.push(filters.color);
+ const positiveColors=colors.filter(c=>colorEvidence.includes(c)).filter(c=>!excludedColors.includes(c));
+ if(colorFilters.color&&!excludedColors.includes(colorFilters.color)&&!positiveColors.includes(colorFilters.color))positiveColors.push(colorFilters.color);
  const mentionedPreferGender=/(?:优先|尽量|最好|更喜欢).{0,6}(?:母猫|妹妹|女孩|公猫|弟弟|男孩)/.test(text);
  const gender=filters.gender||null;
  const matchCount=text.match(/(?:找|挑|选|推荐|做|要|来|看)(?:出|给我|一下|个)?\s*([1-9一二两三四五六七八九])\s*只/);
@@ -76,12 +88,13 @@ export function resolveSalesDemand(goal,modelDemand,catalog=[]){
  const ai=validateSalesDemand(modelDemand);
  const price=explicit.price.mode!=='none'?explicit.price:ai.price;
  const rawText=String(goal||'').normalize('NFKC');
- const grounded=(values,known)=>values.filter(value=>rawText.includes(value)||known.includes(value));
+ const colorEvidence=inventoryColorEvidence(rawText);
+ const grounded=(values,known,source=rawText)=>values.filter(value=>source.includes(value)||known.includes(value));
  const hard={...ai.hard,
   breeds:grounded(ai.hard.breeds,explicit.hard.breeds),
-  colors:grounded(ai.hard.colors,explicit.hard.colors),
+  colors:grounded(ai.hard.colors,explicit.hard.colors,colorEvidence),
   excludeBreeds:uniq([...grounded(ai.hard.excludeBreeds,explicit.hard.excludeBreeds),...explicit.hard.excludeBreeds]),
-  excludeColors:uniq([...grounded(ai.hard.excludeColors,explicit.hard.excludeColors),...explicit.hard.excludeColors])};
+  excludeColors:uniq([...grounded(ai.hard.excludeColors,explicit.hard.excludeColors,colorEvidence),...explicit.hard.excludeColors])};
  for(const key of ['breeds','colors','gender','minAgeMonths','maxAgeMonths']){
   const v=explicit.hard[key];if(Array.isArray(v)?v.length>0:v!==null)hard[key]=v;
  }
