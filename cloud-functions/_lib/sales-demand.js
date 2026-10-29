@@ -120,22 +120,37 @@ export function parseAgeMonths(value){
  for(const [name,num] of Object.entries(chineseYears))if(text.startsWith(name))return num;
  return null;
 }
+// Shared predicate: the real selector and admin-only diagnostics MUST use the
+// same field interpretations. A failed field never implies other fields fail.
+export function inspectSalesCandidate(cat,d,{markup=0,requireImage=false}={}){
+ const h=d.hard,ageMonths=parseAgeMonths(cat.age),price=priceOfCat(cat,d,markup),mode=d.price.mode;
+ const checks={
+  active:!cat.status||cat.status==='在售',
+  breed:!h.breeds.length||h.breeds.includes(cat.breed),
+  excludedBreed:!h.excludeBreeds.includes(cat.breed),
+  color:!h.colors.length||h.colors.includes(cat.color),
+  excludedColor:!h.excludeColors.includes(cat.color),
+  gender:!h.gender||h.gender===cat.gender,
+  age:(h.minAgeMonths===null&&h.maxAgeMonths===null)||(ageMonths!==null&&(h.minAgeMonths===null||ageMonths>=h.minAgeMonths)&&(h.maxAgeMonths===null||ageMonths<=h.maxAgeMonths)),
+  photo:!(requireImage||h.requirePhoto)||Boolean(cat.image),
+  priceValid:mode==='none'||price!==null,
+  priceRange:mode==='none'||mode==='target'||mode==='cheapest'||(price!==null&&(mode!=='ceiling'||price<=d.price.max)&&(mode!=='range'||price>=d.price.min&&price<=d.price.max)),
+ };
+ return {checks,ageMonths,price,eligible:Object.values(checks).every(Boolean)};
+}
 export function evaluateSalesCandidates(catalog,demand,{markup=0,requireImage=false}={}){
  const d=validateSalesDemand(demand),count={total:0,active:0,hard:0,photo:0,priced:0,eligible:0};
  const accepted=[];
  for(const cat of catalog){count.total++;
-  if(cat.status&&cat.status!=='在售')continue;count.active++;
-  const h=d.hard;
-  if(h.breeds.length&&!h.breeds.includes(cat.breed)||h.excludeBreeds.includes(cat.breed)||h.colors.length&&!h.colors.includes(cat.color)||h.excludeColors.includes(cat.color)||h.gender&&cat.gender!==h.gender)continue;
-  const age=parseAgeMonths(cat.age);
-  if((h.minAgeMonths!==null||h.maxAgeMonths!==null)&&(age===null||h.minAgeMonths!==null&&age<h.minAgeMonths||h.maxAgeMonths!==null&&age>h.maxAgeMonths))continue;
+  const inspected=inspectSalesCandidate(cat,d,{markup,requireImage}),f=inspected.checks;
+  if(!f.active)continue;count.active++;
+  if(!f.breed||!f.excludedBreed||!f.color||!f.excludedColor||!f.gender||!f.age)continue;
   count.hard++;
-  if((requireImage||h.requirePhoto)&&!cat.image)continue;count.photo++;
-  const price=priceOfCat(cat,d,markup);
-  const p=d.price;if(price===null&&p.mode!=='none')continue;
-  if(price!==null)count.priced++;
-  if(p.mode==='ceiling'&&price>p.max||p.mode==='range'&&(price<p.min||price>p.max))continue;
-  count.eligible++;accepted.push({cat,price});
+  if(!f.photo)continue;count.photo++;
+  if(!f.priceValid)continue;
+  if(inspected.price!==null)count.priced++;
+  if(!f.priceRange)continue;
+  count.eligible++;accepted.push({cat,price:inspected.price});
  }
  const preference=d.preferences;
  accepted.sort((a,b)=>{

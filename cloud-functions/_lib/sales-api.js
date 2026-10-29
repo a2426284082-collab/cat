@@ -6,6 +6,7 @@ import {runAgentTask} from './sales-agent-run.js';
 import {startTask,advanceTask,readTask,listTasks,cancelTask} from './sales-agent-autopilot.js';
 import { json, requireAdmin } from './admin-auth.js';
 import { getCatalog } from './feishu.js';
+import { diagnoseSalesInventory } from './sales-inventory-diagnostics.js';
 import { accountView, activate, auditLocal, cleanCode, cookie, database, digest, fail, finish, housekeeping, newKey,
   nowSeconds, preflight, rateLimit, reserve, resolveSession, salesDay } from './sales-store.js';
 import { generateReply, selectCandidates, validatePrompt, normalizePrompt, marketingOptions } from './sales-engine.js';
@@ -129,6 +130,29 @@ async function ask(db,env,request,body) {
 async function admin(db,env,request,path,body) {
   if(!requireAdmin(request,env))throw fail('请先登录管理员账号',401);
   const now=nowSeconds(),day=salesDay(now);
+  if(path==='/api/sales-admin/inventory-diagnostics'){
+    methodCheck(request,['POST']);
+    // Admin session is verified in handleSales before loading D1 or stock.
+    const taskId=body.task_id;
+    if(taskId!==undefined&&(typeof taskId!=='string'||!/^[0-9a-f-]{36}$/i.test(taskId)))throw fail('云端任务编号无效',400);
+    let saved=null;
+    if(taskId){
+      const row=await db.prepare('SELECT state_json FROM sales_agent_tasks WHERE id=?').bind(taskId).first();
+      if(!row)throw fail('未找到云端任务',404);
+      try{saved=JSON.parse(row.state_json);}catch{throw fail('云端任务内容损坏',409);}
+    }
+    const goal=saved?(saved.edit?(saved.context?.need||saved.goal):saved.goal):body.goal;
+    const markup=taskId?Number(saved.context?.params?.markup??0):Number(body.markup??0);
+    if(typeof goal!=='string'||goal.trim().length<2||goal.length>1200)throw fail('请填写2至1200字的销售需求',400);
+    if(!Number.isFinite(markup)||markup<0||markup>100000)throw fail('加价参数无效',400);
+    if(body.ids!==undefined&&(!Array.isArray(body.ids)||body.ids.length>12||body.ids.some(x=>typeof x!=='string'||x.length>42)))throw fail('指定猫咪编号无效',400);
+    if(body.refresh!==undefined&&typeof body.refresh!=='boolean')throw fail('刷新参数无效',400);
+    let catalog;try{catalog=await getCatalog(env,{fresh:body.refresh===true});}catch{throw fail('在售猫源读取失败，请确认飞书连接',503);}
+    let report;
+    try{report=diagnoseSalesInventory(catalog.cats,goal,{markup,ids:body.ids||[],savedDemand:saved?.demand||null,requireImage:true});}
+    catch(error){throw fail(error.message||'需求参数无法诊断',400);}
+    return json({success:true,data:{...report,taskId:taskId||null,catalogUpdatedAt:catalog.updatedAt}});
+  }
   if(path==='/api/sales-admin/control')return handleWorkbenchAdmin(db,env,request,path,body);
   if(path==='/api/sales-admin/settings') {
     methodCheck(request,['GET','PATCH']);

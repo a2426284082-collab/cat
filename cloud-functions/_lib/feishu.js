@@ -232,11 +232,11 @@ export async function updateAdminCat(envInput, recordId, input) {
   return adminCat(data.record ?? { record_id: recordId, fields: { ...fields, '猫咪ID': input?.id || '' } });
 }
 
-export async function getCatalog(envInput) {
+export async function getCatalog(envInput,{fresh=false}={}) {
   const env = config(envInput);
   const key = [env.FEISHU_APP_ID, env.FEISHU_APP_SECRET, env.FEISHU_APP_TOKEN, env.FEISHU_TABLE_ID].join(':');
   if (catalogCache.key !== key) catalogCache = { key, value: null, until: 0, pending: null };
-  if (catalogCache.value && Date.now() < catalogCache.until) return catalogCache.value;
+  if (!fresh && catalogCache.value && Date.now() < catalogCache.until) return catalogCache.value;
   if (!catalogCache.pending) {
     catalogCache.pending = loadCatalog(env).then(value => {
       catalogCache.value = value;

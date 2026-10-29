@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { loginProof } from './login-proof.js';
 import SalesRiskAdmin from './components/SalesRiskAdmin.jsx';
 import WorkbenchSettingsAdmin from './components/WorkbenchSettingsAdmin.jsx';
+import SalesInventoryDiagnostics from './components/SalesInventoryDiagnostics.jsx';
 import './admin-controls.css';
 import { changedCatFields } from './admin-edit.js';
 import { Bot, Cat, Clipboard, LogOut, MessageSquare, Pencil, Plus, RefreshCw, RotateCw, Search, Users, X } from 'lucide-react';
@@ -95,8 +96,8 @@ export default function AdminApp() {
   return <div className="admin-app min-h-screen">
     <header className="border-b bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-orange-500 text-white"><Cat/></span><div><h1 className="font-bold">猫源管理台</h1><p className="text-xs text-slate-500">直接管理飞书猫源</p></div></div><div className="flex items-center gap-3 text-sm"><span className="hidden text-slate-500 sm:inline">{user.username}</span><button onClick={logout} className="flex items-center gap-1.5 rounded-lg border px-3 py-2 hover:bg-slate-50"><LogOut size={16}/>退出</button></div></div></header>
     <main className="mx-auto max-w-7xl px-4 py-6">
-      <nav className="mb-5 flex gap-2 overflow-x-auto">{[['cats','猫源管理',Cat],['sales','销售账号与风控',Users],['settings','工作台设置',Pencil]].map(([key,label,Icon])=><button key={key} onClick={()=>setTab(key)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${tab===key?'bg-slate-900 text-white':'border bg-white'}`}><Icon size={17}/>{label}</button>)}</nav>
-      {tab==='sales'&&<SalesRiskAdmin/>}{tab==='settings'&&<WorkbenchSettingsAdmin/>}{tab==='cats'&&<>
+      <nav className="mb-5 flex gap-2 overflow-x-auto">{[['cats','猫源管理',Cat],['sales','销售账号与风控',Users],['settings','工作台设置',Pencil],['diagnostics','选猫诊断',Search]].map(([key,label,Icon])=><button key={key} onClick={()=>setTab(key)} className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${tab===key?'bg-slate-900 text-white':'border bg-white'}`}><Icon size={17}/>{label}</button>)}</nav>
+      {tab==='sales'&&<SalesRiskAdmin/>}{tab==='settings'&&<WorkbenchSettingsAdmin/>}{tab==='diagnostics'&&<SalesInventoryDiagnostics/>}{tab==='cats'&&<>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-400" size={20}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索猫ID、品种、毛色、供应商、原编号" className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 outline-none focus:border-orange-500" /></div><select value={status} onChange={e => setStatus(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5"><option>全部</option>{statuses.map(item => <option key={item}>{item}</option>)}</select><button onClick={()=>load(true)} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 hover:bg-slate-50"><RefreshCw size={18} className={loading ? 'animate-spin' : ''}/>刷新</button></div>
       <div className="mb-4 flex items-center justify-between text-sm text-slate-500"><span>共 {cats.length} 只，当前显示 {filtered.length} 只</span></div>
       {feedback&&<p role="status" className="admin-feedback">{feedback}</p>}
