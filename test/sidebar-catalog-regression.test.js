@@ -7,7 +7,7 @@ test('calculator is in the existing sidebar tool section, not a hidden mobile na
  const sidebar=file('src/workspace/SidebarUtilities.jsx');
  const workspace=file('src/SalesWorkspace.jsx');
  assert.match(sidebar, /sidebar-art-tools[\s\S]*打开运费与收款速算器/);
- assert.match(sidebar, /config\.calculatorEnabled&&!customerDisplay\.enabled/);
+ assert.match(sidebar, /config\.calculatorEnabled&&<button aria-label="打开运费与收款速算器"/);
  assert.doesNotMatch(workspace, /calculatorLaunch/);
  assert.doesNotMatch(workspace, /侧边栏打开运费与收款速算器/);
 });
