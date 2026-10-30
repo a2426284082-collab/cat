@@ -1,7 +1,7 @@
 {
   "name": "cat-sales-workspace",
   "private": true,
-  "version": "3.12.7",
+  "version": "3.13.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,9 @@
     "preview:offline": "npm run build && node scripts/build-workspace-preview.mjs",
     "check": "npm test && npm run test:components",
     "verify:release": "npm run check && wrangler deploy --dry-run && node scripts/verify-release-assets.mjs",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test:proposals:d1": "node test/proposals-d1.mjs",
+    "test:proposals:assets": "node test/proposal-assets.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.263.1",

@@ -42,3 +42,5 @@
  .catalog-filter-hint{font-size:9px}
  .workflow-workspace .sales-ai-heading .sales-ai-filter-guide{font-size:10px;text-align:left}
 }
+
+.catalog-proposal-add{position:absolute;right:10px;top:10px;z-index:4;width:36px;height:36px;display:grid;place-content:center;border:1px solid #fff8;background:#fffffff0;color:#476b3e;border-radius:50%;font-size:23px;box-shadow:0 2px 10px #0001}.catalog-proposal-add.selected{background:#4f7347;color:#fff;font-size:19px}.catalog-forward-link{font-size:12px;color:#668650;padding:9px 8px;line-height:1.7;white-space:nowrap}.workspace-compare .proposal-create{background:#4d6c3f;color:white}.catalog-range-inputs input:disabled{opacity:.5;background:#f0eee7;cursor:not-allowed}

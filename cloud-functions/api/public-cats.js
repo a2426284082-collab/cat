@@ -8,8 +8,11 @@ const VARIABLES = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_APP_TOKEN', 'FE
 export async function onRequestGet({ env }) {
   try {
     const { cats, updatedAt } = await getCatalog(env);
-    return new Response(JSON.stringify({ success: true, data: cats, updatedAt, settings:await readWorkbench(env.SALES_DB) }), {
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=60, must-revalidate', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' },
+    // This endpoint is anonymous. Partner prices and unrestricted notes belong
+    // exclusively to /api/agent/catalog, which validates an activated session.
+    const data=cats.map(cat=>({id:cat.id,breed:cat.breed,color:cat.color,gender:cat.gender,age:cat.age,vaccine:cat.vaccine,image:cat.image,images:cat.images,videos:(cat.videos||[]).map(v=>({url:v.url}))}));
+    return new Response(JSON.stringify({ success: true, data, updatedAt, settings:await readWorkbench(env.SALES_DB) }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' },
     });
   } catch (error) {
     const details = { code: CODES.has(error?.code) ? error.code : 'CATALOG_READ_FAILED' };

@@ -1,5 +1,6 @@
 import { housekeeping } from './cloud-functions/_lib/sales-store.js';
 import { handleSales } from './cloud-functions/_lib/sales-api.js';
+import {handleProposals,cleanupProposals} from './cloud-functions/_lib/proposals-api.js';
 // Cloudflare entry point. Existing EdgeOne handlers remain the business source.
 import * as publicCats from './cloud-functions/api/public-cats.js';
 import * as publicImages from './cloud-functions/api/public-images/[token].js';
@@ -79,9 +80,22 @@ function platformRequest(request) {
 export default {
   async scheduled(event, env, ctx) {
     if(env.SALES_DB)ctx.waitUntil(housekeeping(env.SALES_DB,5000).catch(()=>console.error('sales_cleanup_failed')));
+    if(env.SALES_DB)ctx.waitUntil(cleanupProposals(env.SALES_DB).catch(()=>console.error('proposal_cleanup_failed')));
   },
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
+    if(pathname.startsWith('/api/agent/')||pathname.startsWith('/api/proposals/')){
+      const response=await handleProposals({request:platformRequest(request),env});
+      if(request.method==='HEAD'){await response.body?.cancel();return new Response(null,{status:response.status,headers:response.headers});}
+      return response;
+    }
+    if(/^\/p\/[A-Za-z0-9_-]{24}\/?$/.test(pathname)){
+      if(!['GET','HEAD'].includes(request.method))return json('请求方法不支持',405,{Allow:'GET, HEAD'});
+      const page=new URL(request.url);page.pathname='/p/';page.search='';
+      const response=await env.ASSETS.fetch(new Request(page,request));
+      const safe=new Headers(response.headers);safe.set('Cache-Control','no-store');safe.set('Referrer-Policy','no-referrer');safe.set('X-Robots-Tag','noindex, nofollow');safe.set('X-Frame-Options','DENY');safe.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' https: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+      return new Response(request.method==='HEAD'?null:response.body,{status:response.status,headers:safe});
+    }
     // Serve this exact verification URL before Assets normalizes away .html.
     // This is a public website-ownership token, not an application credential.
     if (pathname === '/baidu_verify_codeva-5BMeKqCfaF.html') {

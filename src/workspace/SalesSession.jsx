@@ -40,8 +40,8 @@ export function SalesSessionProvider({children}){
    catch(e){if(active&&e.status===401){try{await guest();if(active)setEpoch(v=>v+1);}catch{}}}
   };
   const timer=setInterval(refresh,60000);
-  window.addEventListener('focus',refresh);
-  return()=>{active=false;clearTimeout(deadline);controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);};
+  window.addEventListener('focus',refresh);window.addEventListener('workspace:session-refresh',refresh);
+  return()=>{active=false;clearTimeout(deadline);controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('workspace:session-refresh',refresh);};
  },[]);
  useEffect(()=>{if(!cooldown)return;const timer=setTimeout(()=>setCooldown(v=>Math.max(0,v-1)),1000);return()=>clearTimeout(timer);},[cooldown]);
  useEffect(()=>{if(!open)return;const previous=document.activeElement;keyInput.current?.focus();const escape=e=>{if(e.key==='Escape')setOpen(false);};window.addEventListener('keydown',escape);return()=>{window.removeEventListener('keydown',escape);previous?.focus();};},[open]);

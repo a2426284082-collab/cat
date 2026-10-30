@@ -3,7 +3,7 @@ import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
 
 const root=resolve('dist');
-const entries=['index.html','cats/index.html','admin/index.html','admin-sales/index.html','assistant/index.html','training/index.html','manuals/index.html','guide/index.html','guide-sales/index.html'];
+const entries=['index.html','cats/index.html','forward/index.html','p/index.html','admin/index.html','admin-sales/index.html','assistant/index.html','training/index.html','manuals/index.html','guide/index.html','guide-sales/index.html'];
 let references=0;
 for(const file of entries){
   const html=readFileSync(resolve(root,file),'utf8');

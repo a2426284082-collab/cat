@@ -10,6 +10,8 @@ export default defineConfig({
       input: {
         main: resolve(process.cwd(), 'index.html'),
         cats: resolve(process.cwd(), 'cats/index.html'),
+        forward: resolve(process.cwd(), 'forward/index.html'),
+        proposal: resolve(process.cwd(), 'p/index.html'),
         admin: resolve(process.cwd(), 'admin/index.html'),
         salesAdmin: resolve(process.cwd(), 'admin-sales/index.html'),
         assistant: resolve(process.cwd(), 'assistant/index.html'),

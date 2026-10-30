@@ -1,4 +1,4 @@
-# Cloudflare Workers 部署设置 · 3.12.7
+# Cloudflare Workers 部署设置 · 3.13.0
 
 沿用原 Cloudflare Workers 项目，不要新建 Pages 项目，也不要在控制台单文件编辑器粘贴源码。
 
@@ -13,12 +13,14 @@
 
 如原平台已设置 `SKIP_DEPENDENCY_INSTALL=1`，可保留，因为上述 Build command 已明确安装依赖。不要设置为只安装 production 依赖；Vite 等构建工具需要 devDependencies。
 
+本版新增 `migrations/0004_sales_proposals.sql`。必须先在原 D1 上执行新增迁移，再触发部署；具体命令见 `FORWARD_DEPLOY.md`。
+
 现有配置 `name: cat`、`SALES_DB` 绑定、数据库 ID、迁移目录、静态资源路由、Cron 和 `keep_vars: true` 均保留。直接更新原项目时不要重新建库或删除现有运行时变量。
 
 密钥继续保存在 Cloudflare 运行时 Variables & Secrets 中，不能加 `VITE_` 前缀。保留原飞书配置、管理员密码哈希和会话密钥、DeepSeek 密钥及既有模型配置。此包没有包含真实密钥。
 
 首次在全新账号/新数据库部署，仍须配置自己的数据库绑定、执行既有迁移并设置密钥。本包针对的是现有网站的源码覆盖，不能自动创建或验证你的线上账号配置。
 
-完整覆盖与回滚步骤见 `上线替换说明.md`；测试证据见 `VALIDATION.md`。
+完整覆盖与回滚步骤见 `上线替换说明.md`；本版测试证据见 `FORWARD_VALIDATION.md`（`VALIDATION.md` 为旧版记录）。
 
 配置依据：https://developers.cloudflare.com/workers/wrangler/custom-builds/

@@ -12,6 +12,8 @@
     "run_worker_first": [
       "/api",
       "/api/*",
+      "/p",
+      "/p/*",
       "/baidu_verify_codeva-5BMeKqCfaF.html",
       "/admin-sales",
       "/admin-sales/*"
