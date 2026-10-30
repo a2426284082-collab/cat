@@ -74,9 +74,9 @@ async function downloadPhoto(url,signal,attempt){
   return blob;
  }finally{clearTimeout(timer);signal.removeEventListener('abort',onAbort);}
 }
-async function thumbnail(url,signal){
+async function thumbnail(url,signal,attempts=PHOTO_ATTEMPTS){
  let last;
- for(let attempt=0;attempt<PHOTO_ATTEMPTS;attempt++){
+ for(let attempt=0;attempt<attempts;attempt++){
   if(signal.aborted)throw aborted();
   try{
    const blob=await downloadPhoto(url,signal,attempt);
@@ -94,14 +94,14 @@ async function thumbnail(url,signal){
    if(signal.aborted)throw aborted();
    last=e?.name==='AbortError'?photoError('PHOTO_TIMEOUT','照片处理超时，请点击重试'):e;
    if(['PHOTO_MISSING','PHOTO_TOO_LARGE','PHOTO_INVALID'].includes(last?.code))break;
-   if(attempt+1<PHOTO_ATTEMPTS)await abortWait(250*(attempt+1),signal);
+   if(attempt+1<attempts)await abortWait(250*(attempt+1),signal);
   }
  }
  throw last||photoError('PHOTO_UNAVAILABLE','照片暂时无法读取，请点击重试');
 }
-async function drain(){if(working>=2)return;working++;try{while(queue.length){const job=queue.shift();try{if(job.controller.signal.aborted)throw aborted();const cached=job.force?null:await stored(job.key);if(job.controller.signal.aborted)throw aborted();const blob=cached||await thumbnail(job.key,job.controller.signal);if(job.version!==generation||job.controller.signal.aborted)throw aborted();remember(job.key,blob);if(!cached)void persist(job.key,blob,job.version);job.resolve(blob);}catch(e){job.reject(e);}finally{if(pending.get(job.key)===job)pending.delete(job.key);}}}finally{working--;if(queue.length)void drain();}}
-export function getPreviewBlob(src,{signal,force=false}={}){let key;try{key=photoURL(src);}catch(e){return Promise.reject(e);}if(signal?.aborted)return Promise.reject(aborted());const hit=memory.get(key);if(!force&&hit?.until>Date.now())return Promise.resolve(hit.blob);let job=pending.get(key);if(job?.controller.signal.aborted){pending.delete(key);job=null;}if(!job){job={key,force,version:generation,controller:new AbortController(),clients:0};job.promise=new Promise((resolve,reject)=>{job.resolve=resolve;job.reject=reject;});job.promise.catch(()=>{});pending.set(key,job);queue.push(job);}job.clients++;const result=new Promise((resolve,reject)=>{let done=false;const finish=(error,blob)=>{if(done)return;done=true;signal?.removeEventListener('abort',abort);job.clients--;if(job.clients===0&&pending.get(key)===job)job.controller.abort();error?reject(error):resolve(blob);};const abort=()=>finish(aborted());signal?.addEventListener('abort',abort,{once:true});job.promise.then(blob=>finish(null,blob),error=>finish(error));});void drain();return result;}
+async function drain(){if(working>=4)return;working++;try{while(queue.length){const priorityIndex=queue.findIndex(item=>item.priority);const job=priorityIndex<0?queue.shift():queue.splice(priorityIndex,1)[0];try{if(job.controller.signal.aborted)throw aborted();const cached=job.force?null:await stored(job.key);if(job.controller.signal.aborted)throw aborted();const blob=cached||await thumbnail(job.key,job.controller.signal,job.attempts);if(job.version!==generation||job.controller.signal.aborted)throw aborted();remember(job.key,blob);if(!cached)void persist(job.key,blob,job.version);job.resolve(blob);}catch(e){job.reject(e);}finally{if(pending.get(job.key)===job)pending.delete(job.key);}}}finally{working--;if(queue.length)void drain();}}
+export function getPreviewBlob(src,{signal,force=false,priority=false,attempts=PHOTO_ATTEMPTS}={}){let key;try{key=photoURL(src);}catch(e){return Promise.reject(e);}if(signal?.aborted)return Promise.reject(aborted());const hit=memory.get(key);if(!force&&hit?.until>Date.now())return Promise.resolve(hit.blob);let job=pending.get(key);if(job?.controller.signal.aborted){pending.delete(key);job=null;}if(!job){job={key,force,priority,attempts:attempts===1?1:PHOTO_ATTEMPTS,version:generation,controller:new AbortController(),clients:0};job.promise=new Promise((resolve,reject)=>{job.resolve=resolve;job.reject=reject;});job.promise.catch(()=>{});pending.set(key,job);queue.push(job);}else if(priority){job.priority=true;}job.clients++;const result=new Promise((resolve,reject)=>{let done=false;const finish=(error,blob)=>{if(done)return;done=true;signal?.removeEventListener('abort',abort);job.clients--;if(job.clients===0&&pending.get(key)===job)job.controller.abort();error?reject(error):resolve(blob);};const abort=()=>finish(aborted());signal?.addEventListener('abort',abort,{once:true});job.promise.then(blob=>finish(null,blob),error=>finish(error));});void drain();return result;}
 export async function loadPreparedImage(src,{signal,force=false}={}){const blob=await getPreviewBlob(src,{signal,force});return decodePreview(blob,{signal});}
 export async function clearPreviewCache(){generation++;for(const job of pending.values())job.controller.abort();memory.clear();try{const database=await db();if(database)await bounded(new Promise(resolve=>{const tx=database.transaction('photos','readwrite');tx.objectStore('photos').clear();tx.oncomplete=tx.onerror=tx.onabort=()=>resolve();}),1200);}catch{}globalThis.window?.dispatchEvent(new CustomEvent('cat-media-reset'));}
 export function releaseCanvas(canvas){if(canvas)canvas.width=canvas.height=1;}
-export const mediaLimits={decodedQueue:1,networkQueue:2,maxEdge:960,maxEntries:32,maxBytes:MAX_CACHE_BYTES,version:VERSION};
+export const mediaLimits={decodedQueue:1,networkQueue:4,maxEdge:960,maxEntries:32,maxBytes:MAX_CACHE_BYTES,version:VERSION};

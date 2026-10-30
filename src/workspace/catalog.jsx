@@ -1,6 +1,6 @@
 import React,{createContext,useContext,useEffect,useMemo,useRef,useState} from 'react';
 import {useSalesSession} from './SalesSession.jsx';
-const Context=createContext(null),KEY='public-cat-catalog-v3',MAX_AGE=30*60*1000;
+const Context=createContext(null),KEY='public-cat-catalog-v3',MAX_AGE=24*60*60*1000;
 // Only a periodic best-effort check. Real-time decisions still require a manual stock check.
 export const CATALOG_AUTO_REFRESH_MS=15*60*1000;
 const publicRows=rows=>rows.map(c=>({id:c.id,breed:c.breed,color:c.color,gender:c.gender,age:c.age,vaccine:c.vaccine,image:c.image,images:c.images,videos:(c.videos||[]).map(v=>({url:v.url}))}));
@@ -18,15 +18,15 @@ function catalogFailure(status,body,hasStock){
 }
 export function CatalogProvider({children}){
  const {user,checking}=useSalesSession(),identity=user&&!user.is_guest?`agent:${user.id}`:'public';
- const [initial]=useState(cached),[entry,setEntry]=useState({owner:'public',cats:initial.cats}),[lastUpdated,setLastUpdated]=useState(initial.savedAt),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [initial]=useState(cached),[entry,setEntry]=useState({owner:'public',cats:initial.cats}),[lastUpdated,setLastUpdated]=useState(initial.savedAt),[loading,setLoading]=useState(true),[error,setError]=useState(initial.savedAt&&Date.now()-initial.savedAt>30*60*1000?'正在核验较早保存的猫源资料，成交前请核对最新库存。':'');
  const alive=useRef(false),generation=useRef(0),controller=useRef(null),pending=useRef(null),rowsRef=useRef(entry.cats),settingsHash=useRef('');rowsRef.current=entry.cats;
  async function refresh({manual=false}={}){
   if(checking)return {ok:false,reason:'正在检查账号'};
   if(pending.current?.owner===identity)return pending.current.promise;
-  const version=generation.current,parent=controller.current,abort=new AbortController(),cancel=()=>abort.abort();parent?.signal.addEventListener('abort',cancel,{once:true});if(parent?.signal.aborted)abort.abort();const deadline=setTimeout(()=>abort.abort(),15000);
+  const version=generation.current,parent=controller.current,abort=new AbortController(),cancel=()=>abort.abort();parent?.signal.addEventListener('abort',cancel,{once:true});if(parent?.signal.aborted)abort.abort();const deadline=setTimeout(()=>abort.abort(),22000);
   if(!rowsRef.current.length||manual)setLoading(true);
   const job=(async()=>{try{
-   const response=await fetch(identity==='public'?'/api/public-cats':'/api/agent/catalog'+(manual?'?fresh=1':''),{credentials:'same-origin',cache:'no-store',signal:abort.signal});
+   const response=await fetch(identity==='public'?'/api/public-cats'+(manual?'?fresh=1':''):'/api/agent/catalog'+(manual?'?fresh=1':''),{credentials:'same-origin',cache:'no-store',signal:abort.signal});
    const body=await response.json().catch(()=>({}));
    if(!response.ok||!body.success||!Array.isArray(body.data)){
     if(identity!=='public'&&[401,403].includes(response.status)){setEntry(old=>({owner:'public',cats:publicRows(old.cats)}));window.dispatchEvent(new Event('workspace:session-refresh'));}
@@ -47,7 +47,9 @@ export function CatalogProvider({children}){
  useEffect(()=>{
   if(checking)return;alive.current=true;generation.current++;controller.current=new AbortController();pending.current=null;refresh();
   const timer=setInterval(()=>{if(!document.hidden)refresh();},CATALOG_AUTO_REFRESH_MS);
-  return()=>{alive.current=false;generation.current++;controller.current.abort();clearInterval(timer);};
+  const onReconnect=()=>{if(!document.hidden)void refresh();};
+  window.addEventListener('online',onReconnect);
+  return()=>{alive.current=false;generation.current++;controller.current.abort();clearInterval(timer);window.removeEventListener('online',onReconnect);};
  },[identity,checking]);
  const cats=useMemo(()=>entry.owner===identity?entry.cats:publicRows(entry.cats),[entry,identity]);
  return <Context.Provider value={{cats,lastUpdated,loading,error,refresh}}>{children}</Context.Provider>;

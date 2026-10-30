@@ -5,6 +5,7 @@ const CACHE_MS = 5 * 60 * 1000;
 // These caches live only for the lifetime of one function instance. They are an
 // optimization; correctness never depends on a shared process or a timer.
 let tokenCache = { key: '', value: '', until: 0 };
+const tokenPending = new Map();
 let catalogCache = { key: '', value: null, until: 0, pending: null };
 let adminCatalogCache={key:'',value:null,until:0,pending:null,revision:0};
 
@@ -16,42 +17,58 @@ function config(env) {
 }
 
 async function feishuJson(url, options) {
-  // Retain only fixed stage labels and numeric upstream codes. Never return or
-  // log upstream URLs, messages, request headers, app tokens or credentials.
+  // Read requests may be retried once after a transient upstream failure.
+  // Never retry a modifying request: duplicate writes are not safe.
   const path = new URL(url).pathname;
   const stage = path.includes('/auth/') ? 'auth' : path.includes('/bitable/') ? 'records' : 'media';
-  let response;
-  try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(12000) }); }
-  catch (error) {
-    const code = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'FEISHU_TIMEOUT' : 'FEISHU_NETWORK_ERROR';
-    throw Object.assign(new Error('Feishu connection failed'), { code, stage });
+  const retryable = stage === 'records' && (!options?.method || options.method === 'GET') || stage === 'auth' && options?.method === 'POST';
+  for (let attempt = 0; ; attempt++) {
+    let response;
+    try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(8000) }); }
+    catch (error) {
+      if (retryable && attempt === 0) { await new Promise(resolve => setTimeout(resolve, 180)); continue; }
+      const code = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'FEISHU_TIMEOUT' : 'FEISHU_NETWORK_ERROR';
+      throw Object.assign(new Error('Feishu connection failed'), { code, stage });
+    }
+    if (!response.ok) {
+      if (retryable && attempt === 0 && [429, 500, 502, 503, 504].includes(response.status)) {
+        await response.body?.cancel().catch(()=>{});
+        await new Promise(resolve => setTimeout(resolve, 250));
+        continue;
+      }
+      throw Object.assign(new Error('Feishu HTTP error'), { code: 'FEISHU_HTTP_ERROR', stage, upstreamStatus: response.status });
+    }
+    let result;
+    try { result = await response.json(); }
+    catch { throw Object.assign(new Error('Feishu invalid response'), { code: 'FEISHU_INVALID_RESPONSE', stage }); }
+    if (result?.code !== 0) throw Object.assign(new Error('Feishu API error'), {
+      code: 'FEISHU_API_ERROR', stage,
+      ...(Number.isInteger(result?.code) ? { feishuCode: result.code } : {}),
+    });
+    return result.data ?? result;
   }
-  if (!response.ok) throw Object.assign(new Error('Feishu HTTP error'), { code: 'FEISHU_HTTP_ERROR', stage, upstreamStatus: response.status });
-  let result;
-  try { result = await response.json(); }
-  catch { throw Object.assign(new Error('Feishu invalid response'), { code: 'FEISHU_INVALID_RESPONSE', stage }); }
-  if (result?.code !== 0) throw Object.assign(new Error('Feishu API error'), {
-    code: 'FEISHU_API_ERROR', stage,
-    ...(Number.isInteger(result?.code) ? { feishuCode: result.code } : {}),
-  });
-  return result.data ?? result;
 }
 
 async function accessToken(env) {
   const key = `${env.FEISHU_APP_ID}:${env.FEISHU_APP_SECRET}`;
   if (tokenCache.key === key && Date.now() < tokenCache.until) return tokenCache.value;
-  const result = await feishuJson(`${FEISHU}/auth/v3/tenant_access_token/internal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_id: env.FEISHU_APP_ID, app_secret: env.FEISHU_APP_SECRET }),
-  });
-  if (!result.tenant_access_token) throw Object.assign(new Error('Feishu token missing'), { code: 'FEISHU_TOKEN_MISSING', stage: 'auth' });
-  tokenCache = {
-    key,
-    value: result.tenant_access_token,
-    until: Date.now() + Math.max(0, (Number(result.expire) || 7200) - 300) * 1000,
-  };
-  return tokenCache.value;
+  if (tokenPending.has(key)) return tokenPending.get(key);
+  const job = (async () => {
+    const result = await feishuJson(`${FEISHU}/auth/v3/tenant_access_token/internal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_id: env.FEISHU_APP_ID, app_secret: env.FEISHU_APP_SECRET }),
+    });
+    if (!result.tenant_access_token) throw Object.assign(new Error('Feishu token missing'), { code: 'FEISHU_TOKEN_MISSING', stage: 'auth' });
+    tokenCache = {
+      key, value: result.tenant_access_token,
+      until: Date.now() + Math.max(0, (Number(result.expire) || 7200) - 300) * 1000,
+    };
+    return result.tenant_access_token;
+  })();
+  tokenPending.set(key,job);
+  try { return await job; }
+  finally { if (tokenPending.get(key) === job) tokenPending.delete(key); }
 }
 
 function stringValue(value) {

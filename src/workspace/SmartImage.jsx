@@ -7,7 +7,7 @@ export default function SmartImage({src,sources,alt='',priority=false,retryable=
  const root=useRef(null),[near,setNear]=useState(priority||!('IntersectionObserver' in window)),[retry,setRetry]=useState(0),[image,setImage]=useState(''),[error,setError]=useState('');
  const candidatesKey=JSON.stringify([src,...(Array.isArray(sources)?sources:[])]);
  const candidates=useMemo(()=>[...new Set(JSON.parse(candidatesKey).filter(Boolean))].slice(0,8),[candidatesKey]);
- useEffect(()=>{if(priority||!('IntersectionObserver' in window)){setNear(true);return;}const observer=new IntersectionObserver(rows=>setNear(Boolean(rows[0]?.isIntersecting)),{rootMargin:'200px'});observer.observe(root.current);return()=>observer.disconnect();},[candidatesKey,priority]);
+ useEffect(()=>{if(priority||!('IntersectionObserver' in window)){setNear(true);return;}const observer=new IntersectionObserver(rows=>{if(rows.some(row=>row.isIntersecting)){setNear(true);observer.disconnect();}},{rootMargin:'300px'});observer.observe(root.current);return()=>observer.disconnect();},[candidatesKey,priority]);
  useEffect(()=>{const reset=()=>setRetry(n=>n+1);window.addEventListener('cat-media-reset',reset);return()=>window.removeEventListener('cat-media-reset',reset);},[]);
  useEffect(()=>{
   setImage('');setError('');
@@ -18,7 +18,7 @@ export default function SmartImage({src,sources,alt='',priority=false,retryable=
     if(abort.signal.aborted)return;
     try{
      if(isInlineImage(candidate)){setImage(candidate);return;}
-     const blob=await getPreviewBlob(candidate,{signal:abort.signal,force:retry>0});
+     const blob=await getPreviewBlob(candidate,{signal:abort.signal,force:retry>0,priority,attempts:candidates.length>1?1:2});
      if(abort.signal.aborted)return;
      url=URL.createObjectURL(blob);setImage(url);return;
     }catch(e){
@@ -32,6 +32,6 @@ export default function SmartImage({src,sources,alt='',priority=false,retryable=
   };
   void run();
   return()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
- },[candidatesKey,near,retry]);
+ },[candidatesKey,near,retry,priority]);
  return <span ref={root} className={`smart-image ${className}`}>{image&&!error?<img {...props} src={image} alt={alt} decoding="async" onError={()=>setError('图片无法显示')}/>:error?retryable?<button className="photo-retry" type="button" onClick={e=>{e.stopPropagation();setRetry(n=>n+1);}}>{error}<br/><span>点击重试</span></button>:<span className="photo-unavailable">照片暂时无法加载</span>:<span className="photo-loading" role="status" aria-label="照片加载中"/>}</span>;
 }
