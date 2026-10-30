@@ -2,8 +2,8 @@ import {handbookEntries} from './sales-handbook-data.js';
 import {isHandbookQuestion} from './sales-intent.js';
 export {isHandbookQuestion} from './sales-intent.js';
 const aliases={
- 'basic-job':['合作条件','怎么合作','兼职','加盟','押金','培训费','入职','底薪','平台限制'],
- 'basic-earnings':['差价','利润','赚钱','收入','加价','佣金','提成'],
+ 'basic-job':['合作条件','怎么合作','怎么做代理','怎么做猫咪代理','如何做代理','兼职','加盟','押金','培训费','入职','底薪','平台限制'],
+ 'basic-earnings':['差价','利润','赚钱','收入','加价','报价','收益','佣金','提成'],
  'basic-deal':['下单','收款','结算','付款','收货信息','库存','运费'],
  'basic-customers':['有效客户','未成年','18岁','运输地区','新疆','西藏','海南','内蒙古'],
  'basic-reply-8':['运费','运输','发货','托运'],

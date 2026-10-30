@@ -19,7 +19,9 @@ globalThis.fetch=async(url,options)=>{
   if(String(url)==='https://api.deepseek.com/chat/completions'){
     const payload=JSON.parse(options.body);
     if(payload.messages.length!==2||payload.thinking?.type!=='disabled')throw new Error('Unsafe model payload');
-    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({matched_ids:['#A01'],reply_text:'#A01 布偶妹妹，圆脸、亲人，2600元。喜欢互动的客户可以先看看它的视频，我再帮你确认具体情况。'})}}],usage:{prompt_tokens:200,completion_tokens:85}});
+    const input=JSON.parse(payload.messages[1].content);
+    const result=input.handbook_index?{action:'search',handbook_ids:[]}: {matched_ids:['#A01'],reply_text:'#A01 布偶妹妹，圆脸、亲人，2600元。喜欢互动的客户可以先看看它的视频，我再帮你确认具体情况。'};
+    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(result)}}],usage:{prompt_tokens:200,completion_tokens:85}});
   }
   throw new Error('Unexpected upstream in UI fixture');
 };

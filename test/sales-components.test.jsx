@@ -2,10 +2,10 @@
 import test from 'node:test';import assert from 'node:assert/strict';import React from 'react';
 import {render,screen,waitFor,cleanup,within,configure,fireEvent} from '@testing-library/react';import userEvent from '@testing-library/user-event';import {MemoryRouter} from 'react-router-dom';
 import WorkbenchSettingsAdmin from '../src/components/WorkbenchSettingsAdmin.jsx';
-import {WorkspaceContent} from '../src/SalesWorkspace.jsx';import {drawSinglePoster} from '../src/workspace/CatTools.jsx';import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';import worker from '../cloudflare-worker.js';import {createSessionCookie} from '../cloud-functions/_lib/admin-auth.js';import {newKey} from '../cloud-functions/_lib/sales-store.js';import {makeDB} from './sales-db.mjs';
+import {WorkspaceContent} from '../src/SalesWorkspace.jsx';import {drawSinglePoster} from '../src/workspace/CatTools.jsx';import SalesRiskAdmin from '../src/components/SalesRiskAdmin.jsx';import worker from '../cloudflare-worker.js';import {createSessionCookie} from '../cloud-functions/_lib/admin-auth.js';import {newKey,activate,cookie} from '../cloud-functions/_lib/sales-store.js';import {makeDB} from './sales-db.mjs';
 configure({asyncUtilTimeout:5000});
 const cats=[{id:'CAT-2026-000017',breed:'布偶猫',color:'蓝双',gender:'母',age:'3',price:2600,description:'甜美亲人，合作底价2600元'},{id:'CAT-2026-000018',breed:'英短',color:'金渐层',gender:'公',age:'4',price:1800,description:'温顺安静'}];
-function fixture({signed=true,remaining=20,stockCats=cats,accountId=101}={}){localStorage.clear();sessionStorage.clear();const original=globalThis.fetch;let activated=signed,stock=0;const calls=[];let account={id:accountId,sales_name:'测试销售',remaining,daily_limit:20,retry_after:0};globalThis.fetch=async(path,options={})=>{if(String(path).includes('/api/public-images/'))return new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'image/png'}});if(path==='/api/public-cats'){stock++;return Response.json({success:true,data:stockCats});}if(path==='/api/ai/session')return activated?Response.json({success:true,user:account}):Response.json({success:false},{status:401});if(path==='/api/ai/guest'){activated=true;account={...account,is_guest:true,sales_name:'免费访客'};return Response.json({success:true,user:account});}if(path==='/api/ai/activate'){const b=JSON.parse(options.body);assert.match(b.device_id,/^[a-f0-9-]{36}$/);if(b.key_code!=='ABCD-EF01-2345-6789')return Response.json({success:false,message:'激活码无效'},{status:403});activated=true;account={...account,is_guest:false};return Response.json({success:true,user:account});}if(path==='/api/ai/ask'){const b=JSON.parse(options.body);calls.push(b);if(b.action==='cat_only'){account={...account,remaining:account.remaining-1,retry_after:0};const selected=[cats[0].id];return Response.json({success:true,user:account,data:{kind:'cat_only',used_ai:true,matched_ids:selected.map(id=>'#'+id),reply_text:'已按预算找到在售布偶猫。',cat_context:{cat_ids:selected,need:b.prompt,excluded_ids:[]}}});}if(b.action==='catalog_match')return Response.json({success:true,user:account,data:{kind:'inventory',used_ai:false,matched_ids:['#'+cats[0].id],reply_text:'库存资料：#'+cats[0].id+'，预算范围内的在售猫。'}});if(b.action==='handbook')return Response.json({success:true,user:account,data:{kind:'handbook',used_ai:false,matched_ids:[],reply_text:'按手册：登记猫咪编号、收猫时间和视频资料，提交负责人确认。',sources:[{title:'常用话术与售后',manual:'基础与成交手册',href:'/guide/#tools'}]}});account={...account,remaining:account.remaining-1,retry_after:15};const selected=b.cat_ids||[cats[0].id];return Response.json({success:true,user:account,data:{used_ai:true,matched_ids:selected.map(id=>'#'+id),reply_text:selected.map(id=>'#'+id).join(' 与 ')+'，资料甜美亲人，2600元，可以先看视频。'}});}if(path==='/api/ai/logout'){activated=false;return Response.json({success:true});}throw new Error('Unexpected request '+path);};return{calls,stock:()=>stock,restore(){globalThis.fetch=original;}};}
+function fixture({signed=true,remaining=20,stockCats=cats,accountId=101,retryAfter=0}={}){localStorage.clear();sessionStorage.clear();const original=globalThis.fetch;let activated=signed,stock=0;const calls=[];let account={id:accountId,sales_name:'测试销售',remaining,daily_limit:20,retry_after:retryAfter};globalThis.fetch=async(path,options={})=>{if(String(path).includes('/api/public-images/'))return new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'image/png'}});if(path==='/api/public-cats'){stock++;return Response.json({success:true,data:stockCats});}if(path==='/api/ai/session')return activated?Response.json({success:true,user:account}):Response.json({success:false},{status:401});if(path==='/api/ai/guest'){activated=true;account={...account,is_guest:true,sales_name:'免费访客'};return Response.json({success:true,user:account});}if(path==='/api/ai/activate'){const b=JSON.parse(options.body);assert.match(b.device_id,/^[a-f0-9-]{36}$/);if(b.key_code!=='ABCD-EF01-2345-6789')return Response.json({success:false,message:'激活码无效'},{status:403});activated=true;account={...account,is_guest:false};return Response.json({success:true,user:account});}if(path==='/api/ai/ask'){const b=JSON.parse(options.body);calls.push(b);if(b.action==='cat_only'){account={...account,remaining:account.remaining-1,retry_after:0};const selected=[cats[0].id];return Response.json({success:true,user:account,data:{kind:'cat_only',used_ai:true,matched_ids:selected.map(id=>'#'+id),reply_text:'已按预算找到在售布偶猫。',cat_context:{cat_ids:selected,need:b.prompt,excluded_ids:[]}}});}if(b.action==='catalog_match')return Response.json({success:true,user:account,data:{kind:'inventory',used_ai:false,matched_ids:['#'+cats[0].id],reply_text:'库存资料：#'+cats[0].id+'，预算范围内的在售猫。'}});if(b.action==='handbook')return Response.json({success:true,user:account,data:{kind:'handbook',used_ai:false,matched_ids:[],reply_text:'按手册：登记猫咪编号、收猫时间和视频资料，提交负责人确认。',sources:[{title:'常用话术与售后',manual:'基础与成交手册',href:'/guide/#tools'}]}});account={...account,remaining:account.remaining-1,retry_after:15};const selected=b.cat_ids||[cats[0].id];return Response.json({success:true,user:account,data:{used_ai:true,matched_ids:selected.map(id=>'#'+id),reply_text:selected.map(id=>'#'+id).join(' 与 ')+'，资料甜美亲人，2600元，可以先看视频。'}});}if(path==='/api/ai/logout'){activated=false;return Response.json({success:true});}throw new Error('Unexpected request '+path);};return{calls,stock:()=>stock,restore(){globalThis.fetch=original;}};}
 function mount(path='/cats/'){return render(<MemoryRouter initialEntries={[path]}><WorkspaceContent/></MemoryRouter>);}
 function menu(name){return within(screen.getByRole('navigation',{name:'销售工作台主导航'})).getByRole('link',{name:new RegExp(name)});}
 async function ready(){await screen.findByRole('article',{name:'#017 布偶猫'});await screen.findByText(/今日剩余:/);}
@@ -198,5 +198,58 @@ test('age ranges reject unknown ages, invalid ranges are explained and zero pric
 test('guest manual search uses zero markup like guest AI, works at zero quota and cannot switch to wholesale',async()=>{
  const m=fixture({signed:false,remaining:0}),u=userEvent.setup({delay:null});try{mount();await ready();await screen.findByText('访客免费使用');assert.equal(screen.queryByRole('combobox',{name:'预算价格口径'}),null);
  fireEvent.change(screen.getByRole('spinbutton',{name:'最高价格'}),{target:{value:'2000'}});assert.equal(document.querySelectorAll('.workspace-stock-card').length,1);assert.ok(screen.getByRole('article',{name:'#018 英短'}));assert.equal(m.calls.length,0);assert.equal(m.stock(),1);
+ }finally{cleanup();m.restore();}
+});
+
+
+test('asking a handbook question between finder requests preserves the original selection and need',async()=>{
+ const m=fixture(),base=globalThis.fetch,u=userEvent.setup({delay:null});
+ globalThis.fetch=(path,options={})=>{const body=JSON.parse(options.body||'{}');if(path==='/api/ai/ask'&&body.prompt==='合作需要押金吗？'){m.calls.push(body);return Response.json({success:true,user:{id:101,sales_name:'测试销售',remaining:19,daily_limit:20,retry_after:0},data:{kind:'handbook',used_ai:true,model_calls:2,matched_ids:[],reply_text:'根据手册，合作不收押金；具体合作安排可以继续向负责人确认。',sources:[{title:'合作条件',manual:'基础与成交手册',href:'/guide/#job'}]}});}return base(path,options);};
+ try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'找一只3000元以内的布偶猫'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));
+ const dialog=await screen.findByRole('dialog',{name:'智能找猫 · 对话'});await within(dialog).findByText('找猫说明');
+ fireEvent.change(within(dialog).getByLabelText('继续找猫'),{target:{value:'合作需要押金吗？'}});await u.click(within(dialog).getByRole('button',{name:'发送',exact:true}));await within(dialog).findByText('手册答疑');
+ fireEvent.change(within(dialog).getByLabelText('继续找猫'),{target:{value:'只换第一只，找更便宜的'}});await u.click(within(dialog).getByRole('button',{name:'发送',exact:true}));await waitFor(()=>assert.equal(m.calls.length,3));
+ assert.deepEqual(m.calls[2].cat_context.cat_ids,[cats[0].id]);assert.equal(m.calls[2].cat_context.need,'找一只3000元以内的布偶猫');assert.equal(m.calls[2].action,'cat_only');
+ }finally{cleanup();m.restore();}
+});
+
+
+test('consultant sends unstructured questions and recent dialogue to the same AI endpoint, with paid handbook disclosure',async()=>{
+ const m=fixture(),base=globalThis.fetch,u=userEvent.setup({delay:null});let received;
+ globalThis.fetch=(path,options={})=>{const body=JSON.parse(options.body||'{}');if(path==='/api/ai/ask'){received=body;m.calls.push(body);return Response.json({success:true,user:{id:101,sales_name:'测试销售',remaining:19,daily_limit:20,retry_after:0},data:{kind:'handbook',used_ai:true,model_calls:2,matched_ids:[],reply_text:'先把库存和费用确认清楚，再按手册的收款下单流程处理。',sources:[{title:'成交和下单',manual:'基础与成交手册',href:'/guide/#deal'}]}});}return base(path,options);};
+ try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'客人说钱已经给了，那边又没动静，我该咋接？'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));
+ const dialog=await screen.findByRole('dialog',{name:'智能找猫 · 对话'});await within(dialog).findByText('手册答疑');assert.ok(within(dialog).getByText(/本轮计入1次额度/));
+ assert.equal(received.action,'cat_only');assert.match(received.prompt,/钱已经给了/);assert.ok(Array.isArray(received.conversation));assert.equal(within(dialog).getByRole('link').getAttribute('href'),'/guide/#deal');assert.equal(m.calls.length,1);
+ }finally{cleanup();m.restore();}
+});
+
+test('chat handbook questions respect AI cooldown while manual filters remain usable',async()=>{
+ const m=fixture({remaining:0,retryAfter:15}),u=userEvent.setup({delay:null});try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'合作需要押金吗？'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));
+ const dialog=await screen.findByRole('dialog',{name:'智能找猫 · 对话'});await within(dialog).findByText(/请等待.*秒后再试/);assert.equal(m.calls.length,0);
+ await u.click(within(dialog).getByRole('button',{name:'关闭结果窗口'}));await u.selectOptions(screen.getByRole('combobox',{name:'品种'}),'布偶猫');assert.equal(document.querySelectorAll('.workspace-stock-card').length,1);
+ }finally{cleanup();m.restore();}
+});
+
+
+test('inventory statistics in chat still reach AI instead of reusing the former local stats shortcut',async()=>{
+ const m=fixture(),u=userEvent.setup({delay:null});
+ sessionStorage.setItem('cat-finder-only-v1:sales:101',JSON.stringify({at:Date.now(),context:{task:'match',cat_ids:[cats[0].id],need:'找布偶猫',excluded_ids:[]},messages:[{role:'assistant',text:'旧筛选统计',result:{kind:'inventory',matched_ids:['#'+cats[0].id],stats:{total:100,eligible:10,female:2,male:8}}}],result:null}));
+ try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'为什么符合条件的母猫这么少？'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));await waitFor(()=>assert.equal(m.calls.length,1));assert.equal(m.calls[0].action,'cat_only');assert.ok(m.calls[0].conversation.some(row=>row.text==='旧筛选统计'));assert.equal(document.body.textContent.includes('根据上一次找猫筛选记录'),false);
+ }finally{cleanup();m.restore();}
+});
+
+test('mixed AI answers display both selected cats and handbook sources with one-turn charging disclosure',async()=>{
+ const m=fixture(),base=globalThis.fetch,u=userEvent.setup({delay:null});
+ globalThis.fetch=(path,options={})=>path==='/api/ai/ask'?Response.json({success:true,user:{id:101,sales_name:'测试销售',remaining:19,daily_limit:20,retry_after:0},data:{kind:'inventory',used_ai:true,model_calls:2,matched_ids:['#'+cats[0].id],reply_text:'已从库存选出合适猫咪。付款安排应先确认库存与费用，再按手册流程处理。',cat_context:{cat_ids:[cats[0].id],need:'选一只布偶猫',excluded_ids:[]},sources:[{title:'成交和下单',manual:'基础与成交手册',href:'/guide/#deal'}]}}):base(path,options);
+ try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'选一只布偶猫，顺便说说钱该先给谁'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));const dialog=await screen.findByRole('dialog',{name:'智能找猫 · 对话'});
+ await within(dialog).findByText('在售猫咪查询结果');assert.equal(dialog.querySelectorAll('.sales-ai-cat').length,1);assert.ok(within(dialog).getByText('手册出处'));assert.equal(within(dialog).getByRole('link').getAttribute('href'),'/guide/#deal');assert.ok(within(dialog).getByText(/本轮计入1次额度/));
+ }finally{cleanup();m.restore();}
+});
+
+
+test('an AI answer with no retrieved section is labelled as missing evidence rather than a sourced answer',async()=>{
+ const m=fixture(),base=globalThis.fetch,u=userEvent.setup({delay:null});
+ globalThis.fetch=(path,options={})=>path==='/api/ai/ask'?Response.json({success:true,user:{id:101,sales_name:'测试销售',remaining:19,daily_limit:20,retry_after:0},data:{kind:'handbook',used_ai:true,model_calls:2,matched_ids:[],reply_text:'当前资料没有写明这项特殊安排，需要向负责人核实。',sources:[],needs_confirmation:true}}):base(path,options);
+ try{mount();await ready();fireEvent.change(screen.getByLabelText('客户选猫需求'),{target:{value:'那种特殊情况也能办吗？'}});await u.click(screen.getByRole('button',{name:'发送客户需求'}));const dialog=await screen.findByRole('dialog',{name:'智能找猫 · 对话'});await within(dialog).findByText('资料情况');assert.equal(within(dialog).queryByText('手册出处'),null);assert.ok(within(dialog).getByText(/AI未查到明确手册依据/));assert.equal(within(dialog).queryAllByRole('link').length,0);
  }finally{cleanup();m.restore();}
 });
