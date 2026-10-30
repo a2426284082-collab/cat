@@ -10,3 +10,13 @@
 .care-intro,.care-accordions summary,.care-accordions details>p,.gentle-ending p,.gentle-ending small{color:#79624e}
 .proposal-footer,.proposal-footer>p,.contact-dock small{color:#796650}
 .contact-dock strong{color:#5c422e}
+
+/* Fast-share: avoid video network until clicked; stock check never blocks the page. */
+.inventory-check{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap}
+.inventory-check-label{flex:0 1 auto}
+.stock-refresh-button{border:1px solid #c9b7a5;background:#fffaf5;color:#6e5842;padding:5px 10px;border-radius:999px;font-size:11px;white-space:nowrap}
+.video-play-button{position:absolute;right:14px;bottom:50px;z-index:3;min-height:42px;border:1px solid #ffffffb0;border-radius:24px;background:#5d493ccc;color:white;padding:9px 15px;font-size:13px;box-shadow:0 3px 10px #0003}
+.video-play-button:disabled{opacity:.65;cursor:not-allowed}
+.video-play-button[hidden]{display:none}
+.cat-media>video{z-index:4;background:#201914}
+@media(prefers-reduced-motion:reduce){.video-play-button{transition:none}}

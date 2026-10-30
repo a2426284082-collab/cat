@@ -14,7 +14,7 @@ async function fixture(t){
  const env={SALES_DB:db,FEISHU_APP_ID:crypto.randomUUID(),FEISHU_APP_SECRET:'secret',FEISHU_APP_TOKEN:'base',FEISHU_TABLE_ID:'table'};
  let unavailable=false,rows=[{fields:{'猫咪ID':'A1','状态':'在售','品种':'布偶','性别':'母','年龄':3,'价格':1200,'描述':'内部供货1200不得外传','疫苗':'两针','图片':[{file_token:'photo_a'}],'视频':[{file_token:'video_a',name:'内部底价1200.mp4'}]}},{fields:{'猫咪ID':'A2','状态':'在售','品种':'英短','价格':900,'图片':[{file_token:'photo_b'}]}}];
  const oldFetch=globalThis.fetch;let models=0,reads=0;
- globalThis.fetch=async url=>{if(String(url).includes('deepseek')){models++;throw new Error('Must not call model');}if(String(url).includes('tenant_access_token'))return Response.json({code:0,tenant_access_token:'token',expire:7200});if(String(url).includes('/records')){reads++;if(unavailable)throw new Error('Upstream failure with secret');return Response.json({code:0,data:{items:rows,has_more:false}});}throw new Error('Unexpected upstream');};
+ globalThis.fetch=async url=>{if(String(url).includes('deepseek')){models++;throw new Error('Must not call model');}if(String(url).includes('tenant_access_token'))return Response.json({code:0,tenant_access_token:'token',expire:7200});if(String(url).includes('/medias/photo_a/download')||String(url).includes('/medias/photo_b/download'))return new Response(Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,0]),{headers:{'Content-Type':'image/png'}});if(String(url).includes('/records')){reads++;if(unavailable)throw new Error('Upstream failure with secret');return Response.json({code:0,data:{items:rows,has_more:false}});}throw new Error('Unexpected upstream');};
  t.after(()=>{globalThis.fetch=oldFetch;db.close();});
  const run=(path,{method='GET',body,auth=a,headers={}}={})=>worker.fetch(new Request(origin+path,{method,headers:{'CF-Connecting-IP':'192.0.2.77',...(body?{Origin:origin,'Content-Type':'application/json'}:{}),...(auth?{Cookie:cookie(auth.token).split(';')[0]}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})}),env,{waitUntil(){}});
  const save=async(auth=a,extra={})=>{const res=await run('/api/agent/profile',{method:'PUT',auth,body:{name:auth===a?'小满':'小李',brand:'选猫工作室',wechat:'demo-agent',default_markup:600,...extra}});assert.equal(res.status,200,await res.clone().text());return (await res.json()).data;};
@@ -28,10 +28,25 @@ test('activated agents create real random links without AI quota/cooldown and cu
  const before=(await f.db.prepare('SELECT id,used_today,last_call_timestamp FROM sales_keys ORDER BY id').all()).results;
  const quote=await f.create({...f.input(),owner_id:999,base:1,wechat:'forged',items:[{id:'A1',price:1800,base:1},{id:'A2',price:1500}]});assert.match(quote.url,/^\/p\/[A-Za-z0-9_-]{24}$/);
  const res=await f.run('/api/proposals/'+quote.id,{auth:null});assert.equal(res.status,200);assert.match(res.headers.get('cache-control'),/no-store/);const data=(await res.json()).data;
- assert.equal(data.advisor.wechat,'demo-agent');assert.equal(data.cats[0].price,1800);assert.equal(data.cats[0].stock,'available');assert.ok(data.inventory_checked_at);
+ assert.equal(data.advisor.wechat,'demo-agent');assert.equal(data.cats[0].price,1800);assert.equal(data.cats[0].stock,'unknown');assert.equal(data.inventory_checked_at,null);
+ const stock=(await(await f.run('/api/proposals/'+quote.id+'/stock',{auth:null})).json()).data;assert.equal(stock.cats[0].stock,'available');assert.ok(stock.inventory_checked_at);
  const text=JSON.stringify(data);assert.doesNotMatch(text,/1200|内部|forged|owner_id|request_key|costPrice|default_markup|进货/);assert.deepEqual(data.cats[0].videos,[{url:'/api/public-videos/video_a'}]);
  f.rows[0].fields['价格']=9900;const later=(await(await f.run('/api/proposals/'+quote.id,{auth:null})).json()).data;assert.equal(later.cats[0].price,1800);assert.doesNotMatch(JSON.stringify(later),/9900/);
  assert.deepEqual((await f.db.prepare('SELECT id,used_today,last_call_timestamp FROM sales_keys ORDER BY id').all()).results,before);assert.equal(f.models(),0);
+});
+test('share-only photo is authorized from D1 without a Feishu catalog scan; other tokens and revoked links are denied',async t=>{
+ const f=await fixture(t);await f.save();const quote=await f.create(),base='/api/proposals/'+quote.id;
+ const snapshot=(await(await f.run(base,{auth:null})).json()).data;
+ assert.equal(snapshot.cats[0].image,base+'/photo/photo_a');
+ const readsBefore=f.reads();
+ const photo=await f.run(snapshot.cats[0].image,{auth:null});assert.equal(photo.status,200);assert.equal(photo.headers.get('content-type'),'image/png');
+ assert.equal((await photo.arrayBuffer()).byteLength,12);
+ assert.equal(f.reads(),readsBefore,'a scoped image should not require reloading all Feishu records');
+ assert.equal((await f.run(base+'/photo/private',{auth:null})).status,404);
+ assert.equal((await f.run(base+'/photo/photo_b',{auth:null})).status,200);
+ await f.run('/api/agent/proposals/'+quote.id+'/revoke',{method:'POST',body:{}});
+ assert.equal((await f.run(base+'/photo/photo_a',{auth:null})).status,410);
+ assert.equal((await f.run(base+'/stock',{auth:null})).status,410);
 });
 test('anonymous catalog never returns partner prices, descriptions, or attachment filenames; agent catalog requires activated identity',async t=>{
  const f=await fixture(t);const publicData=await(await f.run('/api/public-cats',{auth:null})).json();assert.doesNotMatch(JSON.stringify(publicData),/1200|900|内部|price|description|name/);
@@ -56,16 +71,26 @@ test('QR keeps original bytes, old proposals keep the original advisor snapshot,
  assert.equal((await f.run(profile.qr_url,{auth:f.b})).status,404);
  f.db.sql.exec(`UPDATE sales_proposals SET expires_at=${nowSeconds()-1}`);assert.equal((await f.run(data.advisor.qr_url,{auth:null})).status,410);
 });
-test('fresh stock rejects a sold cat at creation; later stock is live, failed stock checks are explicit unknown',async t=>{
- const f=await fixture(t);await f.save();const quote=await f.create();f.rows[0].fields['状态']='已售';
- const sold=(await(await f.run('/api/proposals/'+quote.id,{auth:null})).json()).data;assert.equal(sold.cats[0].stock,'unavailable');assert.equal(sold.cats[0].price,1800);
+test('customer HTML data loads immediately from D1; stock is verified separately, errors never claim availability',async t=>{
+ const f=await fixture(t);await f.save();const quote=await f.create();const readsBefore=f.reads();
+ const page=(await(await f.run('/api/proposals/'+quote.id,{auth:null})).json()).data;
+ assert.equal(f.reads(),readsBefore,'initial customer response must not contact Feishu');
+ assert.equal(page.cats[0].stock,'unknown');assert.equal(page.inventory_checked_at,null);
+ f.rows[0].fields['状态']='已售';f.env.FEISHU_TABLE_ID='updated-table';
+ const sold=(await(await f.run('/api/proposals/'+quote.id+'/stock',{auth:null})).json()).data;
+ assert.equal(sold.cats[0].stock,'unavailable');assert.ok(sold.inventory_checked_at);
+ assert.equal(page.cats[0].price,1800);
  assert.equal((await f.run('/api/agent/proposals',{method:'POST',body:f.input()})).status,409);
- f.setDown(true);const unknown=(await(await f.run('/api/proposals/'+quote.id,{auth:null})).json()).data;assert.equal(unknown.cats[0].stock,'unknown');assert.equal(unknown.inventory_checked_at,null);
+ f.setDown(true);f.env.FEISHU_TABLE_ID='offline-table';
+ assert.equal((await f.run('/api/proposals/'+quote.id+'/stock',{auth:null})).status,503);
+ const stillReadable=(await(await f.run('/api/proposals/'+quote.id,{auth:null})).json()).data;
+ assert.equal(stillReadable.cats[0].stock,'unknown');assert.equal(stillReadable.inventory_checked_at,null);
  assert.equal((await f.run('/api/agent/proposals',{method:'POST',body:f.input()})).status,503);
 });
 test('a changed upstream partner price requires reconfirmation and revocation during a stock read wins',async t=>{
  const f=await fixture(t);await f.save();const checked={...f.input(),items:[{id:'A1',price:1800,expected_base:1100}]};assert.equal((await f.run('/api/agent/proposals',{method:'POST',body:checked})).status,409);
- const quote=await f.create();const fetch=globalThis.fetch;globalThis.fetch=async(url,options)=>{if(String(url).includes('/records'))await f.db.prepare('UPDATE sales_proposals SET revoked_at=? WHERE id=?').bind(nowSeconds(),quote.id).run();return fetch(url,options);};
+ const quote=await f.create();f.env.FEISHU_TABLE_ID='different-table';const fetch=globalThis.fetch;globalThis.fetch=async(url,options)=>{if(String(url).includes('/records'))await f.db.prepare('UPDATE sales_proposals SET revoked_at=? WHERE id=?').bind(nowSeconds(),quote.id).run();return fetch(url,options);};
+ assert.equal((await f.run('/api/proposals/'+quote.id+'/stock',{auth:null})).status,410);
  assert.equal((await f.run('/api/proposals/'+quote.id,{auth:null})).status,410);
 });
 test('idempotent concurrent submission stores one quote, changed retry body fails and disabled agents invalidate public links',async t=>{

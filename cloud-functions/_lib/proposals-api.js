@@ -1,12 +1,13 @@
 import {randomBytes} from 'node:crypto';
 import {database,resolveSession,isGuest,digest,fail,rateLimit,nowSeconds} from './sales-store.js';
 import {checkKeyExpiry,readWorkbench} from './workbench-control.js';
-import {getCatalog} from './feishu.js';
+import {getCatalog,getImage} from './feishu.js';
 
 const TOKEN=/^[A-Za-z0-9_-]{24}$/;
 const headers={'Cache-Control':'private, no-store','Content-Type':'application/json; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'};
 const json=(value,status=200,extra={})=>Response.json(value,{status,headers:{...headers,...extra}});
 const norm=value=>String(value??'').replace(/^#+/,'').trim().toUpperCase();
+const snapshotImageToken=value=>/^\/api\/public-images\/([A-Za-z0-9_-]{1,200})$/.exec(String(value||''))?.[1]||null;
 function text(value,max,label,required=false){if(typeof value!=='string'||value.length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))throw fail(`${label}格式无效`);const result=value.trim();if(required&&!result)throw fail(`请填写${label}`);return result;}
 function money(value,label='售价'){if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>1000000||Math.abs(value*100-Math.round(value*100))>1e-6)throw fail(`${label}须为0至1000000元，最多两位小数`);return Math.round(value*100)/100;}
 function methods(request,allowed){if(!allowed.includes(request.method))throw fail('请求方法不支持',405,{allow:allowed.join(', ')});}
@@ -79,25 +80,68 @@ async function activeProposal(db,id){
  if(!row)throw fail('方案不存在或已失效',404);if(row.revoked_at||row.expires_at<=nowSeconds())throw fail('这份方案已撤回或到期，请联系顾问',410);
  try{await checkKeyExpiry(db,row.owner_id);}catch{throw fail('这份方案暂不可用，请联系顾问',410);}return row;
 }
-async function publicRead(db,env,id){const row=await activeProposal(db,id),saved=JSON.parse(row.cats_json),profile=JSON.parse(row.profile_json);let catalog=null;
- try{catalog=await freshCatalog(env);}catch{} // Return an explicit unknown state; never relabel stale data as current stock.
- await activeProposal(db,id);const map=catalog?catalogMap(catalog.cats):null;
+// Client-facing content is a D1 snapshot. Do not block the first paint on Feishu.
+// Availability is always explicitly unknown until /stock verifies it.
+async function publicRead(db,id){
+ const row=await activeProposal(db,id),saved=JSON.parse(row.cats_json),profile=JSON.parse(row.profile_json);
  return {id:row.id,customer_name:row.customer_name,note:row.note,created_at:row.created_at,expires_at:row.expires_at,
   advisor:{name:profile.name,brand:profile.brand,wechat:profile.wechat,qr_url:profile.qr_id?`/api/proposals/${id}/qr`:null},
-  inventory_checked_at:catalog?nowSeconds():null,
-  cats:saved.map(c=>({...c,stock:map?(map.get(norm(c.id))?'available':'unavailable'):'unknown'})),
+  inventory_checked_at:null,
+  cats:saved.map(c=>({...c,image:snapshotImageToken(c.image)?`/api/proposals/${id}/photo/${snapshotImageToken(c.image)}`:null,stock:'unknown'})),
   notices:[{title:'健康与记录',text:'疫苗资料按已录入信息展示，检测记录、健康协议范围和售后条件请在付款前与顾问逐项确认。'},
    {title:'报价与预留',text:'报价在标注期限内有效，打开页面不会锁定猫咪。定金金额、预留及交接条件请先与顾问确认。'},
    {title:'运输与费用',text:'运输方式、费用和接猫时间需根据城市与实际安排确认，页面售价不默认包含运费。'}]};
 }
+// Lightweight, separately requested verification. Keep the cache in getCatalog:
+// forcing a fresh full-table Feishu crawl on every customer page view was the
+// primary cause of 10-20 second blank pages and upstream request spikes.
+async function publicStock(db,env,id){
+ const row=await activeProposal(db,id);
+ const saved=JSON.parse(row.cats_json);
+ let catalog;
+ try{catalog=await getCatalog(env);}catch{throw fail('库存暂时无法核验，请联系顾问确认最新状态',503);}
+ await activeProposal(db,id);
+ const map=catalogMap(catalog.cats),checked=Math.floor(new Date(catalog.updatedAt).getTime()/1000);
+ return {inventory_checked_at:Number.isFinite(checked)?checked:nowSeconds(),
+  cats:saved.map(c=>({id:c.id,stock:map.get(norm(c.id))?'available':'unavailable'}))};
+}
+
+
+// Scoped photo URL: an image token must belong to this exact saved proposal.
+// This skips the slow full-table Feishu catalog lookup in /api/public-images.
+// The share's active/revoked/expired check happens BEFORE the edge cache lookup.
+async function publicPhoto(db,env,request,id,photoToken,waitUntil){
+ if(!/^[A-Za-z0-9_-]{1,200}$/.test(photoToken))throw fail('图片不存在',404);
+ const row=await activeProposal(db,id);
+ const cats=JSON.parse(row.cats_json);
+ if(!cats.some(c=>snapshotImageToken(c.image)===photoToken))throw fail('图片不存在',404);
+ const scope=JSON.stringify([env.FEISHU_APP_ID,env.FEISHU_APP_SECRET,env.FEISHU_APP_TOKEN]);
+ const keyBytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scope));
+ const keyHash=Array.from(new Uint8Array(keyBytes),b=>b.toString(16).padStart(2,'0')).join('');
+ const url=new URL(request.url);url.pathname=`/.internal-cache/share-photo/v1/${keyHash}/${photoToken}`;url.search='';
+ const key=new Request(url),cache=globalThis.caches?.default;
+ let hit=null;try{hit=await cache?.match(key);}catch{}
+ if(hit)return new Response(hit.body,{status:200,headers:{'Content-Type':hit.headers.get('Content-Type')||'image/jpeg','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, noimageindex'}});
+ let image;try{image=await getImage(env,photoToken);}catch{throw fail('猫咪照片暂时无法读取',503);}
+ const responseHeaders={'Content-Type':image.type,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, noimageindex'};
+ if(cache){
+  const saved=new Response(image.bytes,{headers:{...responseHeaders,'Cache-Control':'public, max-age=21600'}});
+  const work=cache.put(key,saved).catch(()=>{});
+  if(waitUntil)waitUntil(work);else await work;
+ }
+ return new Response(image.bytes,{status:200,headers:responseHeaders});
+}
+
 async function qrResponse(db,owner,id){const row=id?await db.prepare('SELECT mime,data FROM sales_proposal_qr WHERE id=? AND owner_id=?').bind(id,owner).first():null;if(!row)return new Response(null,{status:404,headers:{'Cache-Control':'no-store'}});const bytes=Array.isArray(row.data)?Uint8Array.from(row.data):ArrayBuffer.isView(row.data)?new Uint8Array(row.data.buffer,row.data.byteOffset,row.data.byteLength):row.data instanceof ArrayBuffer?new Uint8Array(row.data):null;if(!bytes)throw fail('二维码暂时无法读取',503);return new Response(bytes,{headers:{...headers,'Content-Type':row.mime,'Content-Security-Policy':"default-src 'none'",'Content-Disposition':'inline','Content-Length':String(bytes.byteLength)}});}
-export async function handleProposals({request,env}){
+export async function handleProposals({request,env,waitUntil}){
  try{
-  const path=new URL(request.url).pathname.replace(/\/$/,''),db=database(env),publicMatch=/^\/api\/proposals\/([^/]+)(\/qr)?$/.exec(path);
+  const path=new URL(request.url).pathname.replace(/\/$/,''),db=database(env),publicMatch=/^\/api\/proposals\/([^/]+)(\/qr|\/stock)?$/.exec(path),photoMatch=/^\/api\/proposals\/([A-Za-z0-9_-]{24})\/photo\/([A-Za-z0-9_-]{1,200})$/.exec(path);
   const write=!['GET','HEAD'].includes(request.method),body=write?await bodyJson(request,path==='/api/agent/profile'?450000:12000):{};
+  if(photoMatch){methods(request,['GET','HEAD']);await rateLimit(db,`proposal-public:${digest(request.headers.get('cf-connecting-ip')||'unknown').slice(0,24)}`,120,60);return await publicPhoto(db,env,request,photoMatch[1],photoMatch[2],waitUntil);}
   if(publicMatch){methods(request,['GET','HEAD']);await rateLimit(db,`proposal-public:${digest(request.headers.get('cf-connecting-ip')||'unknown').slice(0,24)}`,120,60);const id=publicMatch[1];
-   if(publicMatch[2]){const row=await activeProposal(db,id),profile=JSON.parse(row.profile_json);return qrResponse(db,row.owner_id,profile.qr_id);}
-   return json({success:true,data:await publicRead(db,env,id)});
+   if(publicMatch[2]==='/qr'){const row=await activeProposal(db,id),profile=JSON.parse(row.profile_json);return qrResponse(db,row.owner_id,profile.qr_id);}
+   if(publicMatch[2]==='/stock')return json({success:true,data:await publicStock(db,env,id)});
+   return json({success:true,data:await publicRead(db,id)});
   }
   const user=await agent(db,request,body);
   if(write)await rateLimit(db,`proposal-write:${user.id}`,40,60);

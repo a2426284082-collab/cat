@@ -85,7 +85,7 @@ export default {
   async fetch(request, env, ctx) {
     const pathname = new URL(request.url).pathname;
     if(pathname.startsWith('/api/agent/')||pathname.startsWith('/api/proposals/')){
-      const response=await handleProposals({request:platformRequest(request),env});
+      const response=await handleProposals({request:platformRequest(request),env,waitUntil:promise=>ctx.waitUntil(promise)});
       if(request.method==='HEAD'){await response.body?.cancel();return new Response(null,{status:response.status,headers:response.headers});}
       return response;
     }

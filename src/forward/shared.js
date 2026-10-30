@@ -2,7 +2,7 @@ export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<
 export const money=value=>new Intl.NumberFormat('zh-CN',{maximumFractionDigits:2}).format(value);
 export const day=offset=>new Date(Date.now()+8*3600e3+(offset||0)*86400e3).toISOString().slice(0,10);
 export const dateLabel=seconds=>new Date((seconds+8*3600)*1000).toISOString().slice(0,10);
-export const safeMedia=value=>typeof value==='string'&&/^\/api\/public-(?:images|videos)\/[A-Za-z0-9_-]{1,200}$/.test(value)?value:null;
+export const safeMedia=value=>typeof value==='string'&&(/^\/api\/public-(?:images|videos)\/[A-Za-z0-9_-]{1,200}$/.test(value)||/^\/api\/proposals\/[A-Za-z0-9_-]{24}\/photo\/[A-Za-z0-9_-]{1,200}$/.test(value))?value:null;
 export async function api(path,{method='GET',body,timeout=30000,signal}={}){
  const abort=new AbortController(),cancel=()=>abort.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)abort.abort();const timer=setTimeout(()=>abort.abort(),timeout);
  try{const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',signal:abort.signal,headers:body?{'Content-Type':'application/json'}:{},...(body?{body:JSON.stringify(body)}:{})});const data=await response.json().catch(()=>({}));if(!response.ok||data.success===false)throw Object.assign(new Error(data.message||'请求失败，请稍后重试'),{status:response.status});return data;}
