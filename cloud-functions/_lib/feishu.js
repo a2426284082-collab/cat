@@ -259,12 +259,12 @@ function imageMagic(bytes){
  return null;
 }
 function mediaFailure(code){return Object.assign(new Error('Image source unavailable'),{code});}
-export async function getImage(envInput,fileToken){
+export async function getImage(envInput,fileToken,{timeoutMs=22500}={}){
  const env=config(envInput),token=await accessToken(env);
  let response;
  try{response=await fetch(`${FEISHU}/drive/v1/medias/${encodeURIComponent(fileToken)}/download`,{
   headers:{Authorization:`Bearer ${token}`,'Accept-Encoding':'identity'},
-  signal:AbortSignal.timeout(22500),
+  signal:AbortSignal.timeout(timeoutMs),
  });}
  catch(error){throw mediaFailure(['AbortError','TimeoutError'].includes(error?.name)?'IMAGE_TIMEOUT':'IMAGE_NETWORK');}
  if(response.status===404||response.status===410)throw mediaFailure('IMAGE_UPSTREAM_NOT_FOUND');

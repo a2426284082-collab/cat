@@ -8,6 +8,10 @@ const headers={'Cache-Control':'private, no-store','Content-Type':'application/j
 const json=(value,status=200,extra={})=>Response.json(value,{status,headers:{...headers,...extra}});
 const norm=value=>String(value??'').replace(/^#+/,'').trim().toUpperCase();
 const snapshotImageToken=value=>/^\/api\/public-images\/([A-Za-z0-9_-]{1,200})$/.exec(String(value||''))?.[1]||null;
+// A snapshot is allowed to reference only images attached to that exact cat.
+const snapshotImages=cat=>[...new Set([cat.image,...(Array.isArray(cat.images)?cat.images:[])].filter(v=>snapshotImageToken(v)))].slice(0,6);
+const savedImages=cat=>[...new Set([cat.image,...(Array.isArray(cat.images)?cat.images:[])].filter(v=>snapshotImageToken(v)))].slice(0,6);
+const photoPath=(id,source)=>{const token=snapshotImageToken(source);return token?`/api/proposals/${id}/photo/${token}`:null;};
 function text(value,max,label,required=false){if(typeof value!=='string'||value.length>max||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))throw fail(`${label}格式无效`);const result=value.trim();if(required&&!result)throw fail(`请填写${label}`);return result;}
 function money(value,label='售价'){if(typeof value!=='number'||!Number.isFinite(value)||value<0||value>1000000||Math.abs(value*100-Math.round(value*100))>1e-6)throw fail(`${label}须为0至1000000元，最多两位小数`);return Math.round(value*100)/100;}
 function methods(request,allowed){if(!allowed.includes(request.method))throw fail('请求方法不支持',405,{allow:allowed.join(', ')});}
@@ -52,11 +56,44 @@ function expiry(value){
 async function freshCatalog(env){let timer;try{return await Promise.race([getCatalog(env,{fresh:true}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('stock timeout')),20000);})]);}catch{throw fail('暂时无法核验最新猫源，请稍后重试',503);}finally{clearTimeout(timer);}}
 function catalogMap(cats){const map=new Map();for(const c of cats){const id=norm(c.id);if(!id)continue;map.set(id,map.has(id)?null:c);}return map;}
 function snapshot(cat,price){
- const image=/^\/api\/public-images\/[A-Za-z0-9_-]{1,200}$/.test(cat.image||'')?cat.image:null;
+ const images=snapshotImages(cat),image=images[0]||null;
  const videos=(cat.videos||[]).filter(v=>/^\/api\/public-videos\/[A-Za-z0-9_-]{1,200}$/.test(v.url||'')).slice(0,3).map(v=>({url:v.url}));
  // Free-form descriptions and attachment names may contain internal costs. Never copy them.
- return {id:String(cat.id),breed:String(cat.breed||'').slice(0,80),color:String(cat.color||'').slice(0,80),gender:String(cat.gender||'').slice(0,20),age:String(cat.age||'').slice(0,40),vaccine:String(cat.vaccine||'').slice(0,200),image,videos,price};
+ return {id:String(cat.id),breed:String(cat.breed||'').slice(0,80),color:String(cat.color||'').slice(0,80),gender:String(cat.gender||'').slice(0,20),age:String(cat.age||'').slice(0,40),vaccine:String(cat.vaccine||'').slice(0,200),image,images,videos,price};
 }
+
+// Check the actual first usable photo while the seller creates the share,
+// instead of leaving the customer to discover a missing/broken attachment.
+// At most two attempts per cat; this runs only on creation, never on page views.
+async function verifySharePhoto(env,cat){
+ const candidates=snapshotImages(cat);
+ if(!candidates.length)throw fail(`猫咪 #${cat.id} 没有照片，请先在飞书补充图片再分享`,409);
+ for(const source of candidates.slice(0,2)){
+  try{
+   const photo=await getImage(env,snapshotImageToken(source),{timeoutMs:8000});
+   return {cat:{...cat,image:source,images:[source,...candidates.filter(x=>x!==source)]},photo};
+  }catch{}
+ }
+ throw fail(`猫咪 #${cat.id} 的照片当前无法读取，请在飞书重新上传有效照片或换一只猫`,409);
+}
+// Share-specific edge cache may be prewarmed by the validated photo above.
+// It is never publicly readable without the proposal's active authorization.
+async function sharePhotoCacheKey(env,request,token){
+ const scope=JSON.stringify([env.FEISHU_APP_ID,env.FEISHU_APP_SECRET,env.FEISHU_APP_TOKEN]);
+ const hashed=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scope));
+ const keyHash=Array.from(new Uint8Array(hashed),b=>b.toString(16).padStart(2,'0')).join('');
+ const url=new URL(request.url);url.pathname=`/.internal-cache/share-photo/v1/${keyHash}/${token}`;url.search='';
+ return new Request(url);
+}
+async function warmSharePhotos(env,request,verified){
+ const cache=globalThis.caches?.default;if(!cache)return;
+ await Promise.all(verified.map(async ({cat,photo})=>{
+  try{const key=await sharePhotoCacheKey(env,request,snapshotImageToken(cat.image));
+   await cache.put(key,new Response(photo.bytes,{headers:{'Content-Type':photo.type,'Cache-Control':'public, max-age=21600'}}));
+  }catch{}
+ }));
+}
+
 async function existingRequest(db,user,key,hash){const row=await db.prepare('SELECT * FROM sales_proposals WHERE owner_id=? AND request_key=?').bind(user.id,key).first();if(!row)return null;if(row.request_hash!==hash)throw fail('本次提交内容已变化，请重新生成',409);if(row.revoked_at||row.expires_at<=nowSeconds())throw fail('本次提案已失效，请重新生成',409);return row;}
 async function createProposal(db,env,user,body,request){
  const name=text(body.customer_name,30,'客户可见称呼',true),note=text(body.note??'',500,'给客户的话'),until=expiry(body.expires);
@@ -66,12 +103,15 @@ async function createProposal(db,env,user,body,request){
  const hash=digest(JSON.stringify({name,note,until,items})),prior=await existingRequest(db,user,key,hash);if(prior)return prior;
  const profile=await readProfile(db,env,user);if(!profile.name||!profile.brand||!profile.wechat&&!profile.qr_id)throw fail('请先保存顾问称呼、工作室名称和联系方式');
  await rateLimit(db,`proposal-create:${user.id}`,20,60);await rateLimit(db,`proposal-day:${user.id}`,300,86400);
- const catalog=await freshCatalog(env),stock=catalogMap(catalog.cats),cats=items.map(item=>{const cat=stock.get(item.id);if(!cat)throw fail('所选猫咪已不在售或编号重复，请刷新重新选择',409);if(cat.price==null||!Number.isFinite(Number(cat.price)))throw fail('所选猫咪供货价待核实，请联系运营确认',409);if(item.expected_base!==null&&Number(cat.price)!==item.expected_base)throw fail('供货价格已变化，请返回刷新猫源并重新确认售价',409);return snapshot(cat,item.price);});
+ const catalog=await freshCatalog(env),stock=catalogMap(catalog.cats),rawCats=items.map(item=>{const cat=stock.get(item.id);if(!cat)throw fail('所选猫咪已不在售或编号重复，请刷新重新选择',409);if(cat.price==null||!Number.isFinite(Number(cat.price)))throw fail('所选猫咪供货价待核实，请联系运营确认',409);if(item.expected_base!==null&&Number(cat.price)!==item.expected_base)throw fail('供货价格已变化，请返回刷新猫源并重新确认售价',409);return snapshot(cat,item.price);});
+ // Validate photos before publishing. Fail closed instead of sending blank cat cards.
+ const verified=await Promise.all(rawCats.map(cat=>verifySharePhoto(env,cat)));
+ const cats=verified.map(x=>x.cat);
  await agent(db,request,body);
  const id=randomBytes(18).toString('base64url'),publicProfile={name:profile.name,brand:profile.brand,wechat:profile.wechat,qr_id:profile.qr_id};
  await db.prepare(`INSERT INTO sales_proposals(id,owner_id,customer_name,note,profile_json,cats_json,created_at,expires_at,request_key,request_hash)
  SELECT ?,id,?,?,?,?,?,?,?,? FROM sales_keys WHERE id=? AND status=1 AND auth_version=? ON CONFLICT(owner_id,request_key) DO NOTHING`).bind(id,name,note,JSON.stringify(publicProfile),JSON.stringify(cats),nowSeconds(),until,key,hash,user.id,user.auth_version).run();
- const row=await existingRequest(db,user,key,hash);if(!row)throw fail('代理身份已变化，请重新登录',401);return row;
+ const row=await existingRequest(db,user,key,hash);if(!row)throw fail('代理身份已变化，请重新登录',401);await warmSharePhotos(env,request,verified);return row;
 }
 function ownerSummary(row){return {id:row.id,customer_name:row.customer_name,created_at:row.created_at,expires_at:row.expires_at,revoked_at:row.revoked_at,url:`/p/${row.id}`,cats:JSON.parse(row.cats_json).map(c=>({id:c.id,breed:c.breed,price:c.price,image:c.image}))};}
 async function activeProposal(db,id){
@@ -87,7 +127,7 @@ async function publicRead(db,id){
  return {id:row.id,customer_name:row.customer_name,note:row.note,created_at:row.created_at,expires_at:row.expires_at,
   advisor:{name:profile.name,brand:profile.brand,wechat:profile.wechat,qr_url:profile.qr_id?`/api/proposals/${id}/qr`:null},
   inventory_checked_at:null,
-  cats:saved.map(c=>({...c,image:snapshotImageToken(c.image)?`/api/proposals/${id}/photo/${snapshotImageToken(c.image)}`:null,stock:'unknown'})),
+  cats:saved.map(c=>({...c,image:photoPath(id,c.image),images:savedImages(c).map(source=>photoPath(id,source)).filter(Boolean),stock:'unknown'})),
   notices:[{title:'健康与记录',text:'疫苗资料按已录入信息展示，检测记录、健康协议范围和售后条件请在付款前与顾问逐项确认。'},
    {title:'报价与预留',text:'报价在标注期限内有效，打开页面不会锁定猫咪。定金金额、预留及交接条件请先与顾问确认。'},
    {title:'运输与费用',text:'运输方式、费用和接猫时间需根据城市与实际安排确认，页面售价不默认包含运费。'}]};
@@ -114,12 +154,8 @@ async function publicPhoto(db,env,request,id,photoToken,waitUntil){
  if(!/^[A-Za-z0-9_-]{1,200}$/.test(photoToken))throw fail('图片不存在',404);
  const row=await activeProposal(db,id);
  const cats=JSON.parse(row.cats_json);
- if(!cats.some(c=>snapshotImageToken(c.image)===photoToken))throw fail('图片不存在',404);
- const scope=JSON.stringify([env.FEISHU_APP_ID,env.FEISHU_APP_SECRET,env.FEISHU_APP_TOKEN]);
- const keyBytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(scope));
- const keyHash=Array.from(new Uint8Array(keyBytes),b=>b.toString(16).padStart(2,'0')).join('');
- const url=new URL(request.url);url.pathname=`/.internal-cache/share-photo/v1/${keyHash}/${photoToken}`;url.search='';
- const key=new Request(url),cache=globalThis.caches?.default;
+ if(!cats.some(c=>savedImages(c).some(src=>snapshotImageToken(src)===photoToken)))throw fail('图片不存在',404);
+ const key=await sharePhotoCacheKey(env,request,photoToken),cache=globalThis.caches?.default;
  let hit=null;try{hit=await cache?.match(key);}catch{}
  if(hit)return new Response(hit.body,{status:200,headers:{'Content-Type':hit.headers.get('Content-Type')||'image/jpeg','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, noimageindex'}});
  let image;try{image=await getImage(env,photoToken);}catch{throw fail('猫咪照片暂时无法读取',503);}
