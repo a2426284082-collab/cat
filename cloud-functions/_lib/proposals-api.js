@@ -111,6 +111,12 @@ export async function handleProposals({request,env}){
   const revoke=/^\/api\/agent\/proposals\/([A-Za-z0-9_-]{24})\/revoke$/.exec(path);
   if(revoke){methods(request,['POST']);const result=await db.prepare('UPDATE sales_proposals SET revoked_at=COALESCE(revoked_at,?) WHERE id=? AND owner_id=? RETURNING id').bind(nowSeconds(),revoke[1],user.id).first();if(!result)throw fail('方案不存在',404);return json({success:true});}
   throw fail('接口不存在',404);
- }catch(error){if(!error.status)console.error('proposal_service_failed');return json({success:false,message:error.status?error.message:'转发服务尚未就绪，请确认已执行新增数据库迁移'},error.status||503,error.allow?{Allow:error.allow}:{});}
+ }catch(error){
+  const safeCodes=new Set(['FEISHU_TIMEOUT','FEISHU_NETWORK_ERROR','FEISHU_HTTP_ERROR','FEISHU_API_ERROR','FEISHU_INVALID_RESPONSE','FEISHU_TOKEN_MISSING','CONFIG_MISSING']);
+  const code=safeCodes.has(error?.code)?error.code:null;
+  if(!error.status)console.error('proposal_service_failed',code||'SERVICE_ERROR');
+  const message=error.status?error.message:code?'飞书猫源暂时无法读取，请稍后重试或联系管理员检查飞书连接':'代理服务暂时不可用，请管理员检查数据库连接及迁移';
+  return json({success:false,message,...(code?{code}:{}),...(code&&['auth','records'].includes(error?.stage)?{stage:error.stage}:{})},error.status||503,error.allow?{Allow:error.allow}:{});
+ }
 }
 export async function cleanupProposals(db){const before=nowSeconds()-90*86400;await db.prepare('DELETE FROM sales_proposals WHERE id IN (SELECT id FROM sales_proposals WHERE expires_at<? OR revoked_at<? LIMIT 100)').bind(before,before).run();await db.prepare(`DELETE FROM sales_proposal_qr WHERE id IN (SELECT q.id FROM sales_proposal_qr q WHERE q.created_at<? AND NOT EXISTS(SELECT 1 FROM sales_agent_profiles a WHERE a.qr_id=q.id) AND NOT EXISTS(SELECT 1 FROM sales_proposals p WHERE json_extract(p.profile_json,'$.qr_id')=q.id) LIMIT 50)`).bind(nowSeconds()-86400).run();}
