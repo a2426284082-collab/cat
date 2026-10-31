@@ -1,4 +1,4 @@
-/* Catalogue arrangement only: existing typography, colours and icons are inherited. */
+/* Catalogue arrangement and action colours; existing typography and icons are inherited. */
 .workflow-workspace .workspace-header{gap:24px}
 .catalog-header-status{margin-left:auto;min-width:0}
 .catalog-header-status[hidden]{display:none}
@@ -50,6 +50,11 @@
 .catalog-card-tools[open]>.workspace-card-actions{margin-top:8px;padding:0;display:grid}
 .catalog-card-tools .catalog-script-options{bottom:42px;left:0;right:0;text-align:left}
 .workbench-shell[data-workbench-poster=off] .sidebar-toolbox .sidebar-art-tools{display:grid}
+/* Keep actions identifiable even when the comparison button is not present. */
+.workflow-workspace .workspace-compare>button.proposal-create{background:linear-gradient(135deg,#15803D,#166534);border-color:transparent;color:#fff}
+.workflow-workspace .workspace-compare>button.proposal-create:hover:not(:disabled){background:linear-gradient(135deg,#166534,#14532D)}
+.workflow-workspace .workspace-compare>button[data-workbench-tool=poster]{background:linear-gradient(135deg,#2563EB,#1D4ED8);border-color:transparent;color:#fff}
+.workflow-workspace .workspace-compare>button[data-workbench-tool=poster]:hover:not(:disabled){background:linear-gradient(135deg,#1D4ED8,#1E40AF)}
 @media(min-width:1550px){.catalog-card-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(min-width:761px){
  .workflow-workspace .workspace-layout{grid-template-columns:232px minmax(0,1fr)}
@@ -69,6 +74,7 @@
  .workflow-workspace .workspace-breadcrumb{display:none}
 }
 @media(max-width:760px){
+ .workflow-workspace .sales-ai-heading,.workflow-workspace .sales-ai-heading h2{text-align:center}
  .workflow-workspace .workspace-header{gap:8px;flex-wrap:wrap;height:auto!important;min-height:48px;padding-top:8px!important;padding-bottom:6px!important}
  .workflow-workspace .workspace-brand{min-width:0}
  .catalog-header-status{width:100%;margin:3px 0 0}
